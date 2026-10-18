@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/jabir/Coding/My Projects/BillZen/.archify/architecture-billzen-20261018-220000/candidate.json",
+    "sha256": "6b4d3bba91363b002cdfd6602ead8c751cea7e870a80345567054884051dedb2",
+    "bytes": 4435
+  },
+  "artifact": {
+    "path": "/home/jabir/Coding/My Projects/BillZen/.archify/architecture-billzen-20261018-220000/billzen-system.html",
+    "sha256": "06b050baf11c5b01e41d7d1ea5dd438302906f532c22adb3c4e01ca0156f3eff",
+    "bytes": 758309
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/jabir/Coding/My Projects/BillZen/.archify/architecture-billzen-20261018-220000/billzen-system.finalize.json",
+    "summaryReceipt": "/home/jabir/Coding/My Projects/BillZen/.archify/architecture-billzen-20261018-220000/billzen-system.finalize-summary.json",
+    "browserCheckReceipt": "/home/jabir/Coding/My Projects/BillZen/.archify/architecture-billzen-20261018-220000/billzen-system.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "timeout"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 3014
+}

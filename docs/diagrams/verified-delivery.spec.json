@@ -1,0 +1,157 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "BillZen \u00b7 Verified section delivery",
+    "output": ".archify/workflow-delivery-20261018-220000/verified-delivery.html",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "build",
+      "label": "BUILD & VERIFY"
+    },
+    {
+      "id": "publish",
+      "label": "PUBLISH & REPORT"
+    }
+  ],
+  "mainPath": [
+    "scope",
+    "implement",
+    "verify",
+    "commit",
+    "push",
+    "ci"
+  ],
+  "nodes": [
+    {
+      "id": "scope",
+      "lane": "build",
+      "col": 0,
+      "type": "external",
+      "label": "Scope section",
+      "sublabel": "One reviewable change",
+      "width": 160
+    },
+    {
+      "id": "implement",
+      "lane": "build",
+      "col": 1,
+      "type": "backend",
+      "label": "Implement",
+      "sublabel": "Source and docs",
+      "width": 160
+    },
+    {
+      "id": "verify",
+      "lane": "build",
+      "col": 2,
+      "type": "security",
+      "label": "Verify",
+      "sublabel": "Required checks pass",
+      "width": 160
+    },
+    {
+      "id": "commit",
+      "lane": "publish",
+      "col": 2,
+      "type": "backend",
+      "label": "Commit",
+      "sublabel": "Stage exact files",
+      "width": 160
+    },
+    {
+      "id": "push",
+      "lane": "publish",
+      "col": 3,
+      "type": "messagebus",
+      "label": "Push main",
+      "sublabel": "Normal fast-forward",
+      "width": 160
+    },
+    {
+      "id": "ci",
+      "lane": "publish",
+      "col": 4,
+      "type": "security",
+      "label": "Inspect CI",
+      "sublabel": "Report actual result",
+      "width": 160
+    },
+    {
+      "id": "stop",
+      "lane": "build",
+      "col": 4,
+      "type": "security",
+      "label": "Fix / report",
+      "sublabel": "Do not claim success",
+      "width": 160
+    }
+  ],
+  "edges": [
+    {
+      "id": "scope-build",
+      "from": "scope",
+      "to": "implement"
+    },
+    {
+      "id": "build-verify",
+      "from": "implement",
+      "to": "verify"
+    },
+    {
+      "id": "pass-commit",
+      "from": "verify",
+      "to": "commit",
+      "label": "pass",
+      "variant": "emphasis"
+    },
+    {
+      "id": "commit-push",
+      "from": "commit",
+      "to": "push"
+    },
+    {
+      "id": "push-ci",
+      "from": "push",
+      "to": "ci"
+    },
+    {
+      "id": "failed-check",
+      "from": "verify",
+      "to": "stop",
+      "label": "fail",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "ci-failure",
+      "from": "ci",
+      "to": "stop",
+      "label": "failure",
+      "role": "error",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Section-sized checkpoints",
+      "items": [
+        "Complete a logical section, verify it, commit it, then push.",
+        "Each checkpoint stays independently reviewable."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "No false green",
+      "items": [
+        "A failed check stops publication of the affected section.",
+        "Report remote CI status separately from local verification."
+      ]
+    }
+  ]
+}

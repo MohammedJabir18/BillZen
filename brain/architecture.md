@@ -143,3 +143,7 @@ flowchart TD
    - Portable Node runner `scripts/run_native_probe.js` isolates SQLite lifecycle to clean temporary directories across POSIX, macOS, and Windows.
 
 
+
+
+## Independent M3 review — upgrade caveat (2026-10-18)
+The V5 category index currently fails on V4 data containing valid case variants such as `Groceries` and `groceries`. Startup propagates the migration error. M3 closure requires a data-preserving upgrade policy and regression coverage; see `docs/reviews/2026-10-18-m3-review.md`. No migration behavior was changed by the README/license task.

@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "BillZen \u00b7 Local-first working flow",
+    "output": ".archify/architecture-billzen-20261018-220000/billzen-system.html",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "repository": {
+      "url": "https://github.com/MohammedJabir18/BillZen.git",
+      "revision": "a116ac0e984c59a80684d5964476f989d1edabce"
+    }
+  },
+  "components": [
+    {
+      "id": "interface",
+      "type": "frontend",
+      "label": "React interface",
+      "sublabel": "Catalog and settings",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/App.tsx",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "adapter",
+      "type": "frontend",
+      "label": "Runtime adapter",
+      "sublabel": "Desktop / browser branch",
+      "pos": [
+        390,
+        70
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/adapters/tauri.ts",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "id": "commands",
+      "type": "security",
+      "label": "Tauri commands",
+      "sublabel": "Scoped invoke permissions",
+      "pos": [
+        740,
+        70
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src-tauri/src/lib.rs",
+          "line": 87
+        }
+      ]
+    },
+    {
+      "id": "print",
+      "type": "frontend",
+      "label": "A4 document",
+      "sublabel": "HTML and print CSS",
+      "pos": [
+        40,
+        290
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/components/PrintableInvoiceDocument.tsx",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "mock",
+      "type": "frontend",
+      "label": "Browser mock",
+      "sublabel": "In-memory demo only",
+      "pos": [
+        390,
+        290
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/adapters/tauri.ts",
+          "line": 68
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Rust DB worker",
+      "sublabel": "Validate and serialize writes",
+      "pos": [
+        740,
+        290
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src-tauri/src/db/worker.rs",
+          "line": 614
+        }
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "Local SQLite",
+      "sublabel": "Transactions and migrations",
+      "pos": [
+        1090,
+        290
+      ],
+      "size": [
+        220,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src-tauri/src/db/mod.rs",
+          "line": 32
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ui-adapter",
+      "from": "interface",
+      "to": "adapter",
+      "label": "typed call",
+      "variant": "emphasis"
+    },
+    {
+      "id": "desktop-ipc",
+      "from": "adapter",
+      "to": "commands",
+      "label": "desktop invoke",
+      "variant": "security"
+    },
+    {
+      "id": "print-model",
+      "from": "interface",
+      "to": "print",
+      "label": "document model"
+    },
+    {
+      "id": "browser-only",
+      "from": "adapter",
+      "to": "mock",
+      "label": "browser only",
+      "variant": "dashed"
+    },
+    {
+      "id": "worker-request",
+      "from": "commands",
+      "to": "worker",
+      "label": "queued request"
+    },
+    {
+      "id": "sqlite-write",
+      "from": "worker",
+      "to": "sqlite",
+      "label": "SQLite transaction",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Desktop persistence",
+      "items": [
+        "Rust owns the SQLite connection.",
+        "Opening stock and its movement commit together."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Clear runtime boundary",
+      "items": [
+        "Browser preview uses disposable in-memory data.",
+        "Native UI / IPC coverage remains separate work."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Current scope",
+      "items": [
+        "Catalog foundation implemented; invoicing is next.",
+        "V5 migration needs legacy-duplicate handling."
+      ]
+    }
+  ]
+}

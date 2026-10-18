@@ -208,3 +208,15 @@
 - **Pending Tasks / Immediate Next Steps**:
   - Milestone 4A (M4A): Draft invoice management vertical slice (customer selection, product search/barcode scanner, validated totals arithmetic, draft saving and restoring without stock decrements).
 
+
+
+## 2026-10-18 — MIT, visual README and project documentation
+- User authorized MIT licensing, premium visual README, profile/contact/support links, Archify working-flow diagrams and commit/push checkpoints for every completed logical section. Repository remains private.
+- MIT LICENSE and npm/Cargo metadata added; font notices preserved. License section committed/pushed as `c814678`, including the prior Antigravity commit `a116ac0`.
+- Created custom vector hero, current synthetic browser screenshot GIF/gallery, theme-aware source-backed Archify architecture preview and a verified-delivery workflow. Both Archify showcase finalizers and browser gates passed; rendered captures inspected. Published diagrams preserve the pinned source revision and artifact bytes.
+- Added product requirements, technical design/decision register, README media research/provenance, M3 independent review and next Antigravity task. Persisted section-level commit/push instructions in AGENTS.md.
+- Fresh checks: 14 frontend tests, 38 Rust tests, production build, six catalog browser steps, four PDF scenarios and portable native persistence probe passed.
+- Independent source review and in-memory SQL reproduction confirmed a high-priority V4→V5 category collision migration failure. Recorded M3.1 as next; M4A remains after that correction. No product runtime behavior modified.
+- Remaining: legacy-data migration correction, native UI/IPC coverage and platform/device acceptance.
+- Remote CI inspection: run 39144580607 at `c814678` passed Rust/unit/build/catalog but failed the long-text PDF required-string assertion. Logged exact failure and artifact link without assuming root cause. Added a separate diagnostic section to the Antigravity handoff.
+- Full Graphify refresh still needs an unconfigured LLM key; code-only refresh succeeded (502 nodes, 875 edges) with the existing optional SQL parser warning.

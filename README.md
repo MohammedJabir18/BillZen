@@ -1,160 +1,231 @@
-# BillZen
+<div align="center">
 
-**Offline-first billing, inventory and mini-CRM for small businesses.**
+<img src="docs/brand/billzen-hero.svg" alt="BillZen — Your business. In your hands. Offline-first billing, inventory and CRM." width="100%" />
 
-BillZen is being built for retail shops, freelancers and small businesses in India and the GCC. Its desktop foundation combines a React interface, a Rust application core and a local SQLite database. Everyday business operations are intended to work without a cloud account or internet connection.
+<br />
 
-> **Development preview · v0.1.0.** This repository contains the foundation and catalog milestone, not a finished billing product. Invoice persistence workflows, payments, backups and statutory e-invoicing integrations still require implementation. Use synthetic data during development.
+**An independent workspace for the business you run.**
 
-![BillZen product catalog — browser demonstration with synthetic data](docs/assets/catalog-products.png)
+Local data. Exact money. An offline-first foundation for India & the GCC.
 
-## Current capabilities
+[![CI: View runs](https://img.shields.io/badge/CI-View_runs-79dce8?style=flat-square&labelColor=111c24)](https://github.com/MohammedJabir18/BillZen/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-c9ff79?style=flat-square&labelColor=111c24)](LICENSE) [![Stage: Preview](https://img.shields.io/badge/Stage-Development_preview-b7a4ff?style=flat-square&labelColor=111c24)](docs/roadmap.md) [![Desktop: Tauri 2](https://img.shields.io/badge/Desktop-Tauri_2-79dce8?style=flat-square&labelColor=111c24)](src-tauri/Cargo.toml)
 
-| Area | Current state |
-| --- | --- |
-| Desktop foundation | Tauri application, startup database checks, advisory instance lock and scoped IPC capabilities |
-| Local storage | Bundled SQLite, migration checksums, foreign keys, WAL and full synchronous mode |
-| Products and customers | Create, edit, archive, restore, search, barcode lookup and categories |
-| Inventory foundation | Opening-stock transaction and stock movement schema; reconciliation gaps remain |
-| Money | Integer minor units, scaled quantities and checked calculations in TypeScript and Rust |
-| Regional foundation | INR, AED, SAR, QAR, KWD, BHD and OMR currency/exponent validation; English, Malayalam and Arabic interface resources |
-| Print foundation | Reusable A4 document component and four automated browser PDF scenarios |
-| Invoice/payment/expense schema | Present; complete user-facing business workflows are pending |
-| Windows, macOS, Android and iOS | Targets in the roadmap; no verified release packages in this repository |
-| Web application | Browser demonstration uses in-memory mocks; durable web storage is pending |
-| Backup, encryption and cloud sync | Planned; database is currently unencrypted |
+**[Explore the product](#-see-it-in-motion) · [Start building](#-run-it-locally) · [Read the architecture](#-inside-billzen) · [Meet the maker](#-built-by-mohammed-jabir)**
 
-**Browser preview is not the desktop database.** `npm run dev` opens a demonstration adapter using process-local JavaScript data. Restarting/reloading it can discard edits. `npm run tauri dev` runs the native SQLite-backed application.
+</div>
 
-## Technology
+---
 
-- **Application shell:** Tauri 2 with Rust (2021 edition).
-- **Interface:** React 19, TypeScript, Vite, Tailwind CSS and Lucide icons.
-- **Client state:** React state and TanStack Query; Zustand is installed for future use.
-- **Database:** SQLite bundled through `rusqlite`; database access belongs to Rust.
-- **Verification:** Vitest, Cargo tests, Playwright and Poppler PDF inspection.
-- **Documents:** React/HTML and print CSS; no cloud PDF service.
+## ✦ Small business. Full ownership.
 
-The checked-in `package-lock.json` and `src-tauri/Cargo.lock` define resolved dependencies. See [development](docs/development.md) before upgrading. The repository does not claim that its selected versions are the newest available releases.
+The shop counter should keep moving when the internet stops. Your catalog, customers and business records should stay within reach.
 
-## Getting started
+**BillZen** is an offline-first desktop application in development for retail shops, freelancers and small businesses. It brings a Rust core, a React interface and a local SQLite database together, with billing, inventory and customer relationships as its product direction.
 
-Install Node.js 22.12+ within the 22 series, npm, a compatible stable Rust toolchain and the native dependencies for your operating system. The current automation runs on Ubuntu; other targets need their own validation.
+<table>
+<tr>
+<td width="33%"><strong>◈ Local at the core</strong><br /><br />Native catalog operations persist in SQLite. No cloud account is needed for the implemented local workflows.</td>
+<td width="33%"><strong>⌁ Exact by design</strong><br /><br />Integer minor units, scaled quantities and checked calculations form the financial foundation.</td>
+<td width="33%"><strong>↗ Room to grow</strong><br /><br />A shared Rust/React foundation, with desktop validation first and standalone mobile/web persistence on the roadmap.</td>
+</tr>
+</table>
 
-On Debian/Ubuntu, the native development packages used by this project's CI are:
+> [!IMPORTANT]
+> **v0.1.0 is a development preview.** Catalog and financial foundations are implemented; complete invoice, payment and backup workflows are still ahead. A legacy-category migration issue must be resolved before M3 is considered closed. Use synthetic data. [Current verification & known issues →](docs/verification-status.md)
 
-```sh
-sudo apt-get update
-sudo apt-get install --no-install-recommends libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-```
+## 🎬 See it in motion
 
-Clone and install the locked frontend dependencies:
+<img src="docs/assets/billzen-tour.gif" alt="Animated browser tour: products, customers, Malayalam interface and Arabic right-to-left mode." width="100%" />
+
+<sub>A looping tour assembled from fresh automated browser screenshots. Synthetic demo records; the browser adapter uses in-memory data. This is not a recording of native SQLite persistence. [Static screenshot →](docs/assets/catalog-products.png)</sub>
+
+<details>
+<summary><strong>Open the screenshot gallery</strong></summary>
+
+### Catalog workspace
+
+![Product catalog with synthetic data](docs/assets/catalog-products.png)
+
+### Customer workspace
+
+![Customer catalog with synthetic data](docs/assets/catalog-customers.png)
+
+### Arabic interface
+
+![Arabic right-to-left browser demonstration](docs/assets/catalog-arabic.png)
+
+</details>
+
+## 🧭 What works today
+
+| Area | Implemented foundation | Still ahead |
+| :--- | :--- | :--- |
+| **Catalog** | Products, customers, categories, search, archive/restore and barcode lookup | Variants, vendor workflows and large-catalog performance validation |
+| **Inventory** | Tracked opening stock + ledger transaction; quantity bounds and tracking-transition checks | Sale/restock workflows and complete reconciliation tooling |
+| **Financial core** | Checked Rust/TypeScript arithmetic, currency/exponent validation and document models | Persisted draft/finalize invoice workflow and payment allocation UI |
+| **Regional UX** | English, Malayalam and Arabic resources; RTL mode; INR + six GCC currencies | Full translation/input acceptance and jurisdiction-specific tax adapters |
+| **Documents** | Reusable A4 component and four automated Chromium/Chrome PDF fixtures | Native export parity, physical printer validation and 80 mm/58 mm layouts |
+| **Local platform** | Rust worker, SQLite migrations, startup checks and advisory instance lock | Safe backup/restore, encryption, sync and wider OS verification |
+
+**Status is evidence-based.** Schema tables and sample invoice documents do not imply that complete billing workflows have shipped. Currency formatting is not a GST/VAT or statutory e-invoicing certification.
+
+## ⚡ Run it locally
+
+**Requirements:** Node.js 22.12+ within the 22 series, npm, a compatible stable Rust toolchain and the native prerequisites for your host. Lockfiles define resolved dependencies.
 
 ```sh
 git clone https://github.com/MohammedJabir18/BillZen.git
 cd BillZen
 npm ci
-```
-
-Run the desktop application:
-
-```sh
 npm run tauri dev
 ```
 
-Run the browser demonstration:
+<details>
+<summary><strong>Linux native prerequisites · Debian / Ubuntu</strong></summary>
 
 ```sh
-npm run dev
+sudo apt-get update
+sudo apt-get install --no-install-recommends \
+  libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 ```
 
-Build frontend assets or a native installer on a configured host:
+For browser PDF verification, also install `poppler-utils` and the Playwright browsers described in [testing](docs/testing.md).
 
-```sh
-npm run build
-npm run tauri build
-```
+</details>
 
-Native outputs appear under `src-tauri/target/release/`; installer formats depend on the host and bundling prerequisites. A sub-15 MB package is a goal, not a guarantee across platforms or with system runtimes included.
+| Command | What it runs |
+| --- | --- |
+| `npm run tauri dev` | Native desktop application with local SQLite |
+| `npm run dev` | Browser demonstration with disposable in-memory data |
+| `npm run build` | TypeScript check + Vite production assets |
+| `npm run tauri build` | Host-native application and configured installer bundles |
+| `npm run test:native-probe` | Isolated worker persistence check across two processes |
 
-## Architecture
+**Choose the native command for persistence.** Browser edits can disappear on reload. See [development setup](docs/development.md) for platform requirements and data locations. Native builds are host-specific; no cross-platform package-size or release claim is implied.
 
-```mermaid
-flowchart LR
-  UI[React views] --> Adapter[Typed adapter]
-  Adapter -->|Desktop invoke| IPC[Tauri command permissions]
-  IPC --> Worker[Serialized Rust database worker]
-  Worker --> DB[(Local SQLite)]
-  IPC --> Domain[Checked financial calculations]
-  Adapter -->|Browser only| Mock[In-memory demo data]
-  UI --> Print[A4 printable document]
-```
+## 🏗 Inside BillZen
 
-Business rules and persistence sit behind the native command boundary. The browser mock implements a development substitute, not a production web backend. SQLite schema migrations include invoices, invoice items, customers, products, movements, payments, allocations and expenses; schema existence does not imply a completed workflow.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.png" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/assets/architecture-light.png" />
+  <img src="docs/assets/architecture-dark.png" alt="Source-backed Archify diagram: React interface through runtime adapter and Tauri commands to the Rust worker and SQLite; separate browser mock and printable document paths." width="100%" />
+</picture>
 
-## Project layout
+**[Explore the interactive Archify diagrams →](docs/diagrams/README.md)** · [Technical design →](docs/technical-design.md) · [Database model →](docs/data-model.md)
+
+The diagram traces committed source at `a116ac0`. Its downloadable HTML viewer supports theme switching, source links and optional trace motion. GitHub displays the static preview; download the HTML to use the interactive viewer locally.
+
+| Layer | Choice | Responsibility |
+| --- | --- | --- |
+| Shell | **Tauri 2** | Desktop lifecycle, capabilities and native commands |
+| Interface | **React 19 · TypeScript · Vite** | Views, typed adapters and interaction |
+| Styling | **Tailwind CSS · Lucide** | Layout, visual language and icons |
+| State | **React state · TanStack Query** | Local UI and selected asynchronous views; Zustand is installed but unused |
+| Core | **Rust · checked integer arithmetic** | Validation, database requests and financial calculations |
+| Storage | **SQLite via bundled rusqlite** | Local records, transactions and versioned migrations |
+| Documents | **React + print CSS** | Reusable A4 layout and browser PDF verification |
+
+<details>
+<summary><strong>Browse the project structure</strong></summary>
 
 ```text
-src/
-  adapters/          Native IPC and browser demonstration adapter
-  components/        Application views and reusable invoice document
-  domain/            Financial calculations, document models and tests
-  i18n/              Translation resources and locale handling
-  styles/            Application and print CSS
-  types/             Shared frontend contracts
-src-tauri/
-  capabilities/      Window permission policies
-  src/commands/      Tauri entry points
-  src/domain/        Rust financial and catalog contracts
-  src/db/            Worker and versioned SQL migrations
-  src/bin/           Database, lock and persistence probes
-scripts/             Browser and PDF verification
-public/fonts/        Bundled fonts for offline rendering
-.github/workflows/   Linux CI verification
-brain/               Persistent architectural notes and session history
-docs/                Development, architecture, testing and roadmap
+src/                  React views, adapters, domain calculations and i18n
+src-tauri/src/
+  commands/           Tauri entry points
+  domain/             Rust contracts and financial rules
+  db/                 Serialized worker + SQL migrations
+  bin/                Database, lock and persistence probes
+scripts/              Browser/PDF checks and native probe runner
+public/fonts/         Bundled fonts for offline rendering
+brain/                Persistent architecture and session notes
+docs/                 Requirements, design, diagrams and verification
+.github/workflows/    Linux CI and generated test artifacts
 ```
 
-## Verification
+</details>
+
+## 🧪 Evidence before “done”
+
+Fresh local checks on **18 October 2026**:
+
+| Check | Result | Boundary |
+| --- | --- | --- |
+| Frontend unit suite | **14 passed** | Tested calculations and document models |
+| Rust suite | **38 passed** | Tested domain, migration and worker paths |
+| Production build | **Passed** | TypeScript + Vite assets |
+| Catalog automation | **6 scripted steps passed** | Browser mock interactions |
+| A4 PDF matrix | **4 scenarios passed** | 1 / 3 / 1 / 1 pages in Chrome output |
+| Native persistence probe | **Passed** | Actual worker + SQLite across separate processes |
+
+A separate source review reproduced a legacy V4→V5 category migration failure despite the green suites. Passing checks cover their tested cases; they do not certify every database upgrade. [Reproduction and next correction →](docs/reviews/2026-10-18-m3-review.md)
 
 ```sh
 npm test
 npm run build
 cargo test --manifest-path src-tauri/Cargo.toml
-npx playwright install --with-deps chromium
+npx playwright install --with-deps chromium chrome
 npm run test:catalog
 npm run test:matrix
+npm run test:native-probe
 ```
 
-The PDF matrix additionally needs Poppler (`pdfinfo`, `pdftotext`, `pdftoppm`; Ubuntu package `poppler-utils`). The current matrix launches Google Chrome, so install it separately when running that script. The catalog script can fall back to Playwright Chromium. See [testing](docs/testing.md) for probe commands and what each check establishes.
+**Remote CI:** the latest inspected run passed its Rust job but failed the long-text PDF string assertion; local matrix success does not establish CI success. [Inspect the failed run](https://github.com/MohammedJabir18/BillZen/actions/runs/39144580607).
 
-Fresh local verification and known gaps are recorded in [verification status](docs/verification-status.md). Passing a browser PDF check does not establish native WebKit print-dialog behavior, successful hardware printing or tax compliance.
+Physical printing and Windows/macOS/Android/iOS native behavior remain unverified. [Testing guide →](docs/testing.md) · [CI runs →](https://github.com/MohammedJabir18/BillZen/actions)
 
-## Platform and regional scope
+## 🗺 The road ahead
 
-Linux is the current development host. Windows and macOS require native build, persistence, packaging and printing checks. Android and iOS are intended as standalone offline applications, with their own lifecycle, layout and printing work. A shared Rust/React architecture does not automatically make every desktop API mobile-compatible.
+| Milestone | Outcome | State |
+| --- | --- | --- |
+| **M0–M2** | Desktop, SQLite, financial and A4 foundations | Implemented foundation |
+| **M3** | Product/customer catalog and integrity rules | Implemented; legacy migration correction required |
+| **M3.1 — next** | Data-preserving category upgrade and expanded migration regression coverage | Required before closure |
+| **M4A** | Save, reopen and edit a draft invoice offline | Planned after M3.1 |
+| **M4B** | Atomic finalization, numbering, snapshots and stock movements | Planned |
+| **M5+** | Payments, expenses, analytics, backup/restore and platform expansion | Planned |
 
-Currency formatting and translated labels do not provide GST, VAT, IRN, QR-signing or ZATCA compliance. Country-specific issuance rules and online obligations must be designed and validated separately. See [regional scope](docs/regional-scope.md).
+**Platform direction:** Linux development now → validated Windows/macOS releases → standalone offline Android/iOS and durable web storage. Optional sync stays separate from local operation. [Detailed roadmap →](docs/roadmap.md)
 
-## Documentation
+## 📚 The project library
 
-- [Architecture and storage](docs/architecture.md)
-- [Development and platform prerequisites](docs/development.md)
-- [Database model and migration policy](docs/data-model.md)
-- [Testing and evidence boundaries](docs/testing.md)
-- [Verification status and known issues](docs/verification-status.md)
-- [Roadmap and next implementation task](docs/roadmap.md)
-- [Regional scope and compliance boundaries](docs/regional-scope.md)
-- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
+| Start here | Go deeper |
+| --- | --- |
+| [Product requirements & acceptance criteria](docs/product-requirements.md) | [Technical design & decision register](docs/technical-design.md) |
+| [Architecture & runtime boundaries](docs/architecture.md) | [Database schema & migration policy](docs/data-model.md) |
+| [Development setup](docs/development.md) | [Testing & evidence boundaries](docs/testing.md) |
+| [Verification status](docs/verification-status.md) | [M3 review & upgrade reproduction](docs/reviews/2026-10-18-m3-review.md) |
+| [Roadmap](docs/roadmap.md) | [India/GCC regional scope](docs/regional-scope.md) |
+| [Interactive Archify diagrams](docs/diagrams/README.md) | [README design & media sources](docs/readme-design.md) |
+| [Contributing](CONTRIBUTING.md) | [Security](SECURITY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) |
 
-The earlier technology, platform and tax matrices remain design notes. Where they describe future adapters or broad verification claims, use the evidence boundaries in the documents above.
+## 🤝 Build with care
 
-## Data safety
+Small, reviewable changes make a reliable business tool. Read the [contribution guide](CONTRIBUTING.md), keep customer data out of fixtures, and attach actual verification results to each change.
 
-Real data lives in the OS data directory resolved by `dirs::data_dir()`, inside `billzen/`. The application opens `billzen.db` and `billzen.lock` there. On Linux this normally means `$XDG_DATA_HOME/billzen` or `~/.local/share/billzen`. This is separate from the Git checkout. Do not copy an open WAL-mode database file alone as a backup; a safe backup/restore workflow is pending.
+**Agent delivery rule:** complete one logical section → verify → commit → push → inspect CI. The repository's [agent instructions](AGENTS.md) and [Antigravity handoff](docs/antigravity-next-task.md) define the boundaries. Failed checks must be fixed or reported before declaring that section complete.
 
-The repository excludes local databases, secrets, dependencies, build outputs and generated test reports. Do not commit customer data, production invoices or private keys. Source control is not a database backup.
+Local SQLite files are **unencrypted** today. A safe backup/restore workflow is pending. Never upload real customer databases or treat Git as a business-data backup.
 
-## License
+## 👋 Built by Mohammed Jabir
 
-BillZen source code is licensed under the [MIT License](LICENSE), copyright © 2026 Mohammed Jabir. Dependencies and bundled fonts retain their respective licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
+I’m building BillZen for small businesses that need control of their everyday workflow.
+
+**[Website](https://mohammedjabir.me)** · **[GitHub](https://github.com/MohammedJabir18)** · **[LinkedIn](https://www.linkedin.com/in/mohammed--jabir)** · **[Email](mailto:jabirahmedz111@gmail.com)**
+
+[𝕏 / Twitter](https://twitter.com/mohammedjabir__) · [Instagram](https://www.instagram.com/mohammedjabir__/) · [Reddit](https://www.reddit.com/u/Mohammadjabir/s/usrcbZqXzK)
+
+☕ **[Support the work on Buy Me a Coffee](https://buymeacoffee.com/mohammedjabir)**
+
+The website link is the author's personal site; it is not a hosted BillZen application.
+
+---
+
+<div align="center">
+
+**Your business. In your hands.**
+
+MIT licensed · Copyright © 2026 Mohammed Jabir<br />
+Third-party dependencies and fonts retain their own licenses. [License](LICENSE) · [Notices](THIRD_PARTY_NOTICES.md)
+
+</div>
