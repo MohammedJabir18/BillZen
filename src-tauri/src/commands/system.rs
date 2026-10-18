@@ -12,29 +12,44 @@ pub struct PrintSupportInfo {
 
 #[tauri::command]
 pub fn check_print_support() -> Result<PrintSupportInfo, String> {
-    // Check if CUPS / lp / lpr utilities exist in PATH
-    let cups_detected = std::process::Command::new("which")
-        .arg("lp")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-        || std::process::Command::new("which")
-            .arg("lpr")
+    #[cfg(target_os = "android")]
+    {
+        Ok(PrintSupportInfo {
+            platform: "android".to_string(),
+            native_dialog_available: false,
+            cups_detected: false,
+            in_app_preview_supported: true,
+            empirical_status: "unsupported".to_string(),
+            notes: "Direct native printing is not supported on Android in this catalog beta. In-app A4 CSS preview is available.".to_string(),
+        })
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        // Check if CUPS / lp / lpr utilities exist in PATH
+        let cups_detected = std::process::Command::new("which")
+            .arg("lp")
             .output()
             .map(|o| o.status.success())
-            .unwrap_or(false);
+            .unwrap_or(false)
+            || std::process::Command::new("which")
+                .arg("lpr")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
 
-    let is_linux = cfg!(target_os = "linux");
-    let has_display = std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok();
+        let is_linux = cfg!(target_os = "linux");
+        let has_display = std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok();
 
-    Ok(PrintSupportInfo {
-        platform: std::env::consts::OS.to_string(),
-        native_dialog_available: is_linux && has_display,
-        cups_detected,
-        in_app_preview_supported: true,
-        empirical_status: "unverified".to_string(),
-        notes: "Native GTK/WebKit print dialog is available for dispatch, but remains unverified until empirical dialog observation is confirmed by the operator. In-app A4 CSS preview is fully supported.".to_string(),
-    })
+        Ok(PrintSupportInfo {
+            platform: std::env::consts::OS.to_string(),
+            native_dialog_available: is_linux && has_display,
+            cups_detected,
+            in_app_preview_supported: true,
+            empirical_status: "unverified".to_string(),
+            notes: "Native GTK/WebKit print dialog is available for dispatch, but remains unverified until empirical dialog observation is confirmed by the operator. In-app A4 CSS preview is fully supported.".to_string(),
+        })
+    }
 }
 
 #[tauri::command]
