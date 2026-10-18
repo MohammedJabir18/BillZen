@@ -157,3 +157,14 @@
 - **Unfinished Tasks / Immediate Next Steps**:
   - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, payment allocations, and receipt printing.
 
+
+
+## 2026-10-18 — Repository publication preparation
+
+- User authorized creating a GitHub repository, documentation, ignore rules and uploading the project. Created private `MohammedJabir18/BillZen` (visibility defaulted to private).
+- Added detailed README, architecture/development/data-model/testing/verification/roadmap/regional documentation, contribution/security notes, synthetic catalog screenshot and preserved bundled-font notices.
+- Extended `.gitignore` for secrets, local SQLite companions, backup folders and generated verification/editor state.
+- Fresh checks: 14 frontend tests; 32 Rust tests; production build; six browser catalog steps; four PDF scenarios; isolated cross-process persistence probe all passed. Documentation received an independent review and factual corrections.
+- No product source behavior changed. Next: M3 stock reconciliation/numeric contract corrections, then M4A draft invoice vertical slice. Native UI/printing and Windows/macOS/mobile remain separate verification work.
+- Full Graphify extraction required an unavailable LLM key; code-only refresh succeeded with an optional SQL parser warning.
+- Publication CI prerequisites corrected: explicitly install Chrome and Poppler; retain browser verification artifacts for 14 days and scope job permissions to read-only contents.
