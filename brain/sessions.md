@@ -150,6 +150,7 @@
 - **Verification Evidence**:
   - Vitest Unit Tests: 14/14 passed.
   - Cargo Tests: 32/32 passed.
+  - Native Catalog Multi-Process Persistence Probe (`catalog_probe`): PASSED (Process 1 writes category, product with leading zeros, opening stock ledger, customer; quits; Process 2 relaunches, audits SQLite persistence, verifies duplicate rejections).
   - Production Frontend Build: `npm run build` passed.
   - Playwright Catalog E2E: `test_artifacts/catalog/catalog_verification_report.json` (allPassed: true).
   - Playwright A4 Print Matrix: 4/4 scenarios passed (`matrix_verification_report.json`).

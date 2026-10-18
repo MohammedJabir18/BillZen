@@ -39,6 +39,11 @@ jobs:
       - name: Run Cargo Tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      - name: Run Native Catalog Probe (Cross-Process Persistence & Invariants)
+        run: |
+          cargo run --bin catalog_probe --manifest-path src-tauri/Cargo.toml -- /tmp/ci_catalog_probe.db write
+          cargo run --bin catalog_probe --manifest-path src-tauri/Cargo.toml -- /tmp/ci_catalog_probe.db read_and_verify
+
   test-frontend:
     name: Frontend Tests & Production Build
     runs-on: ubuntu-latest
@@ -66,3 +71,6 @@ jobs:
 
       - name: Run Playwright Catalog Verification
         run: npm run test:catalog
+
+      - name: Run Playwright Invoice Matrix Verification
+        run: npm run test:matrix
