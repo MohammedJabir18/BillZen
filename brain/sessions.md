@@ -168,3 +168,43 @@
 - No product source behavior changed. Next: M3 stock reconciliation/numeric contract corrections, then M4A draft invoice vertical slice. Native UI/printing and Windows/macOS/mobile remain separate verification work.
 - Full Graphify extraction required an unavailable LLM key; code-only refresh succeeded with an optional SQL parser warning.
 - Publication CI prerequisites corrected: explicitly install Chrome and Poppler; retain browser verification artifacts for 14 days and scope job permissions to read-only contents.
+
+## 2026-10-18 — Milestone 3 Integrity Closure & Contract Alignment
+- **Goals**: Resolve 5 integrity defects across catalog pricing, stock reconciliation, quantity bounds, category uniqueness, and probe portability before commencing Milestone 4 invoicing.
+- **Completed Tasks**:
+  - **Stock Reconciliation & Ledger Integrity**:
+    - Guarded `create_product`: Untracked products (`is_stock_tracked: false`) strictly reject opening stock (`opening_stock_scaled > 0`), inserting 0 initial stock and preventing phantom stock.
+    - Guarded `update_product`: When enabling stock tracking (`!was_tracked && dto.is_stock_tracked`), verified `current_stock_scaled == SUM(stock_movements.quantity_delta_scaled)`. Divergent stock without ledger history is rejected.
+  - **Price Contract Alignment**:
+    - Aligned unit selling price and cost price in `worker.rs` and `ProductCatalogView.tsx` to `0 <= price <= MAX_MONEY_MINOR` (100,000,000,00) matching invoice line item bounds.
+  - **Quantity & Threshold Contract Alignment**:
+    - Aligned opening stock and minimum alert thresholds in `worker.rs` and `ProductCatalogView.tsx` to `0 <= quantity <= MAX_QUANTITY_SCALED` (1,000,000,000 scaled = 1,000,000.000 units).
+  - **Category Case-Insensitive Uniqueness**:
+    - Created database migration `v5_category_nocase.sql` replacing non-unique index with `CREATE UNIQUE INDEX idx_categories_name_nocase ON categories(name COLLATE NOCASE)`.
+    - Added pre-insert case-insensitive duplicate check and SQLite constraint error handling in `create_category`.
+    - Added migration upgrade test `test_upgrade_populated_v4_database_to_v5`.
+  - **Cross-Platform Probe Portability**:
+    - Created `scripts/run_native_probe.js` using `os.tmpdir()` and isolated directory lifecycle, replacing POSIX-specific `/tmp/` and `rm -f`.
+    - Updated `package.json` `"test:native-probe": "node scripts/run_native_probe.js"`.
+  - **TDD Regression Tests**:
+    - Added 5 failing regression tests in `src-tauri/src/db/worker.rs` reproducing each defect before implementing fixes, confirmed green after fixes.
+- **Verification Evidence**:
+  - Vitest Unit Tests: 14/14 passed (`npm test`).
+  - Cargo Tests: 38/38 passed (`cargo test --manifest-path src-tauri/Cargo.toml`).
+  - Production Frontend Build: `npm run build` passed cleanly (1.38s).
+  - Native Multi-Process Persistence Probe: `npm run test:native-probe` passed with isolated temp database.
+  - Playwright Catalog E2E: `npm run test:catalog` (all 6 steps passed).
+  - Playwright A4 Print Matrix: `npm run test:matrix` (4/4 scenarios passed).
+- **Files Modified/Added**:
+  - `src-tauri/src/db/migrations/v5_category_nocase.sql`
+  - `src-tauri/src/db/mod.rs`
+  - `src-tauri/src/db/worker.rs`
+  - `src/components/ProductCatalogView.tsx`
+  - `scripts/run_native_probe.js`
+  - `package.json`
+  - `docs/verification-status.md`
+  - `brain/architecture.md`
+  - `brain/sessions.md`
+- **Pending Tasks / Immediate Next Steps**:
+  - Milestone 4A (M4A): Draft invoice management vertical slice (customer selection, product search/barcode scanner, validated totals arithmetic, draft saving and restoring without stock decrements).
+

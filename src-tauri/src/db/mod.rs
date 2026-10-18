@@ -25,6 +25,7 @@ pub const V1_MIGRATION_SQL: &str = include_str!("migrations/v1_init.sql");
 pub const V2_MIGRATION_SQL: &str = include_str!("migrations/v2_regional_foundation.sql");
 pub const V3_MIGRATION_SQL: &str = include_str!("migrations/v3_protect_currency_exponent.sql");
 pub const V4_MIGRATION_SQL: &str = include_str!("migrations/v4_catalog.sql");
+pub const V5_MIGRATION_SQL: &str = include_str!("migrations/v5_category_nocase.sql");
 
 pub fn configure_connection(conn: &Connection) -> Result<(), DbError> {
     conn.execute_batch(
@@ -196,6 +197,41 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
             tx.execute(
                 "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
                 params![4, "v4_catalog", now, current_checksum4],
+            )?;
+            tx.commit()?;
+        }
+    }
+
+    // Migration 5: Category Name Case-Insensitive Uniqueness
+    let mut hasher5 = Sha256::new();
+    hasher5.update(V5_MIGRATION_SQL.as_bytes());
+    let current_checksum5 = format!("{:x}", hasher5.finalize());
+
+    let existing_checksum5: Option<String> = conn
+        .query_row(
+            "SELECT checksum FROM schema_migrations WHERE version = 5;",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match existing_checksum5 {
+        Some(stored_checksum) => {
+            if stored_checksum != current_checksum5 {
+                return Err(DbError::ChecksumMismatch {
+                    version: 5,
+                    expected: stored_checksum,
+                    found: current_checksum5,
+                });
+            }
+        }
+        None => {
+            let tx = conn.transaction()?;
+            tx.execute_batch(V5_MIGRATION_SQL)?;
+            let now = chrono::Utc::now().timestamp_millis();
+            tx.execute(
+                "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
+                params![5, "v5_category_nocase", now, current_checksum5],
             )?;
             tx.commit()?;
         }
@@ -819,5 +855,77 @@ mod tests {
             |r| r.get(0),
         ).unwrap();
         assert_eq!(cat_id, Some("cat_1".to_string()));
+    }
+
+    #[test]
+    fn test_upgrade_populated_v4_database_to_v5() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        configure_connection(&conn).unwrap();
+
+        // Apply migrations 1, 2, 3, 4 manually
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );",
+        ).unwrap();
+
+        let now = chrono::Utc::now().timestamp_millis();
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        let mut h1 = Sha256::new();
+        h1.update(V1_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (1, 'v1_init', ?1, ?2);",
+            params![now, format!("{:x}", h1.finalize())],
+        ).unwrap();
+
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        let mut h2 = Sha256::new();
+        h2.update(V2_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (2, 'v2_regional_foundation', ?1, ?2);",
+            params![now, format!("{:x}", h2.finalize())],
+        ).unwrap();
+
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+        let mut h3 = Sha256::new();
+        h3.update(V3_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (3, 'v3_protect_currency_exponent', ?1, ?2);",
+            params![now, format!("{:x}", h3.finalize())],
+        ).unwrap();
+
+        conn.execute_batch(V4_MIGRATION_SQL).unwrap();
+        let mut h4 = Sha256::new();
+        h4.update(V4_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (4, 'v4_catalog', ?1, ?2);",
+            params![now, format!("{:x}", h4.finalize())],
+        ).unwrap();
+
+        // Populate a category in V4
+        conn.execute(
+            "INSERT INTO categories (id, name, description, created_at, updated_at) VALUES ('c_groceries', 'Groceries', 'Daily items', ?1, ?1);",
+            params![now],
+        ).unwrap();
+
+        // Run full migrations (should detect v1..v4 applied and apply v5)
+        run_migrations(&mut conn).unwrap();
+
+        let v5_applied: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 5);",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert!(v5_applied, "Migration 5 must be recorded in schema_migrations");
+
+        // Verify that inserting case-insensitive duplicate "groceries" or "GROCERIES" fails at DB level
+        let dup_err = conn.execute(
+            "INSERT INTO categories (id, name, description, created_at, updated_at) VALUES ('c_groceries_dup', 'groceries', 'Lowercase dup', ?1, ?1);",
+            params![now],
+        );
+        assert!(dup_err.is_err(), "Inserting case-insensitive duplicate category must fail at SQLite index level");
     }
 }
