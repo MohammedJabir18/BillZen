@@ -94,8 +94,8 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex items-center justify-between pb-6 border-b border-gray-200">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-24 lg:pb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-gray-200">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Building2 className="w-6 h-6 text-slate-800" /> Business Profile & Settings
@@ -107,7 +107,7 @@ export const SettingsView: React.FC = () => {
         <button
           type="button"
           onClick={() => refetch()}
-          className="text-sm px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 flex items-center gap-1.5"
+          className="text-sm px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center gap-1.5 min-h-[44px] self-stretch sm:self-auto justify-center"
         >
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
@@ -300,7 +300,7 @@ export const SettingsView: React.FC = () => {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded font-medium text-sm flex items-center gap-2 shadow-sm disabled:opacity-50"
+            className="w-full sm:w-auto min-h-[44px] justify-center px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {mutation.isPending ? 'Saving to Database...' : 'Save Changes'}
