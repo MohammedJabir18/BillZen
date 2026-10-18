@@ -220,3 +220,12 @@
 - Remaining: legacy-data migration correction, native UI/IPC coverage and platform/device acceptance.
 - Remote CI inspection: run 39144580607 at `c814678` passed Rust/unit/build/catalog but failed the long-text PDF required-string assertion. Logged exact failure and artifact link without assuming root cause. Added a separate diagnostic section to the Antigravity handoff.
 - Full Graphify refresh still needs an unconfigured LLM key; code-only refresh succeeded (502 nodes, 875 edges) with the existing optional SQL parser warning.
+
+
+## 2026-10-18 — Shared BillZen application icon
+- User requested the exact lime/dark Z mark from the README hero in the application and all app-icon locations, and a directly usable Antigravity prompt after its GitHub link failed to open.
+- Added canonical `public/brand/billzen-icon.svg`; app header, browser SVG/ICO favicon, Apple touch and web manifest assets now use that identity. Configured native bundle icon paths and generated PNG/ICO/ICNS, Windows Store, Android and iOS assets with the existing Tauri CLI.
+- Added repeatable `npm run icons:generate` and brand documentation. The generator also updates the README hero from the canonical vector. Refreshed the screenshot gallery and four-scene GIF.
+- Verification: 14 frontend tests, production build, catalog browser checks, explicit header/favicon/manifest browser checks and Linux Debian bundle all passed. Package contains the launcher desktop entry and native icons. Source/config received independent review; its screenshot-refresh finding was addressed.
+- Mobile/Windows/macOS assets generated only; native builds/device behavior on those targets remain unverified. Existing migration/CI issues were not altered by branding work.
+- Code-only Graphify refresh performed; full semantic extraction still requires the previously unconfigured LLM key.

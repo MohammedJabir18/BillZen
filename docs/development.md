@@ -26,3 +26,8 @@ The native application uses actual OS application data. Use synthetic records an
 Commit source, migrations, lockfiles and curated documentation assets. Exclude databases (including WAL/SHM files), `.env` files, credentials, build directories and generated verification reports. `.env.example` may contain placeholders only. Preserve `brain/architecture.md` and `brain/sessions.md` as project memory; generated notes can become stale and must not override code evidence.
 
 Do not silently upgrade the framework during a feature task. Verify a proposed stable dependency update against official release notes and this project's tests before changing lockfiles.
+
+
+## Application branding
+
+The canonical app mark is `public/brand/billzen-icon.svg`. Run `npm run icons:generate` to refresh native, browser and README icon assets. See [brand identity](brand/README.md) for the complete surface list and platform boundaries.
