@@ -6,4 +6,4 @@ Use synthetic data. Never add credentials, customer databases or production invo
 
 Run the checks relevant to the change and include their actual results and limitations in the change description. Financial or persistence corrections need a meaningful regression test. Update documentation when behavior changes. See `docs/testing.md` for the full check list and `docs/roadmap.md` for the next milestone.
 
-A project license has not yet been selected; discuss redistribution/contribution terms with the owner before external contributions.
+BillZen source is licensed under the MIT License. Contributions are submitted under the same license. Preserve third-party notices and disclose newly bundled assets.

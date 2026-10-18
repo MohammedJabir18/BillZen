@@ -157,4 +157,4 @@ The repository excludes local databases, secrets, dependencies, build outputs an
 
 ## License
 
-A project license has not yet been selected. This repository does not grant an open-source license to BillZen source code. Dependencies and bundled fonts retain their respective licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
+BillZen source code is licensed under the [MIT License](LICENSE), copyright © 2026 Mohammed Jabir. Dependencies and bundled fonts retain their respective licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).

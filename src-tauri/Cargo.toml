@@ -5,6 +5,7 @@ default-run = "billzen"
 description = "Offline-first desktop billing and inventory management"
 authors = ["BillZen Team"]
 edition = "2021"
+license = "MIT"
 
 [lib]
 name = "billzen_lib"
