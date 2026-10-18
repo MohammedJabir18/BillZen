@@ -31,3 +31,30 @@ graphify-out/
 *.njsproj
 *.sln
 *.sw?
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Additional local SQLite data and backups
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db-journal
+*.sqlite-journal
+*.sqlite3-journal
+backups/
+
+# Generated verification and editor state
+coverage/
+playwright-report/
+test-results/
+brain/.obsidian/workspace*.json
