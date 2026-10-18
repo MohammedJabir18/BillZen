@@ -89,3 +89,123 @@ export interface InvoiceDTO {
   paid_amount_minor: number;
   notes?: string | null;
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateCategoryDto {
+  name: string;
+  description?: string | null;
+}
+
+export interface Product {
+  id: string;
+  sku: string;
+  barcode: string | null;
+  name: string;
+  description: string | null;
+  category_id: string | null;
+  category_name: string | null;
+  unit: string;
+  unit_price_minor: number;
+  cost_price_minor: number;
+  tax_rate_bp: number;
+  is_stock_tracked: boolean;
+  current_stock_scaled: number;
+  min_stock_threshold_scaled: number;
+  is_active: boolean;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateProductDto {
+  sku: string;
+  barcode?: string | null;
+  name: string;
+  description?: string | null;
+  category_id?: string | null;
+  unit?: string | null;
+  unit_price_minor: number;
+  cost_price_minor?: number | null;
+  tax_rate_bp?: number | null;
+  is_stock_tracked?: boolean | null;
+  opening_stock_scaled?: number | null;
+  min_stock_threshold_scaled?: number | null;
+}
+
+export interface UpdateProductDto {
+  id: string;
+  sku: string;
+  barcode?: string | null;
+  name: string;
+  description?: string | null;
+  category_id?: string | null;
+  unit: string;
+  unit_price_minor: number;
+  cost_price_minor: number;
+  tax_rate_bp: number;
+  is_stock_tracked: boolean;
+  min_stock_threshold_scaled: number;
+}
+
+export interface ProductFilter {
+  search?: string | null;
+  category_id?: string | null;
+  is_active?: boolean | null;
+  low_stock_only?: boolean | null;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string;
+  tax_identifier: string | null;
+  current_balance_minor: number;
+  is_active: boolean;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateCustomerDto {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+  tax_identifier?: string | null;
+}
+
+export interface UpdateCustomerDto {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country: string;
+  tax_identifier?: string | null;
+}
+
+export interface CustomerFilter {
+  search?: string | null;
+  is_active?: boolean | null;
+}

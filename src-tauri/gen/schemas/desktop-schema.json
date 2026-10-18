@@ -177,10 +177,40 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the archive_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-archive-customer",
+          "markdownDescription": "Enables the archive_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the archive_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-archive-product",
+          "markdownDescription": "Enables the archive_product command without any pre-configured scope."
+        },
+        {
           "description": "Enables the check_print_support command without any pre-configured scope.",
           "type": "string",
           "const": "allow-check-print-support",
           "markdownDescription": "Enables the check_print_support command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the create_category command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-category",
+          "markdownDescription": "Enables the create_category command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the create_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-customer",
+          "markdownDescription": "Enables the create_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the create_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-product",
+          "markdownDescription": "Enables the create_product command without any pre-configured scope."
         },
         {
           "description": "Enables the get_business_settings command without any pre-configured scope.",
@@ -189,10 +219,40 @@
           "markdownDescription": "Enables the get_business_settings command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_categories command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-categories",
+          "markdownDescription": "Enables the get_categories command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_customers command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-customers",
+          "markdownDescription": "Enables the get_customers command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_products command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-products",
+          "markdownDescription": "Enables the get_products command without any pre-configured scope."
+        },
+        {
           "description": "Enables the ping command without any pre-configured scope.",
           "type": "string",
           "const": "allow-ping",
           "markdownDescription": "Enables the ping command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the restore_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-restore-customer",
+          "markdownDescription": "Enables the restore_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the restore_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-restore-product",
+          "markdownDescription": "Enables the restore_product command without any pre-configured scope."
         },
         {
           "description": "Enables the update_business_settings command without any pre-configured scope.",
@@ -201,10 +261,52 @@
           "markdownDescription": "Enables the update_business_settings command without any pre-configured scope."
         },
         {
+          "description": "Enables the update_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-customer",
+          "markdownDescription": "Enables the update_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the update_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-product",
+          "markdownDescription": "Enables the update_product command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the archive_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-archive-customer",
+          "markdownDescription": "Denies the archive_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the archive_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-archive-product",
+          "markdownDescription": "Denies the archive_product command without any pre-configured scope."
+        },
+        {
           "description": "Denies the check_print_support command without any pre-configured scope.",
           "type": "string",
           "const": "deny-check-print-support",
           "markdownDescription": "Denies the check_print_support command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_category command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-category",
+          "markdownDescription": "Denies the create_category command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-customer",
+          "markdownDescription": "Denies the create_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-product",
+          "markdownDescription": "Denies the create_product command without any pre-configured scope."
         },
         {
           "description": "Denies the get_business_settings command without any pre-configured scope.",
@@ -213,16 +315,58 @@
           "markdownDescription": "Denies the get_business_settings command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_categories command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-categories",
+          "markdownDescription": "Denies the get_categories command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_customers command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-customers",
+          "markdownDescription": "Denies the get_customers command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_products command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-products",
+          "markdownDescription": "Denies the get_products command without any pre-configured scope."
+        },
+        {
           "description": "Denies the ping command without any pre-configured scope.",
           "type": "string",
           "const": "deny-ping",
           "markdownDescription": "Denies the ping command without any pre-configured scope."
         },
         {
+          "description": "Denies the restore_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-restore-customer",
+          "markdownDescription": "Denies the restore_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the restore_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-restore-product",
+          "markdownDescription": "Denies the restore_product command without any pre-configured scope."
+        },
+        {
           "description": "Denies the update_business_settings command without any pre-configured scope.",
           "type": "string",
           "const": "deny-update-business-settings",
           "markdownDescription": "Denies the update_business_settings command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_customer command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-customer",
+          "markdownDescription": "Denies the update_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_product command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-product",
+          "markdownDescription": "Denies the update_product command without any pre-configured scope."
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",

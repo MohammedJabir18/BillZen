@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:catalog": "node scripts/verify_catalog_playwright.js",
+    "test:matrix": "node scripts/verify_matrix_playwright.js",
     "tauri": "tauri"
   },
   "dependencies": {

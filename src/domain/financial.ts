@@ -5,6 +5,14 @@ export const TAX_BASIS_POINTS_FACTOR = 10000;
 
 export const MAX_MONEY_MINOR = 1_000_000_000_00; // ₹1,000,000,000.00 (₹1 Billion)
 export const MAX_QUANTITY_SCALED = 1_000_000_000; // 1,000,000.000 units
+export const MAX_SAFE_MONEY_MINOR = 9_007_199_254_740_991; // Number.MAX_SAFE_INTEGER (2^53 - 1)
+
+export function safeBigIntToNumber(value: bigint): number {
+  if (value > BigInt(MAX_SAFE_MONEY_MINOR) || value < -BigInt(MAX_SAFE_MONEY_MINOR)) {
+    throw new Error(`Numeric overflow: ${value.toString()} exceeds maximum safe integer range (${MAX_SAFE_MONEY_MINOR})`);
+  }
+  return Number(value);
+}
 
 export function roundHalfUp(n: number, divisor: number): number {
   if (divisor <= 0) throw new Error('Divisor must be positive');
@@ -36,7 +44,7 @@ export function calculateLineItem(
   const pBig = BigInt(unit_price_minor);
   const productBig = qBig * pBig;
   const grossBig = (productBig + 500n) / 1000n;
-  const gross_minor = Number(grossBig);
+  const gross_minor = safeBigIntToNumber(grossBig);
 
   if (discount_minor > gross_minor) {
     throw new Error(`Discount ${discount_minor} exceeds gross line amount ${gross_minor}`);
@@ -48,9 +56,10 @@ export function calculateLineItem(
   const taxRateBig = BigInt(tax_rate_bp);
   const taxProductBig = taxableBig * taxRateBig;
   const taxBig = (taxProductBig + 5000n) / 10000n;
-  const tax_minor = Number(taxBig);
+  const tax_minor = safeBigIntToNumber(taxBig);
 
-  const line_total_minor = taxable_minor + tax_minor;
+  const lineTotalBig = BigInt(taxable_minor) + BigInt(tax_minor);
+  const line_total_minor = safeBigIntToNumber(lineTotalBig);
 
   return {
     quantity_scaled,
@@ -72,19 +81,25 @@ export function calculateInvoiceTotals(
     throw new Error(`Invalid paid_amount_minor: ${paid_amount_minor}`);
   }
 
-  let subtotal_minor = 0;
-  let discount_total_minor = 0;
-  let taxable_amount_minor = 0;
-  let tax_total_minor = 0;
-  let grand_total_minor = 0;
+  let subtotalBig = 0n;
+  let discountTotalBig = 0n;
+  let taxableAmountBig = 0n;
+  let taxTotalBig = 0n;
+  let grandTotalBig = 0n;
 
   for (const item of items) {
-    subtotal_minor += item.gross_minor;
-    discount_total_minor += item.discount_minor;
-    taxable_amount_minor += item.taxable_minor;
-    tax_total_minor += item.tax_minor;
-    grand_total_minor += item.line_total_minor;
+    subtotalBig += BigInt(item.gross_minor);
+    discountTotalBig += BigInt(item.discount_minor);
+    taxableAmountBig += BigInt(item.taxable_minor);
+    taxTotalBig += BigInt(item.tax_minor);
+    grandTotalBig += BigInt(item.line_total_minor);
   }
+
+  const subtotal_minor = safeBigIntToNumber(subtotalBig);
+  const discount_total_minor = safeBigIntToNumber(discountTotalBig);
+  const taxable_amount_minor = safeBigIntToNumber(taxableAmountBig);
+  const tax_total_minor = safeBigIntToNumber(taxTotalBig);
+  const grand_total_minor = safeBigIntToNumber(grandTotalBig);
 
   if (paid_amount_minor > grand_total_minor) {
     throw new Error(`Payment ${paid_amount_minor} exceeds grand total ${grand_total_minor}`);
@@ -203,10 +218,10 @@ export function parseToMinorUnits(valueStr: string, exponent: number = 2): numbe
   const fractionBig = BigInt(rawFraction);
   const minorBig = wholeBig * multiplier + fractionBig;
 
-  if (minorBig > BigInt(MAX_MONEY_MINOR)) {
+  if (minorBig > BigInt(MAX_SAFE_MONEY_MINOR)) {
     throw new Error(`Numeric value exceeds maximum allowable limit: '${valueStr}'`);
   }
 
-  const result = Number(minorBig);
+  const result = safeBigIntToNumber(minorBig);
   return isNegative ? -result : result;
 }

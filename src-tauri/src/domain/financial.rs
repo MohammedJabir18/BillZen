@@ -6,6 +6,7 @@ pub const TAX_BASIS_POINTS_FACTOR: i64 = 10000;
 
 pub const MAX_MONEY_MINOR: i64 = 1_000_000_000_00; // ₹1,000,000,000.00 (₹1 Billion)
 pub const MAX_QUANTITY_SCALED: i64 = 1_000_000_000; // 1,000,000.000 units
+pub const MAX_SAFE_MONEY_MINOR: i64 = 9_007_199_254_740_991; // 2^53 - 1 (Number.MAX_SAFE_INTEGER)
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum FinancialError {
@@ -26,6 +27,17 @@ pub enum FinancialError {
 /// Half-up midpoint rounding: floor((n + divisor/2) / divisor)
 #[inline]
 pub fn round_half_up(n: i64, divisor: i64) -> Result<i64, FinancialError> {
+    if divisor <= 0 {
+        return Err(FinancialError::Overflow);
+    }
+    let half = divisor / 2;
+    let sum = n.checked_add(half).ok_or(FinancialError::Overflow)?;
+    Ok(sum / divisor)
+}
+
+/// 128-bit Half-up midpoint rounding to prevent intermediate overflow
+#[inline]
+pub fn round_half_up_128(n: i128, divisor: i128) -> Result<i128, FinancialError> {
     if divisor <= 0 {
         return Err(FinancialError::Overflow);
     }
@@ -77,11 +89,13 @@ pub fn calculate_line_item(
         return Err(FinancialError::Overflow);
     }
 
-    // 1. Gross Minor = round_half_up(quantity_scaled * unit_price_minor, 1000)
-    let product = quantity_scaled
-        .checked_mul(unit_price_minor)
-        .ok_or(FinancialError::Overflow)?;
-    let gross_minor = round_half_up(product, QUANTITY_SCALED_FACTOR)?;
+    // 1. Gross Minor calculated with i128 to prevent 64-bit intermediate overflow
+    let product_128 = (quantity_scaled as i128) * (unit_price_minor as i128);
+    let gross_128 = round_half_up_128(product_128, QUANTITY_SCALED_FACTOR as i128)?;
+    if gross_128 > MAX_SAFE_MONEY_MINOR as i128 {
+        return Err(FinancialError::Overflow);
+    }
+    let gross_minor = gross_128 as i64;
 
     if discount_minor > gross_minor {
         return Err(FinancialError::DiscountExceedsGross {
@@ -95,16 +109,21 @@ pub fn calculate_line_item(
         .checked_sub(discount_minor)
         .ok_or(FinancialError::Overflow)?;
 
-    // 3. Tax Minor = round_half_up(taxable_minor * tax_rate_bp, 10000)
-    let tax_product = taxable_minor
-        .checked_mul(tax_rate_bp)
-        .ok_or(FinancialError::Overflow)?;
-    let tax_minor = round_half_up(tax_product, TAX_BASIS_POINTS_FACTOR)?;
+    // 3. Tax Minor in i128
+    let tax_product_128 = (taxable_minor as i128) * (tax_rate_bp as i128);
+    let tax_128 = round_half_up_128(tax_product_128, TAX_BASIS_POINTS_FACTOR as i128)?;
+    if tax_128 > MAX_SAFE_MONEY_MINOR as i128 {
+        return Err(FinancialError::Overflow);
+    }
+    let tax_minor = tax_128 as i64;
 
     // 4. Line Total = Taxable Minor + Tax Minor
     let line_total_minor = taxable_minor
         .checked_add(tax_minor)
         .ok_or(FinancialError::Overflow)?;
+    if line_total_minor > MAX_SAFE_MONEY_MINOR {
+        return Err(FinancialError::Overflow);
+    }
 
     Ok(LineItemCalculation {
         quantity_scaled,
@@ -136,18 +155,33 @@ pub fn calculate_invoice_totals(
         subtotal_minor = subtotal_minor
             .checked_add(item.gross_minor)
             .ok_or(FinancialError::Overflow)?;
+        if subtotal_minor > MAX_SAFE_MONEY_MINOR {
+            return Err(FinancialError::Overflow);
+        }
         discount_total_minor = discount_total_minor
             .checked_add(item.discount_minor)
             .ok_or(FinancialError::Overflow)?;
+        if discount_total_minor > MAX_SAFE_MONEY_MINOR {
+            return Err(FinancialError::Overflow);
+        }
         taxable_amount_minor = taxable_amount_minor
             .checked_add(item.taxable_minor)
             .ok_or(FinancialError::Overflow)?;
+        if taxable_amount_minor > MAX_SAFE_MONEY_MINOR {
+            return Err(FinancialError::Overflow);
+        }
         tax_total_minor = tax_total_minor
             .checked_add(item.tax_minor)
             .ok_or(FinancialError::Overflow)?;
+        if tax_total_minor > MAX_SAFE_MONEY_MINOR {
+            return Err(FinancialError::Overflow);
+        }
         grand_total_minor = grand_total_minor
             .checked_add(item.line_total_minor)
             .ok_or(FinancialError::Overflow)?;
+        if grand_total_minor > MAX_SAFE_MONEY_MINOR {
+            return Err(FinancialError::Overflow);
+        }
     }
 
     if paid_amount_minor > grand_total_minor {
@@ -275,7 +309,7 @@ pub fn parse_to_minor_units(value_str: &str, exponent: i32) -> Result<i64, Finan
         .and_then(|w| w.checked_add(fraction))
         .ok_or(FinancialError::Overflow)?;
 
-    if total_minor > MAX_MONEY_MINOR {
+    if total_minor > MAX_SAFE_MONEY_MINOR {
         return Err(FinancialError::Overflow);
     }
 
@@ -401,5 +435,36 @@ mod tests {
         assert!(parse_to_minor_units(",100.00", 2).is_err());
         assert!(parse_to_minor_units("100,.00", 2).is_err());
         assert!(parse_to_minor_units("1,,000.00", 2).is_err());
+    }
+
+    #[test]
+    fn test_boundary_rejection_gross_exceeds_safe_limit() {
+        // Reproduces user case: 999999900 qty * 99999999991 unit price exceeds MAX_SAFE_MONEY_MINOR
+        let err = calculate_line_item(999999900, 99999999991, 0, 0)
+            .expect_err("Should reject line item exceeding MAX_SAFE_MONEY_MINOR");
+        assert_eq!(err, FinancialError::Overflow);
+    }
+
+    #[test]
+    fn test_boundary_success_large_quantity_and_price() {
+        // 900,000 units @ ₹100,000.00 within MAX_SAFE_MONEY_MINOR
+        let line = calculate_line_item(900000000, 10000000, 0, 1800)
+            .expect("Should succeed for values within MAX_SAFE_MONEY_MINOR");
+        assert_eq!(line.gross_minor, 9000000000000);
+        assert_eq!(line.tax_minor, 1620000000000);
+        assert_eq!(line.line_total_minor, 10620000000000);
+
+        let totals = calculate_invoice_totals(&[line], 10620000000000).expect("Totals calculation failed");
+        assert_eq!(totals.grand_total_minor, 10620000000000);
+        assert_eq!(totals.settlement_status, "fully_paid");
+    }
+
+    #[test]
+    fn test_boundary_multi_item_accumulation_overflow_rejection() {
+        let line1 = calculate_line_item(500000000, 10000000000, 0, 0).unwrap();
+        let line2 = calculate_line_item(500000000, 10000000000, 0, 0).unwrap();
+        let err = calculate_invoice_totals(&[line1, line2], 0)
+            .expect_err("Should reject invoice total exceeding MAX_SAFE_MONEY_MINOR");
+        assert_eq!(err, FinancialError::Overflow);
     }
 }

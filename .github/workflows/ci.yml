@@ -60,3 +60,9 @@ jobs:
 
       - name: Run Production TypeScript & Vite Build
         run: npm run build
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright Catalog Verification
+        run: npm run test:catalog

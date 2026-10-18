@@ -107,6 +107,38 @@
         "balance_due_minor": 0,
         "settlement_status": "fully_paid"
       }
+    },
+    {
+      "id": "boundary_success_large_quantity_and_price",
+      "description": "Supported large transaction within MAX_SAFE_MONEY_MINOR (900k units @ ₹100,000.00)",
+      "input": {
+        "quantity_scaled": 900000000,
+        "unit_price_minor": 10000000,
+        "discount_minor": 0,
+        "tax_rate_bp": 1800,
+        "paid_minor": 10620000000000
+      },
+      "expected": {
+        "gross_minor": 9000000000000,
+        "taxable_minor": 9000000000000,
+        "tax_minor": 1620000000000,
+        "line_total_minor": 10620000000000,
+        "grand_total_minor": 10620000000000,
+        "balance_due_minor": 0,
+        "settlement_status": "fully_paid"
+      }
+    },
+    {
+      "id": "boundary_rejection_gross_exceeds_safe_limit",
+      "description": "Quantity and unit price whose gross exceeds MAX_SAFE_MONEY_MINOR (reproducing user case)",
+      "input": {
+        "quantity_scaled": 999999900,
+        "unit_price_minor": 99999999991,
+        "discount_minor": 0,
+        "tax_rate_bp": 0,
+        "paid_minor": 0
+      },
+      "should_overflow": true
     }
   ]
 }

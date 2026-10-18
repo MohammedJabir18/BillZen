@@ -120,3 +120,22 @@ flowchart TD
 - **Asynchronous Outbox**: Statutory e-invoicing pipelines (India GSTN/IRP JSON schemas and Saudi Arabia ZATCA Phase 1/2 TLV/UBL schemas) read finalized records and submit asynchronously without blocking billing workflows. Detailed in `docs/tax-and-e-invoicing-matrix.md`.
 - **Cross-Platform Engineering**: SQLite durability, single-instance file locking, and native print dispatchers mapped across Linux, Windows, macOS, Android, and iOS in `docs/platform-support-matrix.md`.
 
+## 11. Milestone 3: Catalog Domain, Inventory Ledger & Regional Localization
+1. **Catalog Domain Model**:
+   - `products`: SKU (uppercase normalized), Barcode (string preserving leading zeros), Name, Category FK, Unit, Unit selling price minor, Cost price minor, Tax rate basis points, Stock tracking flag, Current stock scaled ($1000\times$), Minimum stock alert threshold scaled ($1000\times$).
+   - `categories`: Normalized categories with uniqueness constraint on name.
+   - `customers`: Name, Phone (international prefix preserved), Email, Tax Identifier (GSTIN/TRN/VATIN), Address Lines 1 & 2, City, State, Postal Code, Country, Current balance minor.
+2. **Atomic Inventory Ledger**:
+   - Product creation with positive opening stock atomically writes both the product record and an opening stock movement (`reference_type = 'opening'`) in `stock_movements` within a single SQLite transaction.
+   - Product updates (`UPDATE products`) strictly omit `current_stock_scaled`; inventory mutations are ledger-driven and cannot be altered directly via product editing.
+3. **Identifier Normalization & Uniqueness**:
+   - SKUs are trimmed and converted to uppercase (`PROD-001`).
+   - Barcodes are preserved as strings without numerical conversion, preserving critical leading zeros (e.g., `"0012345678905"`).
+   - Duplicate SKUs or barcodes trigger descriptive error feedback from the database worker.
+4. **Barcode Scanner & Keyboard-Wedge Protocol**:
+   - Hardware USB/Bluetooth scanners operate in keyboard-wedge mode emitting standard keystrokes terminated by an `Enter` key.
+   - Product search inputs handle the `Enter` key event, immediately querying the catalog and providing visual scan confirmation.
+5. **Bundled Offline Fonts & Trilingual Localization**:
+   - Local `@font-face` assets bundled in `public/fonts/` (`NotoSans-Regular.ttf`, `NotoSansMalayalam-Regular.ttf`, `NotoSansArabic-Regular.ttf`).
+   - First-class UI localization supporting English (`en`), Malayalam (`ml`), and Arabic (`ar`) with RTL document flow (`dir="rtl"`).
+
