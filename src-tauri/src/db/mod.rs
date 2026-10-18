@@ -27,6 +27,7 @@ pub const V3_MIGRATION_SQL: &str = include_str!("migrations/v3_protect_currency_
 pub const V4_MIGRATION_SQL: &str = include_str!("migrations/v4_catalog.sql");
 pub const V5_MIGRATION_SQL: &str = include_str!("migrations/v5_category_nocase.sql");
 pub const INITIAL_V5_CHECKSUM: &str = "04d82447f839b02a0cc09c20534fa5f6d5688a1a79fb96e17b6a4bbe4d544a46";
+pub const INTERMEDIATE_V5_CHECKSUM: &str = "0d748aafb38054e1e01f260dd3bbc486e6e378a7bd97db6545d4ab4f9e166d36";
 
 pub fn configure_connection(conn: &Connection) -> Result<(), DbError> {
     conn.execute_batch(
@@ -218,7 +219,7 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
 
     match existing_checksum5 {
         Some(stored_checksum) => {
-            if stored_checksum != current_checksum5 && stored_checksum != INITIAL_V5_CHECKSUM {
+            if stored_checksum != current_checksum5 && stored_checksum != INITIAL_V5_CHECKSUM && stored_checksum != INTERMEDIATE_V5_CHECKSUM {
                 return Err(DbError::ChecksumMismatch {
                     version: 5,
                     expected: stored_checksum,
@@ -1120,5 +1121,150 @@ mod tests {
             |r| r.get(0),
         ).unwrap();
         assert!(merges_table_exists, "category_merges table must exist even on existing V5 databases");
+    }
+
+    #[test]
+    fn test_v5_migration_acceptance_edge_cases_and_unknown_checksum() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        configure_connection(&conn).unwrap();
+
+        let now = chrono::Utc::now().timestamp_millis();
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );",
+        ).unwrap();
+
+        // 1. Seed migrations 1..4 (V4 catalog database state)
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V4_MIGRATION_SQL).unwrap();
+
+        let mut h1 = Sha256::new(); h1.update(V1_MIGRATION_SQL.as_bytes());
+        let mut h2 = Sha256::new(); h2.update(V2_MIGRATION_SQL.as_bytes());
+        let mut h3 = Sha256::new(); h3.update(V3_MIGRATION_SQL.as_bytes());
+        let mut h4 = Sha256::new(); h4.update(V4_MIGRATION_SQL.as_bytes());
+
+        conn.execute("INSERT INTO schema_migrations VALUES (1, 'v1_init', ?1, ?2);", params![now, format!("{:x}", h1.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (2, 'v2_regional_foundation', ?1, ?2);", params![now, format!("{:x}", h2.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (3, 'v3_protect_currency_exponent', ?1, ?2);", params![now, format!("{:x}", h3.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (4, 'v4_catalog', ?1, ?2);", params![now, format!("{:x}", h4.finalize())]).unwrap();
+
+        // 2. Insert Edge Cases in V4:
+        // Group A: Creation-time ties with blank canonical description and multiple duplicates:
+        // - cat_a_2: name='Bakery', created_at=100, desc=NULL
+        // - cat_a_1: name='bakery', created_at=100 (same timestamp, tie broken by id: 'cat_a_1' < 'cat_a_2')
+        // - cat_a_3: name='BAKERY', created_at=200, desc='Fresh artisanal baked goods'
+        // - cat_a_4: name='BaKeRy', created_at=300, desc='Alternative bakery description'
+        conn.execute("INSERT INTO categories VALUES ('cat_a_2', 'Bakery', NULL, 100, 100);", []).unwrap();
+        conn.execute("INSERT INTO categories VALUES ('cat_a_1', 'bakery', '', 100, 100);", []).unwrap();
+        conn.execute("INSERT INTO categories VALUES ('cat_a_3', 'BAKERY', 'Fresh artisanal baked goods', 200, 200);", []).unwrap();
+        conn.execute("INSERT INTO categories VALUES ('cat_a_4', 'BaKeRy', 'Alternative bakery description', 300, 300);", []).unwrap();
+
+        // Group B: Non-blank canonical description must NOT be overwritten by duplicates:
+        // - cat_b_1: name='Beverages', created_at=50, desc='Original Beverages'
+        // - cat_b_2: name='beverages', created_at=150, desc='New beverage description'
+        conn.execute("INSERT INTO categories VALUES ('cat_b_1', 'Beverages', 'Original Beverages', 50, 50);", []).unwrap();
+        conn.execute("INSERT INTO categories VALUES ('cat_b_2', 'beverages', 'New beverage description', 150, 150);", []).unwrap();
+
+        // Insert products pointing to duplicates across Group A and Group B
+        conn.execute(
+            "INSERT INTO products (
+                id, sku, barcode, name, description, category_id, unit, unit_price_minor,
+                cost_price_minor, tax_rate_bp, is_stock_tracked, current_stock_scaled,
+                min_stock_threshold_scaled, is_active, created_at, updated_at
+            ) VALUES 
+            ('p_a1', 'SKU-A1', '001', 'Bread A1', NULL, 'cat_a_1', 'pcs', 100, 50, 0, 1, 5000, 1000, 1, 100, 100),
+            ('p_a2', 'SKU-A2', '002', 'Bread A2', NULL, 'cat_a_2', 'pcs', 200, 80, 0, 1, 6000, 1000, 1, 100, 100),
+            ('p_a3', 'SKU-A3', '003', 'Bread A3', NULL, 'cat_a_3', 'pcs', 300, 90, 0, 1, 7000, 1000, 1, 200, 200),
+            ('p_a4', 'SKU-A4', '004', 'Bread A4', NULL, 'cat_a_4', 'pcs', 400, 100, 0, 1, 8000, 1000, 1, 300, 300),
+            ('p_b1', 'SKU-B1', '005', 'Juice B1', NULL, 'cat_b_1', 'btl', 500, 200, 500, 0, 0, 0, 1, 50, 50),
+            ('p_b2', 'SKU-B2', '006', 'Juice B2', NULL, 'cat_b_2', 'btl', 600, 250, 500, 0, 0, 0, 1, 150, 150);",
+            [],
+        ).unwrap();
+
+        // Stock movement ledger entry for p_a1
+        conn.execute(
+            "INSERT INTO stock_movements (id, product_id, reference_type, reference_id, quantity_delta_scaled, resulting_stock_scaled, notes, created_at)
+             VALUES ('sm_1', 'p_a1', 'opening', NULL, 5000, 5000, NULL, 100);",
+            [],
+        ).unwrap();
+
+        // Run migrations
+        run_migrations(&mut conn).expect("V5 migration must succeed across all edge cases");
+
+        // Verification 1: Group A canonical category
+        // - cat_a_1 won the tie-break (both cat_a_1 and cat_a_2 had created_at=100, 'cat_a_1' < 'cat_a_2')
+        let (surviving_a_id, surviving_a_name, surviving_a_desc): (String, String, Option<String>) = conn.query_row(
+            "SELECT id, name, description FROM categories WHERE id LIKE 'cat_a_%';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        ).unwrap();
+        assert_eq!(surviving_a_id, "cat_a_1", "Tie-break on equal created_at must pick lowest lexicographical ID");
+        assert_eq!(surviving_a_name, "bakery");
+        // Blank canonical description was populated deterministically from duplicate (cat_a_3, lowest merged id)
+        assert_eq!(surviving_a_desc.as_deref(), Some("Fresh artisanal baked goods"));
+
+        // Verification 2: Group B canonical category
+        // - cat_b_1 had earlier created_at=50, had existing description 'Original Beverages', must be preserved
+        let (surviving_b_id, surviving_b_name, surviving_b_desc): (String, String, Option<String>) = conn.query_row(
+            "SELECT id, name, description FROM categories WHERE id LIKE 'cat_b_%';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        ).unwrap();
+        assert_eq!(surviving_b_id, "cat_b_1");
+        assert_eq!(surviving_b_name, "Beverages");
+        assert_eq!(surviving_b_desc.as_deref(), Some("Original Beverages"), "Existing non-blank description must NOT be overwritten");
+
+        // Verification 3: Total category count is exactly 2
+        let total_cats: i64 = conn.query_row("SELECT COUNT(*) FROM categories;", [], |r| r.get(0)).unwrap();
+        assert_eq!(total_cats, 2);
+
+        // Verification 4: All 4 Group A products are repointed to cat_a_1
+        let a_products: Vec<String> = {
+            let mut stmt = conn.prepare("SELECT category_id FROM products WHERE id IN ('p_a1', 'p_a2', 'p_a3', 'p_a4');").unwrap();
+            stmt.query_map([], |r| r.get(0)).unwrap().map(|r| r.unwrap()).collect()
+        };
+        assert_eq!(a_products, vec!["cat_a_1", "cat_a_1", "cat_a_1", "cat_a_1"]);
+
+        // Verification 5: Both Group B products are repointed to cat_b_1
+        let b_products: Vec<String> = {
+            let mut stmt = conn.prepare("SELECT category_id FROM products WHERE id IN ('p_b1', 'p_b2');").unwrap();
+            stmt.query_map([], |r| r.get(0)).unwrap().map(|r| r.unwrap()).collect()
+        };
+        assert_eq!(b_products, vec!["cat_b_1", "cat_b_1"]);
+
+        // Verification 6: Audit log category_merges contains exactly 4 merged entries
+        let merge_count: i64 = conn.query_row("SELECT COUNT(*) FROM category_merges;", [], |r| r.get(0)).unwrap();
+        assert_eq!(merge_count, 4, "4 merged duplicates must be recorded in category_merges");
+
+        // Verification 7: Zero foreign key violations
+        {
+            let mut fk_stmt = conn.prepare("PRAGMA foreign_key_check;").unwrap();
+            let fk_violations = fk_stmt.query_map([], |_| Ok(())).unwrap().count();
+            assert_eq!(fk_violations, 0, "No foreign key violations allowed");
+        }
+
+        // Verification 8: Unrelated stock movement ledger is intact
+        let sm_delta: i64 = conn.query_row("SELECT quantity_delta_scaled FROM stock_movements WHERE id = 'sm_1';", [], |r| r.get(0)).unwrap();
+        assert_eq!(sm_delta, 5000);
+
+        // Verification 9: Repeat startup / idempotency
+        run_migrations(&mut conn).expect("Repeat run_migrations must be completely idempotent");
+        let total_cats_after: i64 = conn.query_row("SELECT COUNT(*) FROM categories;", [], |r| r.get(0)).unwrap();
+        assert_eq!(total_cats_after, 2);
+
+        // Verification 10: Unknown checksum rejection
+        // Corrupt V5 checksum in schema_migrations
+        conn.execute("UPDATE schema_migrations SET checksum = 'deadbeef_corrupted_checksum' WHERE version = 5;", []).unwrap();
+        let err = run_migrations(&mut conn).expect_err("Corrupted/unknown checksum must be rejected");
+        match err {
+            DbError::ChecksumMismatch { version, .. } => assert_eq!(version, 5),
+            other => panic!("Expected ChecksumMismatch error, got: {:?}", other),
+        }
     }
 }
