@@ -1652,6 +1652,84 @@ mod tests {
             }))
             .expect_err("Cost price exceeding MAX_MONEY_MINOR must be rejected");
         assert!(err_cost.contains("Cost price out of supported bounds"), "Expected cost bounds error, got: {}", err_cost);
+
+        // Exact MAX_MONEY_MINOR accepted on create
+        let created_max = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "MAX-PRICE".to_string(),
+                barcode: None,
+                name: "Max Bound Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("pcs".to_string()),
+                unit_price_minor: MAX_MONEY_MINOR,
+                cost_price_minor: Some(MAX_MONEY_MINOR),
+                tax_rate_bp: None,
+                is_stock_tracked: Some(false),
+                opening_stock_scaled: None,
+                min_stock_threshold_scaled: None,
+            }))
+            .expect("Exact MAX_MONEY_MINOR must be accepted on creation");
+        assert_eq!(created_max.unit_price_minor, MAX_MONEY_MINOR);
+        assert_eq!(created_max.cost_price_minor, MAX_MONEY_MINOR);
+
+        // Update with selling price > MAX_MONEY_MINOR rejected
+        let err_update_price = rt
+            .block_on(worker.update_product(UpdateProductDto {
+                id: created_max.id.clone(),
+                sku: "MAX-PRICE".to_string(),
+                barcode: None,
+                name: "Max Bound Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: "pcs".to_string(),
+                unit_price_minor: MAX_MONEY_MINOR + 1,
+                cost_price_minor: 1000,
+                tax_rate_bp: 0,
+                is_stock_tracked: false,
+                min_stock_threshold_scaled: 0,
+            }))
+            .expect_err("Selling price exceeding MAX_MONEY_MINOR on update must be rejected");
+        assert!(err_update_price.contains("selling price out of supported bounds"), "Expected price bounds error on update, got: {}", err_update_price);
+
+        // Update with cost price > MAX_MONEY_MINOR rejected
+        let err_update_cost = rt
+            .block_on(worker.update_product(UpdateProductDto {
+                id: created_max.id.clone(),
+                sku: "MAX-PRICE".to_string(),
+                barcode: None,
+                name: "Max Bound Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: "pcs".to_string(),
+                unit_price_minor: 1000,
+                cost_price_minor: MAX_MONEY_MINOR + 1,
+                tax_rate_bp: 0,
+                is_stock_tracked: false,
+                min_stock_threshold_scaled: 0,
+            }))
+            .expect_err("Cost price exceeding MAX_MONEY_MINOR on update must be rejected");
+        assert!(err_update_cost.contains("Cost price out of supported bounds"), "Expected cost bounds error on update, got: {}", err_update_cost);
+
+        // Update with exact MAX_MONEY_MINOR succeeds
+        let updated_max = rt
+            .block_on(worker.update_product(UpdateProductDto {
+                id: created_max.id.clone(),
+                sku: "MAX-PRICE".to_string(),
+                barcode: None,
+                name: "Max Bound Item Updated".to_string(),
+                description: None,
+                category_id: None,
+                unit: "pcs".to_string(),
+                unit_price_minor: MAX_MONEY_MINOR,
+                cost_price_minor: MAX_MONEY_MINOR,
+                tax_rate_bp: 0,
+                is_stock_tracked: false,
+                min_stock_threshold_scaled: 0,
+            }))
+            .expect("Exact MAX_MONEY_MINOR on update must be accepted");
+        assert_eq!(updated_max.unit_price_minor, MAX_MONEY_MINOR);
+        assert_eq!(updated_max.cost_price_minor, MAX_MONEY_MINOR);
     }
 
     #[test]
@@ -1700,6 +1778,64 @@ mod tests {
             }))
             .expect_err("Min threshold exceeding MAX_QUANTITY_SCALED must be rejected");
         assert!(err_thresh.contains("Minimum stock threshold exceeds maximum supported quantity"), "Expected threshold bounds error, got: {}", err_thresh);
+
+        // Exact MAX_QUANTITY_SCALED accepted on create
+        let created_max = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "QTY-MAX".to_string(),
+                barcode: None,
+                name: "Max Qty Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("pcs".to_string()),
+                unit_price_minor: 1000,
+                cost_price_minor: None,
+                tax_rate_bp: None,
+                is_stock_tracked: Some(true),
+                opening_stock_scaled: Some(MAX_QUANTITY_SCALED),
+                min_stock_threshold_scaled: Some(MAX_QUANTITY_SCALED),
+            }))
+            .expect("Exact MAX_QUANTITY_SCALED must be accepted on creation");
+        assert_eq!(created_max.current_stock_scaled, MAX_QUANTITY_SCALED);
+        assert_eq!(created_max.min_stock_threshold_scaled, MAX_QUANTITY_SCALED);
+
+        // Update with min threshold > MAX_QUANTITY_SCALED rejected
+        let err_update_thresh = rt
+            .block_on(worker.update_product(UpdateProductDto {
+                id: created_max.id.clone(),
+                sku: "QTY-MAX".to_string(),
+                barcode: None,
+                name: "Max Qty Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: "pcs".to_string(),
+                unit_price_minor: 1000,
+                cost_price_minor: 0,
+                tax_rate_bp: 0,
+                is_stock_tracked: true,
+                min_stock_threshold_scaled: MAX_QUANTITY_SCALED + 1,
+            }))
+            .expect_err("Min threshold exceeding MAX_QUANTITY_SCALED on update must be rejected");
+        assert!(err_update_thresh.contains("Minimum stock threshold exceeds maximum supported quantity"), "Expected threshold bounds error on update, got: {}", err_update_thresh);
+
+        // Update with exact MAX_QUANTITY_SCALED succeeds
+        let updated_max = rt
+            .block_on(worker.update_product(UpdateProductDto {
+                id: created_max.id.clone(),
+                sku: "QTY-MAX".to_string(),
+                barcode: None,
+                name: "Max Qty Item Updated".to_string(),
+                description: None,
+                category_id: None,
+                unit: "pcs".to_string(),
+                unit_price_minor: 1000,
+                cost_price_minor: 0,
+                tax_rate_bp: 0,
+                is_stock_tracked: true,
+                min_stock_threshold_scaled: MAX_QUANTITY_SCALED,
+            }))
+            .expect("Exact MAX_QUANTITY_SCALED on update must be accepted");
+        assert_eq!(updated_max.min_stock_threshold_scaled, MAX_QUANTITY_SCALED);
     }
 
     #[test]
