@@ -121,13 +121,14 @@ flowchart TD
 - **Cross-Platform Engineering**: SQLite durability, single-instance file locking, and native print dispatchers mapped across Linux, Windows, macOS, Android, and iOS in `docs/platform-support-matrix.md`.
 
 ## 11. Milestone 3: Catalog Domain, Inventory Ledger & Regional Localization
-1. **Catalog Domain Model**:
-   - `products`: SKU (uppercase normalized), Barcode (string preserving leading zeros), Name, Category FK, Unit, Unit selling price minor, Cost price minor, Tax rate basis points, Stock tracking flag, Current stock scaled ($1000\times$), Minimum stock alert threshold scaled ($1000\times$).
-   - `categories`: Normalized categories with uniqueness constraint on name.
+1. **Catalog Domain Model & Numeric Limits**:
+   - `products`: SKU (uppercase normalized), Barcode (string preserving leading zeros), Name, Category FK, Unit, Unit selling price minor (bounded by `MAX_MONEY_MINOR`), Cost price minor (bounded by `MAX_MONEY_MINOR`), Tax rate basis points, Stock tracking flag, Current stock scaled ($1000\times$, bounded by `MAX_QUANTITY_SCALED`), Minimum stock alert threshold scaled ($1000\times$, bounded by `MAX_QUANTITY_SCALED`).
+   - `categories`: Normalized categories with case-insensitive uniqueness (`v5_category_nocase.sql` enforcing `idx_categories_name_nocase ON categories(name COLLATE NOCASE)`).
    - `customers`: Name, Phone (international prefix preserved), Email, Tax Identifier (GSTIN/TRN/VATIN), Address Lines 1 & 2, City, State, Postal Code, Country, Current balance minor.
-2. **Atomic Inventory Ledger**:
-   - Product creation with positive opening stock atomically writes both the product record and an opening stock movement (`reference_type = 'opening'`) in `stock_movements` within a single SQLite transaction.
+2. **Atomic Inventory Ledger & Stock Reconciliation**:
+   - Product creation with positive opening stock atomically writes both the product record and an opening stock movement (`reference_type = 'opening'`) in `stock_movements` within a single SQLite transaction. Untracked products (`is_stock_tracked: false`) strictly reject opening stock (`opening_stock_scaled > 0`).
    - Product updates (`UPDATE products`) strictly omit `current_stock_scaled`; inventory mutations are ledger-driven and cannot be altered directly via product editing.
+   - Transitioning an untracked product to tracked (`!was_tracked && is_stock_tracked`) enforces ledger reconciliation: `current_stock_scaled` must strictly match `SUM(stock_movements.quantity_delta_scaled)`, preventing phantom stock balances without history.
 3. **Identifier Normalization & Uniqueness**:
    - SKUs are trimmed and converted to uppercase (`PROD-001`).
    - Barcodes are preserved as strings without numerical conversion, preserving critical leading zeros (e.g., `"0012345678905"`).
@@ -138,4 +139,7 @@ flowchart TD
 5. **Bundled Offline Fonts & Trilingual Localization**:
    - Local `@font-face` assets bundled in `public/fonts/` (`NotoSans-Regular.ttf`, `NotoSansMalayalam-Regular.ttf`, `NotoSansArabic-Regular.ttf`).
    - First-class UI localization supporting English (`en`), Malayalam (`ml`), and Arabic (`ar`) with RTL document flow (`dir="rtl"`).
+6. **Cross-Platform Multi-Process Persistence Probe**:
+   - Portable Node runner `scripts/run_native_probe.js` isolates SQLite lifecycle to clean temporary directories across POSIX, macOS, and Windows.
+
 

@@ -621,12 +621,12 @@ fn create_product(conn: &mut Connection, dto: CreateProductDto) -> Result<Produc
         return Err("Product name cannot be empty".to_string());
     }
 
-    if dto.unit_price_minor < 0 || dto.unit_price_minor > crate::domain::financial::MAX_SAFE_MONEY_MINOR {
+    if dto.unit_price_minor < 0 || dto.unit_price_minor > crate::domain::financial::MAX_MONEY_MINOR {
         return Err("Unit selling price out of supported bounds".to_string());
     }
 
     let cost_price_minor = dto.cost_price_minor.unwrap_or(0);
-    if cost_price_minor < 0 || cost_price_minor > crate::domain::financial::MAX_SAFE_MONEY_MINOR {
+    if cost_price_minor < 0 || cost_price_minor > crate::domain::financial::MAX_MONEY_MINOR {
         return Err("Cost price out of supported bounds".to_string());
     }
 
@@ -637,13 +637,27 @@ fn create_product(conn: &mut Connection, dto: CreateProductDto) -> Result<Produc
 
     let is_stock_tracked = dto.is_stock_tracked.unwrap_or(true);
     let opening_stock_scaled = dto.opening_stock_scaled.unwrap_or(0);
-    if is_stock_tracked && opening_stock_scaled < 0 {
-        return Err("Tracked inventory cannot have negative opening stock".to_string());
+    if !is_stock_tracked {
+        if opening_stock_scaled != 0 {
+            return Err("Untracked products cannot have opening stock".to_string());
+        }
+    } else {
+        if opening_stock_scaled < 0 {
+            return Err("Tracked inventory cannot have negative opening stock".to_string());
+        }
+        if opening_stock_scaled > crate::domain::financial::MAX_QUANTITY_SCALED {
+            return Err("Opening stock exceeds maximum supported quantity".to_string());
+        }
     }
+
+    let initial_stock_scaled = if is_stock_tracked { opening_stock_scaled } else { 0 };
 
     let min_stock_threshold_scaled = dto.min_stock_threshold_scaled.unwrap_or(0);
     if min_stock_threshold_scaled < 0 {
         return Err("Minimum stock threshold cannot be negative".to_string());
+    }
+    if min_stock_threshold_scaled > crate::domain::financial::MAX_QUANTITY_SCALED {
+        return Err("Minimum stock threshold exceeds maximum supported quantity".to_string());
     }
 
     let unit = dto.unit.as_deref().unwrap_or("unit").trim().to_string();
@@ -674,7 +688,7 @@ fn create_product(conn: &mut Connection, dto: CreateProductDto) -> Result<Produc
             cost_price_minor,
             tax_rate_bp,
             if is_stock_tracked { 1 } else { 0 },
-            opening_stock_scaled,
+            initial_stock_scaled,
             min_stock_threshold_scaled,
             now,
         ],
@@ -691,14 +705,14 @@ fn create_product(conn: &mut Connection, dto: CreateProductDto) -> Result<Produc
         return Err(format!("Failed to insert product: {}", e));
     }
 
-    if is_stock_tracked && opening_stock_scaled > 0 {
+    if is_stock_tracked && initial_stock_scaled > 0 {
         let mov_id = format!("sm_{}", uuid::Uuid::new_v4().simple());
         tx.execute(
             "INSERT INTO stock_movements (
                 id, product_id, reference_type, reference_id,
                 quantity_delta_scaled, resulting_stock_scaled, notes, created_at
             ) VALUES (?1, ?2, 'opening', NULL, ?3, ?3, 'Opening Stock', ?4);",
-            params![mov_id, id, opening_stock_scaled, now],
+            params![mov_id, id, initial_stock_scaled, now],
         )
         .map_err(|e| format!("Failed to insert opening stock movement: {}", e))?;
     }
@@ -728,7 +742,7 @@ fn create_product(conn: &mut Connection, dto: CreateProductDto) -> Result<Produc
         cost_price_minor,
         tax_rate_bp,
         is_stock_tracked,
-        current_stock_scaled: opening_stock_scaled,
+        current_stock_scaled: initial_stock_scaled,
         min_stock_threshold_scaled,
         is_active: true,
         created_at: now,
@@ -746,10 +760,10 @@ fn update_product(conn: &mut Connection, dto: UpdateProductDto) -> Result<Produc
         return Err("Product name cannot be empty".to_string());
     }
 
-    if dto.unit_price_minor < 0 || dto.unit_price_minor > crate::domain::financial::MAX_SAFE_MONEY_MINOR {
+    if dto.unit_price_minor < 0 || dto.unit_price_minor > crate::domain::financial::MAX_MONEY_MINOR {
         return Err("Unit selling price out of supported bounds".to_string());
     }
-    if dto.cost_price_minor < 0 || dto.cost_price_minor > crate::domain::financial::MAX_SAFE_MONEY_MINOR {
+    if dto.cost_price_minor < 0 || dto.cost_price_minor > crate::domain::financial::MAX_MONEY_MINOR {
         return Err("Cost price out of supported bounds".to_string());
     }
     if !(0..=10000).contains(&dto.tax_rate_bp) {
@@ -758,6 +772,9 @@ fn update_product(conn: &mut Connection, dto: UpdateProductDto) -> Result<Produc
     if dto.min_stock_threshold_scaled < 0 {
         return Err("Minimum stock threshold cannot be negative".to_string());
     }
+    if dto.min_stock_threshold_scaled > crate::domain::financial::MAX_QUANTITY_SCALED {
+        return Err("Minimum stock threshold exceeds maximum supported quantity".to_string());
+    }
 
     let unit = dto.unit.trim();
     let unit = if unit.is_empty() { "unit" } else { unit };
@@ -765,16 +782,34 @@ fn update_product(conn: &mut Connection, dto: UpdateProductDto) -> Result<Produc
     let cat_id = dto.category_id.as_deref().map(|c| c.trim().to_string()).filter(|c| !c.is_empty());
     let now = chrono::Utc::now().timestamp_millis();
 
-    let (current_stock, is_active, created_at): (i64, bool, i64) = conn
+    let (current_stock, was_tracked, is_active, created_at): (i64, bool, bool, i64) = conn
         .query_row(
-            "SELECT current_stock_scaled, is_active, created_at FROM products WHERE id = ?1;",
+            "SELECT current_stock_scaled, is_stock_tracked, is_active, created_at FROM products WHERE id = ?1;",
             params![dto.id],
             |r| {
-                let active_int: i64 = r.get(1)?;
-                Ok((r.get(0)?, active_int != 0, r.get(2)?))
+                let tracked_int: i64 = r.get(1)?;
+                let active_int: i64 = r.get(2)?;
+                Ok((r.get(0)?, tracked_int != 0, active_int != 0, r.get(3)?))
             },
         )
         .map_err(|_| format!("Product with id '{}' not found", dto.id))?;
+
+    if !was_tracked && dto.is_stock_tracked {
+        let ledger_sum: i64 = conn
+            .query_row(
+                "SELECT COALESCE(SUM(quantity_delta_scaled), 0) FROM stock_movements WHERE product_id = ?1;",
+                params![dto.id],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("Failed to verify ledger: {}", e))?;
+
+        if current_stock != ledger_sum {
+            return Err(format!(
+                "Cannot enable stock tracking: product stock balance ({}) diverges from ledger sum ({})",
+                current_stock, ledger_sum
+            ));
+        }
+    }
 
     if dto.is_stock_tracked && current_stock < 0 {
         return Err("Cannot enable stock tracking while product has negative stock".to_string());
@@ -1122,6 +1157,18 @@ fn create_category(conn: &Connection, dto: CreateCategoryDto) -> Result<Category
     if name.is_empty() {
         return Err("Category name cannot be empty".to_string());
     }
+
+    let exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM categories WHERE name COLLATE NOCASE = ?1);",
+            params![name],
+            |r| r.get(0),
+        )
+        .unwrap_or(false);
+    if exists {
+        return Err(format!("A category with name '{}' already exists.", name));
+    }
+
     let desc = dto.description.as_deref().map(|d| d.trim().to_string()).filter(|d| !d.is_empty());
     let id = format!("cat_{}", uuid::Uuid::new_v4().simple());
     let now = chrono::Utc::now().timestamp_millis();
@@ -1133,7 +1180,7 @@ fn create_category(conn: &Connection, dto: CreateCategoryDto) -> Result<Category
 
     if let Err(e) = res {
         let msg = e.to_string();
-        if msg.contains("UNIQUE constraint failed: categories.name") {
+        if msg.contains("UNIQUE constraint failed") {
             return Err(format!("A category with name '{}' already exists.", name));
         }
         return Err(format!("Failed to insert category: {}", e));
@@ -1466,6 +1513,225 @@ mod tests {
         let list = rt.block_on(worker.get_categories()).expect("get categories");
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].id, c1.id);
+    }
+
+    #[test]
+    fn test_untracked_product_cannot_have_opening_stock() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("untracked_stock_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        let err = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "SERVICE-01".to_string(),
+                barcode: None,
+                name: "Consultation Service".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("hour".to_string()),
+                unit_price_minor: 50000,
+                cost_price_minor: None,
+                tax_rate_bp: Some(1800),
+                is_stock_tracked: Some(false),
+                opening_stock_scaled: Some(5000), // Disallowed for untracked!
+                min_stock_threshold_scaled: Some(0),
+            }))
+            .expect_err("Untracked products must reject positive opening stock");
+
+        assert!(
+            err.contains("Untracked products cannot have opening stock"),
+            "Expected untracked opening stock error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_enabling_tracking_fails_if_stock_diverges_from_ledger() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("tracking_transition_test.db");
+        let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should start");
+
+        // 1. Create untracked product with 0 stock
+        let prod = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "ITEM-UNTRACKED".to_string(),
+                barcode: None,
+                name: "Untracked Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("pcs".to_string()),
+                unit_price_minor: 1000,
+                cost_price_minor: None,
+                tax_rate_bp: None,
+                is_stock_tracked: Some(false),
+                opening_stock_scaled: Some(0),
+                min_stock_threshold_scaled: Some(0),
+            }))
+            .expect("Product creation should succeed");
+
+        // 2. Corrupt stock balance directly in DB to simulate phantom stock without ledger history
+        {
+            let conn = rusqlite::Connection::open(&db_path).expect("open raw conn");
+            conn.execute(
+                "UPDATE products SET current_stock_scaled = 5000 WHERE id = ?1;",
+                rusqlite::params![prod.id],
+            )
+            .expect("corrupt stock");
+        }
+
+        // 3. Attempt to enable stock tracking on product with phantom stock
+        let err = rt
+            .block_on(worker.update_product(UpdateProductDto {
+                id: prod.id,
+                sku: "ITEM-UNTRACKED".to_string(),
+                barcode: None,
+                name: "Untracked Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: "pcs".to_string(),
+                unit_price_minor: 1000,
+                cost_price_minor: 0,
+                tax_rate_bp: 0,
+                is_stock_tracked: true, // Enabling tracking!
+                min_stock_threshold_scaled: 0,
+            }))
+            .expect_err("Enabling tracking with phantom stock must fail reconciliation");
+
+        assert!(
+            err.contains("diverges from ledger sum"),
+            "Expected ledger divergence error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_product_pricing_exceeding_max_money_minor_rejected() {
+        use crate::domain::financial::MAX_MONEY_MINOR;
+
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("price_bounds_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        // Selling price > MAX_MONEY_MINOR rejected on create
+        let err_price = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "EXP-PRICE".to_string(),
+                barcode: None,
+                name: "Expensive Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("pcs".to_string()),
+                unit_price_minor: MAX_MONEY_MINOR + 1,
+                cost_price_minor: Some(100),
+                tax_rate_bp: None,
+                is_stock_tracked: Some(false),
+                opening_stock_scaled: None,
+                min_stock_threshold_scaled: None,
+            }))
+            .expect_err("Price exceeding MAX_MONEY_MINOR must be rejected");
+        assert!(err_price.contains("selling price out of supported bounds"), "Expected price bounds error, got: {}", err_price);
+
+        // Cost price > MAX_MONEY_MINOR rejected on create
+        let err_cost = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "EXP-COST".to_string(),
+                barcode: None,
+                name: "Expensive Cost Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("pcs".to_string()),
+                unit_price_minor: 1000,
+                cost_price_minor: Some(MAX_MONEY_MINOR + 1),
+                tax_rate_bp: None,
+                is_stock_tracked: Some(false),
+                opening_stock_scaled: None,
+                min_stock_threshold_scaled: None,
+            }))
+            .expect_err("Cost price exceeding MAX_MONEY_MINOR must be rejected");
+        assert!(err_cost.contains("Cost price out of supported bounds"), "Expected cost bounds error, got: {}", err_cost);
+    }
+
+    #[test]
+    fn test_product_quantities_exceeding_max_quantity_scaled_rejected() {
+        use crate::domain::financial::MAX_QUANTITY_SCALED;
+
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("quantity_bounds_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        // Opening stock > MAX_QUANTITY_SCALED rejected
+        let err_open = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "QTY-OVERFLOW".to_string(),
+                barcode: None,
+                name: "Overflow Qty Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("pcs".to_string()),
+                unit_price_minor: 1000,
+                cost_price_minor: None,
+                tax_rate_bp: None,
+                is_stock_tracked: Some(true),
+                opening_stock_scaled: Some(MAX_QUANTITY_SCALED + 1),
+                min_stock_threshold_scaled: None,
+            }))
+            .expect_err("Opening stock exceeding MAX_QUANTITY_SCALED must be rejected");
+        assert!(err_open.contains("Opening stock exceeds maximum supported quantity"), "Expected opening quantity bounds error, got: {}", err_open);
+
+        // Min threshold > MAX_QUANTITY_SCALED rejected
+        let err_thresh = rt
+            .block_on(worker.create_product(CreateProductDto {
+                sku: "THRESH-OVERFLOW".to_string(),
+                barcode: None,
+                name: "Overflow Threshold Item".to_string(),
+                description: None,
+                category_id: None,
+                unit: Some("pcs".to_string()),
+                unit_price_minor: 1000,
+                cost_price_minor: None,
+                tax_rate_bp: None,
+                is_stock_tracked: Some(true),
+                opening_stock_scaled: Some(1000),
+                min_stock_threshold_scaled: Some(MAX_QUANTITY_SCALED + 1),
+            }))
+            .expect_err("Min threshold exceeding MAX_QUANTITY_SCALED must be rejected");
+        assert!(err_thresh.contains("Minimum stock threshold exceeds maximum supported quantity"), "Expected threshold bounds error, got: {}", err_thresh);
+    }
+
+    #[test]
+    fn test_category_name_case_insensitive_duplicate_rejected() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("category_nocase_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        let c1 = rt
+            .block_on(worker.create_category(CreateCategoryDto {
+                name: "Groceries".to_string(),
+                description: Some("Supermarket groceries".to_string()),
+            }))
+            .expect("Create first category");
+        assert_eq!(c1.name, "Groceries");
+
+        let err = rt
+            .block_on(worker.create_category(CreateCategoryDto {
+                name: "groceries".to_string(), // lowercase duplicate!
+                description: None,
+            }))
+            .expect_err("lowercase duplicate category name must be rejected");
+        assert!(err.contains("already exists"), "Expected duplicate error, got: {}", err);
+
+        let err_padded = rt
+            .block_on(worker.create_category(CreateCategoryDto {
+                name: "  GROCERIES  ".to_string(), // uppercase trimmed duplicate!
+                description: None,
+            }))
+            .expect_err("trimmed uppercase duplicate category name must be rejected");
+        assert!(err_padded.contains("already exists"), "Expected duplicate error, got: {}", err_padded);
     }
 }
 

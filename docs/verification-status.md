@@ -10,23 +10,26 @@ Fresh local runs during this documentation/upload session:
 | --- | --- |
 | `npm test` | 14 tests passed across 2 files |
 | `npm run build` | TypeScript and Vite build passed |
-| `cargo test --manifest-path src-tauri/Cargo.toml` | 32 tests passed |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 38 tests passed (including 5 regression tests & V5 migration upgrade) |
 | Catalog Playwright | All 6 scripted steps passed |
 | A4 PDF matrix | All 4 scenarios passed; page counts 1 / 3 / 1 / 1 |
-| Catalog cross-process probe | Separate write and read/verify processes passed with an isolated temporary database |
+| Catalog cross-process probe (`npm run test:native-probe`) | Separate write and read/verify processes passed with an isolated, cross-platform temporary database (`scripts/run_native_probe.js`) |
 | Documentation review | Relative links and source claims reviewed; minor corrections applied |
 
 No GitHub Actions success is implied by local results. Physical printers and other native OS targets were not tested. Graphify code-only refresh passed; full document extraction requires an unconfigured LLM API key and SQL AST extraction requires an optional missing parser.
 
-## Known issues before billing implementation
+## Resolved M3 Integrity Defects
 
-1. **Stock reconciliation:** an untracked product can retain nonzero opening stock without an opening movement. Enabling tracking later can expose stock with no matching ledger entry. Define and enforce transition rules; reproduce with a regression test.
-2. **Catalog versus invoice price bounds:** catalog accepts values up to the JavaScript safe-integer limit, while invoice financial calculations cap a unit price at `MAX_MONEY_MINOR` (100,000,000,000). Align the shared contract before items enter billing.
-3. **Quantity bounds:** enforce safe, domain-consistent integer ranges on every opening quantity and threshold through both native commands and UI parsing.
-4. **Category uniqueness:** the unique name column is case-sensitive; a separate NOCASE index does not make it case-insensitively unique.
-5. **Native UI coverage:** the cross-process probe does not replace webview/IPC end-to-end tests. Browser mock tests cannot establish native UI persistence.
-6. **Probe portability:** the native npm probe is POSIX-only and uses a fixed temporary path. The publication workflow now installs Chrome and Poppler to match PDF script requirements; remote results still need verification.
-7. **Product scope:** invoice draft/finalize transactions, stock decrements, payment allocation workflows, expense UI, backup/restore, encryption and synchronization remain incomplete.
+1. **Stock reconciliation:** Untracked products reject opening stock at creation (`opening_stock_scaled > 0`). Transitioning from untracked to tracked product in `update_product` reconciles `current_stock_scaled` against `SUM(quantity_delta_scaled)` in `stock_movements`, rejecting any phantom stock balances.
+2. **Catalog versus invoice price bounds:** Selling price and cost price are strictly bounded to `0 <= price <= MAX_MONEY_MINOR` (100,000,000,00) in both Rust worker and TypeScript UI validation.
+3. **Quantity bounds:** Opening stock and minimum alert thresholds are strictly bounded to `0 <= quantity <= MAX_QUANTITY_SCALED` (1,000,000,000 scaled = 1,000,000.000 units) in both Rust worker and TypeScript UI validation.
+4. **Category uniqueness:** Added migration `v5_category_nocase.sql` creating unique index `idx_categories_name_nocase ON categories(name COLLATE NOCASE)`. Case-insensitive duplicate category names ("Groceries" vs "groceries" vs "  GROCERIES  ") are rejected deterministically.
+5. **Probe portability:** Replaced hardcoded POSIX `/tmp/` and `rm -f` commands in `package.json` with a cross-platform Node runner `scripts/run_native_probe.js` using `os.tmpdir()` and clean temporary directory lifecycle.
+
+## Remaining Known Issues Before M4 Invoicing
+
+1. **Native UI coverage:** The cross-process probe verifies database worker and process lifecycle but does not replace webview/IPC end-to-end tests. Browser mock tests cannot establish native UI persistence.
+2. **Product scope:** Invoice draft/finalize transactions, stock decrements, payment allocation workflows, expense UI, backup/restore, encryption and synchronization remain incomplete for Milestone 4+.
 
 Additional review targets: unsaved form navigation, localized input parsing, long catalog performance, native unauthorized-window command denial, responsive layouts and platform-specific printing.
 

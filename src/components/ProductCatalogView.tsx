@@ -22,7 +22,7 @@ import {
   getCategories,
   createCategory,
 } from '../adapters/tauri';
-import { formatMinorUnits, parseToMinorUnits } from '../domain/financial';
+import { formatMinorUnits, parseToMinorUnits, MAX_MONEY_MINOR, MAX_QUANTITY_SCALED } from '../domain/financial';
 import { translations, Language } from '../i18n';
 
 interface ProductCatalogViewProps {
@@ -182,7 +182,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
     let unitPriceMinor: number;
     try {
       unitPriceMinor = parseToMinorUnits(formUnitPrice, settings.currency_exponent);
-      if (unitPriceMinor < 0) throw new Error();
+      if (unitPriceMinor < 0 || unitPriceMinor > MAX_MONEY_MINOR) throw new Error();
     } catch {
       setFormError(t.err_invalid_price);
       return;
@@ -192,8 +192,9 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
     if (formCostPrice.trim()) {
       try {
         costPriceMinor = parseToMinorUnits(formCostPrice, settings.currency_exponent);
+        if (costPriceMinor < 0 || costPriceMinor > MAX_MONEY_MINOR) throw new Error();
       } catch {
-        setFormError('Cost price must be a valid number');
+        setFormError('Cost price must be between 0 and 1,000,000,000');
         return;
       }
     }
@@ -211,6 +212,10 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
       return;
     }
     const minThresholdScaled = Math.round(minThresholdFloat * 1000);
+    if (minThresholdScaled > MAX_QUANTITY_SCALED) {
+      setFormError('Minimum threshold exceeds maximum supported quantity (1,000,000)');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -234,13 +239,28 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
         setSuccessMsg(t.msg_product_saved);
       } else {
         // Create product
-        const openingStockFloat = parseFloat(formOpeningStock || '0');
-        if (isNaN(openingStockFloat) || openingStockFloat < 0) {
-          setFormError('Opening stock must be a non-negative number');
-          setSaving(false);
-          return;
+        let openingStockScaled = 0;
+        if (!formIsTracked) {
+          const openingStockFloat = parseFloat(formOpeningStock || '0');
+          if (!isNaN(openingStockFloat) && openingStockFloat > 0) {
+            setFormError('Untracked products cannot have opening stock');
+            setSaving(false);
+            return;
+          }
+        } else {
+          const openingStockFloat = parseFloat(formOpeningStock || '0');
+          if (isNaN(openingStockFloat) || openingStockFloat < 0) {
+            setFormError('Opening stock must be a non-negative number');
+            setSaving(false);
+            return;
+          }
+          openingStockScaled = Math.round(openingStockFloat * 1000);
+          if (openingStockScaled > MAX_QUANTITY_SCALED) {
+            setFormError('Opening stock exceeds maximum supported quantity (1,000,000)');
+            setSaving(false);
+            return;
+          }
         }
-        const openingStockScaled = Math.round(openingStockFloat * 1000);
 
         const createDto: CreateProductDto = {
           sku: skuClean,
@@ -253,7 +273,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
           cost_price_minor: costPriceMinor,
           tax_rate_bp: taxRateBp,
           is_stock_tracked: formIsTracked,
-          opening_stock_scaled: openingStockScaled,
+          opening_stock_scaled: formIsTracked ? openingStockScaled : 0,
           min_stock_threshold_scaled: minThresholdScaled,
         };
         await createProduct(createDto);
