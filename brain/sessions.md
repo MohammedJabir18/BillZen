@@ -267,3 +267,10 @@
 - **Pending Tasks / Immediate Next Steps**:
   - Commit and push Section A and Section B.
   - Milestone 4A (M4A): Draft invoice management vertical slice.
+
+
+## 2026-10-18 — Independent M3.1 review and Android beta handoff
+- Reviewed Antigravity commits `e5848dc` and `0df3bc9`; whitespace-aware PDF checks retain required text/amount comparisons, and legacy category reconciliation plus the specific historical V5 checksum compatibility look sound within their tested cases.
+- Fresh independent checks: 40 Rust tests, 14 frontend tests, production build, four PDF matrix scenarios and native cross-process probe all passed. Additional migration edge-case coverage remains useful before broad closure claims.
+- User prioritizes an Android app for a friend and responsive mobile layouts. Added `docs/android-beta-next-task.md` with native project/toolchain setup, app-private SQLite storage, lifecycle and desktop data preservation, phone/tablet/desktop responsive acceptance, real emulator/device offline tests and signed self-contained APK delivery. M4 invoicing is deferred for this beta task, not represented as implemented.
+- No Android implementation or APK was produced during this review/prompt task. Existing local commits can be published through configured GitHub authentication; remote CI success must be checked separately.
