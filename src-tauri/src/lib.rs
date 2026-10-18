@@ -58,29 +58,67 @@ pub fn acquire_instance_lock(app_data_dir: &Path) -> Result<InstanceLock, String
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app_data_dir = get_app_data_dir();
+    #[cfg(not(target_os = "android"))]
+    let (desktop_lock, desktop_worker) = {
+        let app_data_dir = get_app_data_dir();
 
-    // Acquire single instance lock
-    let _lock = match acquire_instance_lock(&app_data_dir) {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("[BillZen Fatal] Another instance of BillZen is already running or lock failed: {}", e);
-            std::process::exit(1);
-        }
-    };
+        // Acquire single instance lock
+        let lock = match acquire_instance_lock(&app_data_dir) {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("[BillZen Fatal] Another instance of BillZen is already running or lock failed: {}", e);
+                std::process::exit(1);
+            }
+        };
 
-    let db_path = app_data_dir.join("billzen.db");
-    let worker_handle = match DbWorkerHandle::new(db_path) {
-        Ok(h) => h,
-        Err(e) => {
-            eprintln!("[BillZen Fatal] Failed to initialize database worker: {}", e);
-            std::process::exit(1);
-        }
+        let db_path = app_data_dir.join("billzen.db");
+        let worker_handle = match DbWorkerHandle::new(db_path) {
+            Ok(h) => h,
+            Err(e) => {
+                eprintln!("[BillZen Fatal] Failed to initialize database worker: {}", e);
+                std::process::exit(1);
+            }
+        };
+
+        (lock, worker_handle)
     };
 
     tauri::Builder::default()
         .setup(move |app| {
-            app.manage(worker_handle);
+            #[cfg(not(target_os = "android"))]
+            {
+                app.manage(desktop_lock);
+                app.manage(desktop_worker);
+            }
+
+            #[cfg(target_os = "android")]
+            {
+                let app_data_dir = app.path().app_data_dir().map_err(|e| {
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to resolve Android app data dir: {}", e),
+                    )) as Box<dyn std::error::Error>
+                })?;
+                std::fs::create_dir_all(&app_data_dir)?;
+
+                let lock = acquire_instance_lock(&app_data_dir).map_err(|e| {
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to acquire instance lock on Android: {}", e),
+                    )) as Box<dyn std::error::Error>
+                })?;
+                app.manage(lock);
+
+                let db_path = app_data_dir.join("billzen.db");
+                let worker_handle = DbWorkerHandle::new(db_path).map_err(|e| {
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to initialize Android database worker: {}", e),
+                    )) as Box<dyn std::error::Error>
+                })?;
+                app.manage(worker_handle);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
