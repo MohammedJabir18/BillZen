@@ -195,6 +195,12 @@
           "markdownDescription": "Enables the check_print_support command without any pre-configured scope."
         },
         {
+          "description": "Enables the complete_business_setup command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-complete-business-setup",
+          "markdownDescription": "Enables the complete_business_setup command without any pre-configured scope."
+        },
+        {
           "description": "Enables the create_category command without any pre-configured scope.",
           "type": "string",
           "const": "allow-create-category",
@@ -255,6 +261,18 @@
           "markdownDescription": "Enables the restore_product command without any pre-configured scope."
         },
         {
+          "description": "Enables the update_appearance_preference command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-appearance-preference",
+          "markdownDescription": "Enables the update_appearance_preference command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the update_business_profile command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-business-profile",
+          "markdownDescription": "Enables the update_business_profile command without any pre-configured scope."
+        },
+        {
           "description": "Enables the update_business_settings command without any pre-configured scope.",
           "type": "string",
           "const": "allow-update-business-settings",
@@ -265,6 +283,12 @@
           "type": "string",
           "const": "allow-update-customer",
           "markdownDescription": "Enables the update_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the update_guide_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-guide-status",
+          "markdownDescription": "Enables the update_guide_status command without any pre-configured scope."
         },
         {
           "description": "Enables the update_product command without any pre-configured scope.",
@@ -289,6 +313,12 @@
           "type": "string",
           "const": "deny-check-print-support",
           "markdownDescription": "Denies the check_print_support command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the complete_business_setup command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-complete-business-setup",
+          "markdownDescription": "Denies the complete_business_setup command without any pre-configured scope."
         },
         {
           "description": "Denies the create_category command without any pre-configured scope.",
@@ -351,6 +381,18 @@
           "markdownDescription": "Denies the restore_product command without any pre-configured scope."
         },
         {
+          "description": "Denies the update_appearance_preference command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-appearance-preference",
+          "markdownDescription": "Denies the update_appearance_preference command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_business_profile command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-business-profile",
+          "markdownDescription": "Denies the update_business_profile command without any pre-configured scope."
+        },
+        {
           "description": "Denies the update_business_settings command without any pre-configured scope.",
           "type": "string",
           "const": "deny-update-business-settings",
@@ -361,6 +403,12 @@
           "type": "string",
           "const": "deny-update-customer",
           "markdownDescription": "Denies the update_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_guide_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-guide-status",
+          "markdownDescription": "Denies the update_guide_status command without any pre-configured scope."
         },
         {
           "description": "Denies the update_product command without any pre-configured scope.",

@@ -76,6 +76,13 @@ async function runCatalogVerification() {
     const productsHeader = await page.textContent('main h1');
     console.log(`Header found: "${productsHeader?.trim()}"`);
 
+    // Dismiss getting-started guide if visible
+    const guideSkipBtn = await page.$('[data-testid="guide-skip-button"], [data-testid="guide-close-button"]');
+    if (guideSkipBtn) {
+      await guideSkipBtn.click();
+      await page.waitForTimeout(300);
+    }
+
     report.tests.push({
       step: 'initial_load_products_tab',
       passed: productsHeader?.includes('Products') ?? false,

@@ -7,6 +7,12 @@
     "core:default",
     "allow-get-business-settings",
     "allow-update-business-settings",
+    "allow-update-business-profile",
+    "allow-complete-business-setup",
+    "allow-update-appearance-preference",
+
+
+    "allow-update-guide-status",
     "allow-check-print-support",
     "allow-ping",
     "allow-get-products",

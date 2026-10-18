@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-complete-business-setup"
+description = "Enables the complete_business_setup command without any pre-configured scope."
+commands.allow = ["complete_business_setup"]
+
+[[permission]]
+identifier = "deny-complete-business-setup"
+description = "Denies the complete_business_setup command without any pre-configured scope."
+commands.deny = ["complete_business_setup"]

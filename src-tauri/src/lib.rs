@@ -124,7 +124,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::settings::get_business_settings,
             commands::settings::update_business_settings,
+            commands::settings::update_business_profile,
+            commands::settings::complete_business_setup,
+            commands::settings::update_appearance_preference,
+            commands::settings::update_guide_status,
             commands::system::check_print_support,
+
             commands::system::ping,
             commands::catalog::get_products,
             commands::catalog::create_product,
@@ -238,6 +243,8 @@ mod tests {
 
         assert!(main_perms_str.contains(&"allow-get-business-settings"));
         assert!(main_perms_str.contains(&"allow-update-business-settings"));
+        assert!(main_perms_str.contains(&"allow-update-appearance-preference"));
+        assert!(main_perms_str.contains(&"allow-update-guide-status"));
         assert!(main_perms_str.contains(&"allow-check-print-support"));
         assert!(main_perms_str.contains(&"allow-ping"));
         assert!(main_perms_str.contains(&"allow-get-products"));
@@ -268,6 +275,8 @@ mod tests {
 
         assert!(!unpriv_perms_str.contains(&"allow-get-business-settings"));
         assert!(!unpriv_perms_str.contains(&"allow-update-business-settings"));
+        assert!(!unpriv_perms_str.contains(&"allow-update-appearance-preference"));
+        assert!(!unpriv_perms_str.contains(&"allow-update-guide-status"));
         assert!(!unpriv_perms_str.contains(&"allow-check-print-support"));
         assert!(!unpriv_perms_str.contains(&"allow-ping"));
         assert!(!unpriv_perms_str.contains(&"allow-get-products"));
