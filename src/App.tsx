@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SettingsView } from './components/SettingsView';
 import { PrintFeasibilityProbe } from './components/PrintFeasibilityProbe';
 import { PrintableInvoiceDocument } from './components/PrintableInvoiceDocument';
 import { ProductCatalogView } from './components/ProductCatalogView';
 import { CustomerCatalogView } from './components/CustomerCatalogView';
+import { OnboardingSetupWizard } from './components/OnboardingSetupWizard';
+import { GettingStartedGuide } from './components/GettingStartedGuide';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { pingBackend, getBusinessSettings, isTauriEnvironment } from './adapters/tauri';
 import { getInvoiceForScenario } from './domain/test_scenarios';
 import { translations, Language } from './i18n';
+import type { BusinessSettings } from './types';
 import {
   Building2,
   Printer,
@@ -32,7 +36,30 @@ type ActiveTab = 'products' | 'customers' | 'settings' | 'print';
 
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('products');
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>(() => {
+    try {
+      const stored = localStorage.getItem('billzen_ui_language');
+      if (stored === 'en' || stored === 'ml' || stored === 'ar') {
+        return stored;
+      }
+    } catch {}
+    return 'en';
+  });
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    try {
+      localStorage.setItem('billzen_ui_language', lang);
+    } catch {}
+  };
+
+  const [showGuide, setShowGuide] = useState<boolean>(false);
+  const [isGuideReplay, setIsGuideReplay] = useState<boolean>(false);
+  const hasAutoPromptedGuide = React.useRef(false);
+
+  const { reconcilePreference } = useTheme();
+
+  const client = useQueryClient();
   const isTauri = isTauriEnvironment();
   const t = translations[language] || translations.en;
   const isRTL = language === 'ar';
@@ -60,7 +87,23 @@ const AppContent: React.FC = () => {
     queryFn: getBusinessSettings,
   });
 
-  const fallbackSettings = {
+  // Reconcile appearance preference from native SQLite store
+  React.useEffect(() => {
+    if (settings?.appearance_preference) {
+      reconcilePreference(settings.appearance_preference as any);
+    }
+  }, [settings?.appearance_preference, reconcilePreference]);
+
+  // Offer unseen guide after restart if setup is completed and guide is unseen
+  React.useEffect(() => {
+    if (!hasAutoPromptedGuide.current && settings?.is_setup_completed && settings?.guide_status === 'unseen') {
+      hasAutoPromptedGuide.current = true;
+      setIsGuideReplay(false);
+      setShowGuide(true);
+    }
+  }, [settings?.is_setup_completed, settings?.guide_status]);
+
+  const fallbackSettings: BusinessSettings = {
     id: 'default',
     business_name: 'BillZen Retail',
     legal_name: null,
@@ -80,11 +123,33 @@ const AppContent: React.FC = () => {
     timezone: 'Asia/Kolkata',
     invoice_prefix: 'INV',
     terms_and_conditions: 'Thank you for your business!',
+    is_setup_completed: true,
+    appearance_preference: 'system',
+    guide_status: 'completed',
+    guide_version: 1,
     created_at: Date.now(),
     updated_at: Date.now(),
   };
 
   const activeSettings = settings || fallbackSettings;
+
+  // First-use Onboarding Wizard Gate
+  if (settings && !settings.is_setup_completed) {
+    return (
+      <OnboardingSetupWizard
+        initialSettings={settings}
+        currentLanguage={language}
+        onLanguageChange={setLanguage}
+        onComplete={(completedSettings) => {
+          client.setQueryData(['business_settings'], completedSettings);
+          if (completedSettings.guide_status === 'unseen') {
+            setIsGuideReplay(false);
+            setShowGuide(true);
+          }
+        }}
+      />
+    );
+  }
 
   const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
   const environmentLabel = isTauri
@@ -94,9 +159,9 @@ const AppContent: React.FC = () => {
     : 'Browser Mode';
 
   return (
-    <div className={`min-h-screen bg-slate-50 flex flex-col font-sans ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 flex flex-col font-sans transition-colors ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Top Application Bar (no-print) */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 no-print shadow-sm">
+      <header className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-20 no-print shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             <img
@@ -110,27 +175,27 @@ const AppContent: React.FC = () => {
             />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">BillZen</h1>
-                <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium border border-indigo-200 shrink-0">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">BillZen</h1>
+                <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-200 dark:border-indigo-800 shrink-0">
                   beta
                 </span>
               </div>
-              <p className="text-[10px] sm:text-xs text-slate-500 truncate">Offline Billing System</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate">Offline Billing System</p>
             </div>
           </div>
 
           {/* Desktop Navigation Tabs (hidden on mobile/tablet, shown on lg and above) */}
-          <nav className="hidden lg:flex space-x-1 bg-slate-100 p-1 rounded-xl">
+          <nav className="hidden lg:flex space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab('products')}
               data-testid="tab-products"
               className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'products'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
               }`}
             >
-              <Package className="w-4 h-4 text-slate-600" />
+              <Package className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
               {t.tab_products}
             </button>
 
@@ -139,11 +204,11 @@ const AppContent: React.FC = () => {
               data-testid="tab-customers"
               className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'customers'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
               }`}
             >
-              <Users className="w-4 h-4 text-slate-600" />
+              <Users className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
               {t.tab_customers}
             </button>
 
@@ -152,11 +217,11 @@ const AppContent: React.FC = () => {
               data-testid="tab-settings"
               className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'settings'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
               }`}
             >
-              <Building2 className="w-4 h-4 text-slate-600" />
+              <Building2 className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
               {t.tab_settings}
             </button>
 
@@ -165,11 +230,11 @@ const AppContent: React.FC = () => {
               data-testid="tab-print"
               className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'print'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
               }`}
             >
-              <Printer className="w-4 h-4 text-slate-600" />
+              <Printer className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
               {t.tab_print_probe}
             </button>
           </nav>
@@ -177,22 +242,22 @@ const AppContent: React.FC = () => {
           {/* Right Controls: Language Selector & Environment Status */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Language Switcher */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
-              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 ml-1" />
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
+              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 dark:text-zinc-400 ml-1" />
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Language)}
                 data-testid="language-select"
                 aria-label="Select Language"
-                className="text-xs bg-transparent border-none text-slate-700 font-medium focus:outline-none pr-1 cursor-pointer"
+                className="text-xs bg-transparent border-none text-slate-700 dark:text-zinc-200 font-medium focus:outline-none pr-1 cursor-pointer"
               >
-                <option value="en">English (EN)</option>
-                <option value="ml">മലയാളം (ML)</option>
-                <option value="ar">العربية (AR)</option>
+                <option value="en" className="dark:bg-zinc-900">English (EN)</option>
+                <option value="ml" className="dark:bg-zinc-900">മലയാളം (ML)</option>
+                <option value="ar" className="dark:bg-zinc-900">العربية (AR)</option>
               </select>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-emerald-700 bg-emerald-50 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-200">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-850">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{environmentLabel}</span>
             </div>
@@ -208,24 +273,34 @@ const AppContent: React.FC = () => {
         {activeTab === 'customers' && (
           <CustomerCatalogView settings={activeSettings} language={language} />
         )}
-        {activeTab === 'settings' && <SettingsView />}
+        {activeTab === 'settings' && (
+          <SettingsView
+            currentLanguage={language}
+            onViewGuide={() => {
+              setIsGuideReplay(true);
+              setShowGuide(true);
+            }}
+          />
+        )}
         {activeTab === 'print' && <PrintFeasibilityProbe invoice={activeInvoice} />}
       </main>
 
       {/* Mobile Bottom Navigation Bar (no-print, <lg only) */}
       <nav
         aria-label="Mobile Navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 shadow-lg px-2 py-1 flex justify-around items-center no-print"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-lg px-2 py-1 flex justify-around items-center no-print"
         style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
       >
         <button
           onClick={() => setActiveTab('products')}
           data-testid="mobile-tab-products"
           className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'products' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+            activeTab === 'products'
+              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
+              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Package className={`w-5 h-5 mb-0.5 ${activeTab === 'products' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <Package className={`w-5 h-5 mb-0.5 ${activeTab === 'products' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
           <span>{t.tab_products}</span>
         </button>
 
@@ -233,10 +308,12 @@ const AppContent: React.FC = () => {
           onClick={() => setActiveTab('customers')}
           data-testid="mobile-tab-customers"
           className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'customers' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+            activeTab === 'customers'
+              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
+              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Users className={`w-5 h-5 mb-0.5 ${activeTab === 'customers' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <Users className={`w-5 h-5 mb-0.5 ${activeTab === 'customers' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
           <span>{t.tab_customers}</span>
         </button>
 
@@ -244,10 +321,12 @@ const AppContent: React.FC = () => {
           onClick={() => setActiveTab('settings')}
           data-testid="mobile-tab-settings"
           className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'settings' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+            activeTab === 'settings'
+              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
+              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Building2 className={`w-5 h-5 mb-0.5 ${activeTab === 'settings' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <Building2 className={`w-5 h-5 mb-0.5 ${activeTab === 'settings' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
           <span>{t.tab_settings}</span>
         </button>
 
@@ -255,13 +334,23 @@ const AppContent: React.FC = () => {
           onClick={() => setActiveTab('print')}
           data-testid="mobile-tab-print"
           className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'print' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+            activeTab === 'print'
+              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
+              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Printer className={`w-5 h-5 mb-0.5 ${activeTab === 'print' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <Printer className={`w-5 h-5 mb-0.5 ${activeTab === 'print' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
           <span>{t.tab_print_probe}</span>
         </button>
       </nav>
+
+      {/* Getting-Started Guide Modal */}
+      <GettingStartedGuide
+        currentLanguage={language}
+        isOpen={showGuide}
+        isReplay={isGuideReplay}
+        onClose={() => setShowGuide(false)}
+      />
 
       {/* Global Printable Document Container: Isolated and formatted exclusively for print media */}
       <div className="hidden print:block">
@@ -269,7 +358,7 @@ const AppContent: React.FC = () => {
       </div>
 
       {/* Desktop Bottom Status Bar (no-print, hidden on mobile) */}
-      <footer className="hidden md:block bg-white border-t border-slate-200 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 no-print">
+      <footer className="hidden md:block bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 dark:text-zinc-400 no-print">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
@@ -285,7 +374,7 @@ const AppContent: React.FC = () => {
               IPC: {pingStatus ? `Active (${pingStatus})` : 'Connecting...'}
             </span>
           </div>
-          <div className="text-slate-400">
+          <div className="text-slate-400 dark:text-zinc-500">
             Milestones M1–M3 Complete • Offline-First Multi-Regional Engine
           </div>
         </div>
@@ -297,7 +386,9 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

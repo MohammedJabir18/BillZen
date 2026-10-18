@@ -18,8 +18,33 @@ export interface BusinessSettings {
   timezone: string;
   invoice_prefix: string;
   terms_and_conditions: string | null;
+  is_setup_completed: boolean;
+  appearance_preference: 'system' | 'light' | 'dark';
+  guide_status: 'unseen' | 'completed' | 'skipped';
+  guide_version: number;
   created_at: number;
   updated_at: number;
+}
+
+export interface BusinessProfileDto {
+  business_name: string;
+  legal_name: string | null;
+  tax_identifier: string | null;
+  phone: string;
+  email: string | null;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  currency_code: string;
+  currency_symbol: string;
+  currency_exponent: number;
+  locale: string;
+  timezone: string;
+  invoice_prefix: string;
+  terms_and_conditions: string | null;
 }
 
 export interface PrintSupportInfo {

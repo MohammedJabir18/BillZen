@@ -4,7 +4,12 @@ fn main() {
             tauri_build::AppManifest::new().commands(&[
                 "get_business_settings",
                 "update_business_settings",
+                "update_business_profile",
+                "complete_business_setup",
+                "update_appearance_preference",
+                "update_guide_status",
                 "check_print_support",
+
                 "ping",
                 "get_products",
                 "create_product",

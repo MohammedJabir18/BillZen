@@ -152,6 +152,36 @@ flowchart TD
 - **Metadata Preservation**: Canonical categories with null/empty descriptions inherit non-empty descriptions from merged duplicates.
 - **Dual-Checksum Backward Compatibility**: The migration runner (`src-tauri/src/db/mod.rs`) recognizes both the initial and reconciled V5 SHA256 checksums, enabling seamless forward upgrades for both un-migrated V4 databases and early-migrated V5 databases without checksum errors.
 
+## 13. Appearance Settings, First-Use Setup & Android Beta Packaging
+1. **Appearance Preference Engine & Settings Ownership**:
+   - Strictly three options: `System — default`, `Light`, `Dark`.
+   - Theme controls are strictly isolated to `SettingsView` (zero theme switches in headers, bottom nav, or onboarding modals).
+   - Independent Settings Ownership: `update_business_settings` and `update_business_profile` strictly update profile columns only, omitting `is_setup_completed`, `appearance_preference`, `guide_status`, and `guide_version` to prevent profile saves from reverting user theme or guide states.
+   - Theme context provides optimistic UI updates with automatic state and `localStorage` rollback upon native persistence failure.
+   - Dynamic OS color scheme listener for System mode (`prefers-color-scheme`); explicit Light/Dark selections override OS events.
+   - Synchronizes `<meta name="theme-color">` for mobile browser and webview chrome (`#09090b` dark, `#ffffff` light).
+   - Print paper purity: `@media print` strictly enforces `#printable-invoice-root` with pure white background (`rgb(255, 255, 255)`) and dark text (`rgb(0, 0, 0)`), suppressing dark-mode tokens during printing or PDF exports.
+2. **First-Use Business Setup Wizard (`OnboardingSetupWizard`)**:
+   - First-run databases (`is_setup_completed = 0` with uncustomized defaults) gate access with a 3-step modal wizard. Existing databases with customized profiles are conservatively treated as completed setups.
+   - Step 1: Regional & Localization Defaults (India and GCC member states: IN, AE, SA, QA, KW, BH, OM), automatically suggesting currency code, precision exponent (e.g., KWD = 3 decimals), and timezone.
+   - Step 2: Business Profile Information (Business Name, Legal Trading Name, Tax ID / GSTIN / TRN, Phone, Email, Address, City, State, Country). Postal code is explicitly optional for UAE, Qatar, and Oman (`['AE', 'QA', 'OM']`).
+   - Resumable Draft: Form inputs and step progression persist to `localStorage` (`billzen_setup_draft`), allowing interruption recovery without data loss.
+   - Step 3: Review & Confirm with explicit currency lock notice (`trg_business_settings_prevent_currency_change_when_invoices_exist`).
+   - Atomic persistence: `complete_business_setup` saves business profile and sets `is_setup_completed = true` in a single transaction.
+3. **Getting-Started Guide (`GettingStartedGuide`)**:
+   - 3-slide accessible dialog covering actual implemented features: Product catalog & stock ledger, Customer directory & profiles (address book, contacts, GSTIN/TRN), Local durability & appearance.
+   - Auto-opens upon first launch if setup is completed and guide is unseen.
+   - Skip, Back, Next controls with versioned persistence (`last_seen_guide_version`).
+   - Replayable anytime from Settings -> Help & Getting Started.
+4. **Database Migration `v6_setup_and_onboarding.sql`**:
+   - Extends `business_settings` with `is_setup_completed BOOLEAN NOT NULL DEFAULT 0`, `appearance_preference TEXT NOT NULL DEFAULT 'system'`, and `last_seen_guide_version INTEGER NOT NULL DEFAULT 0`.
+   - Verified with SHA-256 migration checksum runner.
+5. **Android Standalone Packaging & Toolchain**:
+   - Rootless OpenJDK 17 (`~/.android-toolchain/jdk`) + Android SDK (`android-36`, `build-tools/36.0.0`) & NDK 26.1 (`~/.android-toolchain/android-sdk/ndk/26.1.10909125`).
+   - 16 KB page-size ELF alignment for Android 15+ native libraries (`RUSTFLAGS="-C link-arg=-z -C link-arg=max-page-size=16384"`, verified `0x4000` segment alignment via `readelf -l`).
+   - Self-contained packaging: SQLite, bundled Noto Sans offline fonts, and Vite assets bundled directly into APK (`dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`, 15M).
+   - Signed with BillZen Beta Keystore (`v2` + `v3` APK signature schemes, verified via `apksigner`).
 
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
+

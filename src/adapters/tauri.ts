@@ -7,30 +7,42 @@ export const isTauriEnvironment = (): boolean => {
 
 export async function getBusinessSettings(): Promise<BusinessSettings> {
   if (!isTauriEnvironment()) {
-    // Return mock for development in plain browser
-    return {
-      id: 'default',
-      business_name: 'BillZen Store (Browser Preview)',
-      legal_name: null,
-      tax_identifier: '32AAAAA0000A1Z5',
-      phone: '+91 9876543210',
-      email: 'store@billzen.local',
-      address_line1: '123 Market Road',
-      address_line2: null,
-      city: 'Kochi',
-      state: 'Kerala',
-      postal_code: '682001',
-      country: 'IND',
-      currency_code: 'INR',
-      currency_symbol: '₹',
-      currency_exponent: 2,
-      locale: 'en-IN',
-      timezone: 'Asia/Kolkata',
-      invoice_prefix: 'INV',
-      terms_and_conditions: 'Thank you for your business!',
-      created_at: Date.now(),
-      updated_at: Date.now(),
-    };
+    try {
+      const stored = localStorage.getItem('billzen_browser_settings');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      const isFresh = localStorage.getItem('billzen_mock_fresh_user') === 'true';
+      return {
+        id: 'default',
+        business_name: isFresh ? '' : 'BillZen Store (Browser Preview)',
+        legal_name: null,
+        tax_identifier: isFresh ? null : '32AAAAA0000A1Z5',
+        phone: isFresh ? '' : '+91 9876543210',
+        email: isFresh ? null : 'store@billzen.local',
+        address_line1: isFresh ? '' : '123 Market Road',
+        address_line2: null,
+        city: isFresh ? '' : 'Kochi',
+        state: isFresh ? '' : 'Kerala',
+        postal_code: isFresh ? '' : '682001',
+        country: 'IND',
+        currency_code: 'INR',
+        currency_symbol: '₹',
+        currency_exponent: 2,
+        locale: 'en-IN',
+        timezone: 'Asia/Kolkata',
+        invoice_prefix: 'INV',
+        terms_and_conditions: 'Thank you for your business!',
+        is_setup_completed: !isFresh,
+        appearance_preference: (localStorage.getItem('billzen_appearance_pref') as 'system' | 'light' | 'dark') || 'system',
+        guide_status: (localStorage.getItem('billzen_guide_status') as 'unseen' | 'completed' | 'skipped') || 'unseen',
+        guide_version: 1,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      };
+    } catch {
+      // Fallback
+    }
   }
   return await invoke<BusinessSettings>('get_business_settings');
 }
@@ -39,9 +51,93 @@ export async function updateBusinessSettings(
   settings: BusinessSettings
 ): Promise<BusinessSettings> {
   if (!isTauriEnvironment()) {
-    return { ...settings, updated_at: Date.now() };
+    const updated = { ...settings, updated_at: Date.now() };
+    try {
+      localStorage.setItem('billzen_browser_settings', JSON.stringify(updated));
+    } catch {}
+    return updated;
   }
   return await invoke<BusinessSettings>('update_business_settings', { settings });
+}
+
+export async function updateBusinessProfile(
+  profile: import('../types').BusinessProfileDto
+): Promise<BusinessSettings> {
+  if (!isTauriEnvironment()) {
+    const current = await getBusinessSettings();
+    const updated: BusinessSettings = {
+      ...current,
+      ...profile,
+      updated_at: Date.now(),
+    };
+    try {
+      localStorage.setItem('billzen_browser_settings', JSON.stringify(updated));
+    } catch {}
+    return updated;
+  }
+  return await invoke<BusinessSettings>('update_business_profile', { profile });
+}
+
+export async function completeBusinessSetup(
+  profile: import('../types').BusinessProfileDto
+): Promise<BusinessSettings> {
+  if (!isTauriEnvironment()) {
+    const current = await getBusinessSettings();
+    const updated: BusinessSettings = {
+      ...current,
+      ...profile,
+      is_setup_completed: true,
+      updated_at: Date.now(),
+    };
+    try {
+      localStorage.setItem('billzen_browser_settings', JSON.stringify(updated));
+      localStorage.setItem('billzen_mock_fresh_user', 'false');
+    } catch {}
+    return updated;
+  }
+  return await invoke<BusinessSettings>('complete_business_setup', { profile });
+}
+
+export async function updateAppearancePreference(
+  preference: 'system' | 'light' | 'dark'
+): Promise<string> {
+  try {
+    localStorage.setItem('billzen_appearance_pref', preference);
+  } catch {}
+  if (!isTauriEnvironment()) {
+    try {
+      const stored = localStorage.getItem('billzen_browser_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.appearance_preference = preference;
+        localStorage.setItem('billzen_browser_settings', JSON.stringify(parsed));
+      }
+    } catch {}
+    return preference;
+  }
+  return await invoke<string>('update_appearance_preference', { preference });
+}
+
+export async function updateGuideStatus(
+  status: 'unseen' | 'completed' | 'skipped',
+  version: number
+): Promise<string> {
+  try {
+    localStorage.setItem('billzen_guide_status', status);
+  } catch {}
+  if (!isTauriEnvironment()) {
+    try {
+      const stored = localStorage.getItem('billzen_browser_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.guide_status = status;
+        parsed.guide_version = version;
+        localStorage.setItem('billzen_browser_settings', JSON.stringify(parsed));
+      }
+    } catch {}
+    return status;
+  }
+  return await invoke<string>('update_guide_status', { status, version });
 }
 
 export async function checkPrintSupport(): Promise<PrintSupportInfo> {

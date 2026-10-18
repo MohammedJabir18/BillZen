@@ -28,7 +28,7 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gray-50 text-gray-900 dark:bg-zinc-950 dark:text-zinc-100 antialiased;
     font-family: 'Noto Sans', 'Noto Sans Malayalam', 'Noto Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
@@ -44,7 +44,7 @@
   margin: 12mm 15mm;
 }
 
-/* Strict print media isolation: Only invoice prints, probe UI is 100% hidden */
+/* Strict print media isolation: Only invoice prints, probe UI is 100% hidden, pure white paper */
 @media print {
   html, body {
     background: #ffffff !important;
@@ -67,6 +67,8 @@
 
   #printable-invoice-root, #printable-invoice-root * {
     visibility: visible !important;
+    color: #000000 !important;
+    background: transparent !important;
   }
 
   #printable-invoice-root {

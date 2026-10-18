@@ -9,14 +9,18 @@ Fresh local runs during this documentation/upload session:
 | Check | Result |
 | --- | --- |
 | `npm test` | 14 tests passed across 2 files |
-| `npm run build` | TypeScript and Vite build passed |
-| `cargo test --manifest-path src-tauri/Cargo.toml` | 40 tests passed (including V4 upgrade reconciliation, V5 checksum compatibility, inclusive maximums, and update bounds rejection) |
-| Catalog Playwright | All 6 scripted steps passed |
-| A4 PDF matrix | All 4 scenarios passed; page counts 1 / 3 / 1 / 1 |
+| `npm run build` | TypeScript and Vite production build passed cleanly |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 49 tests passed (including v6 migration, appearance preference persistence, guide status updates, settings ownership isolation against stale profiles, duplicate category inheritance, creation ties, repeat migration idempotency, rollback, and unknown checksum rejection) |
+| `npm run test:responsive` | All 6 viewports passed (320, 360, 390, 412, 768, 1280) with zero horizontal document scroll, adaptive bottom navigation (<lg), scrollable modal drawers, and RTL |
+| `npm run test:onboarding` | All 22 tests passed across 6 sections (3-step setup wizard, regional defaults for India & GCC, validation, guide navigation/skip/replay, 3-option appearance in Settings with strict isolation, dynamic OS dark/light following, print paper purity in dark mode, and dark mode audits across Products & Customers) |
+| Catalog Playwright (`npm run test:catalog`) | All 6 scripted steps passed |
+| A4 PDF matrix (`npm run test:matrix`) | All 4 scenarios passed; page counts 1 / 3 / 1 / 1 |
 | Catalog cross-process probe (`npm run test:native-probe`) | Separate write and read/verify processes passed with an isolated, cross-platform temporary database (`scripts/run_native_probe.js`) |
+| Android Beta APK Assembly & Verification (`scripts/build_android_apk.sh`) | Built signed standalone ARM64 APK (`dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`, 15M, SHA-256: `d99e9b154c7c424e269a2f5984e47a28e989b97ac2c0f57d7ff0225d671a39d2`). Verified 16 KB page-size ELF alignment (`0x4000`), 4-byte `zipalign`, and APK signature scheme v2/v3 |
 | Documentation review | Relative links and source claims reviewed; minor corrections applied |
 
-No GitHub Actions success is implied by local results. Physical printers and other native OS targets were not tested. Graphify code-only refresh passed; full document extraction requires an unconfigured LLM API key and SQL AST extraction requires an optional missing parser.
+No GitHub Actions success is implied by local results. Physical printers were not tested. Graphify code-only refresh passed; full document extraction requires an unconfigured LLM API key and SQL AST extraction requires an optional missing parser.
+
 
 ## Resolved M3 & M3.1 Integrity Defects
 

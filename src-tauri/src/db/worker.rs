@@ -3,7 +3,7 @@ use crate::domain::catalog::{
     Category, CreateCategoryDto, CreateCustomerDto, CreateProductDto, Customer, CustomerFilter,
     Product, ProductFilter, UpdateCustomerDto, UpdateProductDto,
 };
-use crate::domain::models::BusinessSettings;
+use crate::domain::models::{BusinessProfileDto, BusinessSettings};
 use rusqlite::{params, Connection};
 use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
@@ -16,6 +16,24 @@ pub enum DbRequest {
         settings: BusinessSettings,
         respond_to: oneshot::Sender<Result<BusinessSettings, String>>,
     },
+    UpdateBusinessProfile {
+        profile: BusinessProfileDto,
+        respond_to: oneshot::Sender<Result<BusinessSettings, String>>,
+    },
+    CompleteBusinessSetup {
+        profile: BusinessProfileDto,
+        respond_to: oneshot::Sender<Result<BusinessSettings, String>>,
+    },
+    UpdateAppearancePreference {
+        preference: String,
+        respond_to: oneshot::Sender<Result<String, String>>,
+    },
+    UpdateGuideStatus {
+        status: String,
+        version: i32,
+        respond_to: oneshot::Sender<Result<String, String>>,
+    },
+
     // Products
     GetProducts {
         filter: ProductFilter,
@@ -118,6 +136,23 @@ impl DbWorkerHandle {
                             let result = save_business_settings(&mut conn, settings);
                             let _ = respond_to.send(result);
                         }
+                        DbRequest::UpdateBusinessProfile { profile, respond_to } => {
+                            let result = save_business_profile(&mut conn, profile);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::CompleteBusinessSetup { profile, respond_to } => {
+                            let result = complete_business_setup(&mut conn, profile);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::UpdateAppearancePreference { preference, respond_to } => {
+
+                            let result = update_appearance_preference(&conn, &preference);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::UpdateGuideStatus { status, version, respond_to } => {
+                            let result = update_guide_status(&conn, &status, version);
+                            let _ = respond_to.send(result);
+                        }
                         // Products
                         DbRequest::GetProducts { filter, respond_to } => {
                             let result = fetch_products(&conn, filter);
@@ -203,6 +238,66 @@ impl DbWorkerHandle {
         self.sender
             .send(DbRequest::UpdateBusinessSettings {
                 settings,
+                respond_to: tx,
+            })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn update_business_profile(
+        &self,
+        profile: BusinessProfileDto,
+    ) -> Result<BusinessSettings, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::UpdateBusinessProfile {
+                profile,
+                respond_to: tx,
+            })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn complete_business_setup(
+        &self,
+        profile: BusinessProfileDto,
+    ) -> Result<BusinessSettings, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::CompleteBusinessSetup {
+                profile,
+                respond_to: tx,
+            })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+
+    pub async fn update_appearance_preference(&self, preference: String) -> Result<String, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::UpdateAppearancePreference {
+                preference,
+                respond_to: tx,
+            })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn update_guide_status(&self, status: String, version: i32) -> Result<String, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::UpdateGuideStatus {
+                status,
+                version,
                 respond_to: tx,
             })
             .await
@@ -359,10 +454,14 @@ fn seed_default_settings(conn: &Connection) -> Result<(), rusqlite::Error> {
                 id, business_name, legal_name, tax_identifier, phone, email,
                 address_line1, address_line2, city, state, postal_code,
                 country, currency_code, currency_symbol, currency_exponent, locale,
-                timezone, invoice_prefix, terms_and_conditions, created_at, updated_at
+                timezone, invoice_prefix, terms_and_conditions,
+                is_setup_completed, appearance_preference, guide_status, guide_version,
+                created_at, updated_at
             ) VALUES (
                 'default', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-                ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20
+                ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
+                ?19, ?20, ?21, ?22,
+                ?23, ?24
             );",
             params![
                 default_settings.business_name,
@@ -383,6 +482,10 @@ fn seed_default_settings(conn: &Connection) -> Result<(), rusqlite::Error> {
                 default_settings.timezone,
                 default_settings.invoice_prefix,
                 default_settings.terms_and_conditions,
+                if default_settings.is_setup_completed { 1 } else { 0 },
+                default_settings.appearance_preference,
+                default_settings.guide_status,
+                default_settings.guide_version,
                 default_settings.created_at,
                 default_settings.updated_at,
             ],
@@ -396,7 +499,9 @@ fn fetch_business_settings(conn: &Connection) -> Result<BusinessSettings, String
         "SELECT id, business_name, legal_name, tax_identifier, phone, email,
                 address_line1, address_line2, city, state, postal_code,
                 country, currency_code, currency_symbol, currency_exponent, locale,
-                timezone, invoice_prefix, terms_and_conditions, created_at, updated_at
+                timezone, invoice_prefix, terms_and_conditions,
+                is_setup_completed, appearance_preference, guide_status, guide_version,
+                created_at, updated_at
          FROM business_settings WHERE id = 'default';",
         [],
         |row| {
@@ -420,25 +525,29 @@ fn fetch_business_settings(conn: &Connection) -> Result<BusinessSettings, String
                 timezone: row.get(16)?,
                 invoice_prefix: row.get(17)?,
                 terms_and_conditions: row.get(18)?,
-                created_at: row.get(19)?,
-                updated_at: row.get(20)?,
+                is_setup_completed: row.get::<_, i32>(19)? != 0,
+                appearance_preference: row.get(20)?,
+                guide_status: row.get(21)?,
+                guide_version: row.get(22)?,
+                created_at: row.get(23)?,
+                updated_at: row.get(24)?,
             })
         },
     )
     .map_err(|e| format!("Failed to read business settings: {}", e))
 }
 
-fn save_business_settings(
+fn save_business_profile(
     conn: &mut Connection,
-    mut settings: BusinessSettings,
+    profile: BusinessProfileDto,
 ) -> Result<BusinessSettings, String> {
     // 1. Validate currency code and exponent in Rust domain
-    crate::domain::currency::validate_currency(&settings.currency_code, settings.currency_exponent)?;
+    crate::domain::currency::validate_currency(&profile.currency_code, profile.currency_exponent)?;
 
     // 2. Prevent unsafe base currency changes if existing financial/catalog records exist
     let current = fetch_business_settings(conn)?;
-    if current.currency_code != settings.currency_code
-        || current.currency_exponent != settings.currency_exponent
+    if current.currency_code != profile.currency_code
+        || current.currency_exponent != profile.currency_exponent
     {
         let has_products: bool = conn
             .query_row(
@@ -477,9 +586,9 @@ fn save_business_settings(
         }
     }
 
-    settings.updated_at = chrono::Utc::now().timestamp_millis();
-    settings.id = "default".to_string();
+    let updated_at = chrono::Utc::now().timestamp_millis();
 
+    // Preserve independently-owned is_setup_completed, appearance_preference, guide_status, guide_version
     conn.execute(
         "UPDATE business_settings SET
             business_name = ?1,
@@ -503,30 +612,144 @@ fn save_business_settings(
             updated_at = ?19
          WHERE id = 'default';",
         params![
-            settings.business_name,
-            settings.legal_name,
-            settings.tax_identifier,
-            settings.phone,
-            settings.email,
-            settings.address_line1,
-            settings.address_line2,
-            settings.city,
-            settings.state,
-            settings.postal_code,
-            settings.country,
-            settings.currency_code,
-            settings.currency_symbol,
-            settings.currency_exponent,
-            settings.locale,
-            settings.timezone,
-            settings.invoice_prefix,
-            settings.terms_and_conditions,
-            settings.updated_at,
+            profile.business_name,
+            profile.legal_name,
+            profile.tax_identifier,
+            profile.phone,
+            profile.email,
+            profile.address_line1,
+            profile.address_line2,
+            profile.city,
+            profile.state,
+            profile.postal_code,
+            profile.country,
+            profile.currency_code,
+            profile.currency_symbol,
+            profile.currency_exponent,
+            profile.locale,
+            profile.timezone,
+            profile.invoice_prefix,
+            profile.terms_and_conditions,
+            updated_at,
         ],
     )
-    .map_err(|e| format!("Failed to update business settings: {}", e))?;
+    .map_err(|e| format!("Failed to update business profile: {}", e))?;
 
     fetch_business_settings(conn)
+}
+
+fn complete_business_setup(
+    conn: &mut Connection,
+    profile: BusinessProfileDto,
+) -> Result<BusinessSettings, String> {
+    crate::domain::currency::validate_currency(&profile.currency_code, profile.currency_exponent)?;
+
+    let updated_at = chrono::Utc::now().timestamp_millis();
+
+    conn.execute(
+        "UPDATE business_settings SET
+            business_name = ?1,
+            legal_name = ?2,
+            tax_identifier = ?3,
+            phone = ?4,
+            email = ?5,
+            address_line1 = ?6,
+            address_line2 = ?7,
+            city = ?8,
+            state = ?9,
+            postal_code = ?10,
+            country = ?11,
+            currency_code = ?12,
+            currency_symbol = ?13,
+            currency_exponent = ?14,
+            locale = ?15,
+            timezone = ?16,
+            invoice_prefix = ?17,
+            terms_and_conditions = ?18,
+            is_setup_completed = 1,
+            updated_at = ?19
+         WHERE id = 'default';",
+        params![
+            profile.business_name,
+            profile.legal_name,
+            profile.tax_identifier,
+            profile.phone,
+            profile.email,
+            profile.address_line1,
+            profile.address_line2,
+            profile.city,
+            profile.state,
+            profile.postal_code,
+            profile.country,
+            profile.currency_code,
+            profile.currency_symbol,
+            profile.currency_exponent,
+            profile.locale,
+            profile.timezone,
+            profile.invoice_prefix,
+            profile.terms_and_conditions,
+            updated_at,
+        ],
+    )
+    .map_err(|e| format!("Failed to complete business setup: {}", e))?;
+
+    fetch_business_settings(conn)
+}
+
+fn save_business_settings(
+    conn: &mut Connection,
+    settings: BusinessSettings,
+) -> Result<BusinessSettings, String> {
+    let profile = BusinessProfileDto {
+        business_name: settings.business_name,
+        legal_name: settings.legal_name,
+        tax_identifier: settings.tax_identifier,
+        phone: settings.phone,
+        email: settings.email,
+        address_line1: settings.address_line1,
+        address_line2: settings.address_line2,
+        city: settings.city,
+        state: settings.state,
+        postal_code: settings.postal_code,
+        country: settings.country,
+        currency_code: settings.currency_code,
+        currency_symbol: settings.currency_symbol,
+        currency_exponent: settings.currency_exponent,
+        locale: settings.locale,
+        timezone: settings.timezone,
+        invoice_prefix: settings.invoice_prefix,
+        terms_and_conditions: settings.terms_and_conditions,
+    };
+    save_business_profile(conn, profile)
+}
+
+
+fn update_appearance_preference(conn: &Connection, preference: &str) -> Result<String, String> {
+    let pref = match preference {
+        "system" | "light" | "dark" => preference,
+        _ => return Err(format!("Invalid appearance preference: '{}'. Must be system, light, or dark", preference)),
+    };
+    let now = chrono::Utc::now().timestamp_millis();
+    conn.execute(
+        "UPDATE business_settings SET appearance_preference = ?1, updated_at = ?2 WHERE id = 'default';",
+        params![pref, now],
+    )
+    .map_err(|e| format!("Failed to update appearance preference: {}", e))?;
+    Ok(pref.to_string())
+}
+
+fn update_guide_status(conn: &Connection, status: &str, version: i32) -> Result<String, String> {
+    let stat = match status {
+        "unseen" | "completed" | "skipped" => status,
+        _ => return Err(format!("Invalid guide status: '{}'. Must be unseen, completed, or skipped", status)),
+    };
+    let now = chrono::Utc::now().timestamp_millis();
+    conn.execute(
+        "UPDATE business_settings SET guide_status = ?1, guide_version = ?2, updated_at = ?3 WHERE id = 'default';",
+        params![stat, version, now],
+    )
+    .map_err(|e| format!("Failed to update guide status: {}", e))?;
+    Ok(stat.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -1869,5 +2092,237 @@ mod tests {
             .expect_err("trimmed uppercase duplicate category name must be rejected");
         assert!(err_padded.contains("already exists"), "Expected duplicate error, got: {}", err_padded);
     }
+
+    #[test]
+    fn test_appearance_preference_update_and_invalid_rejection() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("appearance_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        // Initial default is 'system'
+        let initial = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert_eq!(initial.appearance_preference, "system");
+
+        // Update to 'dark' succeeds
+        let dark_res = rt.block_on(worker.update_appearance_preference("dark".to_string())).expect("update dark");
+        assert_eq!(dark_res, "dark");
+        let after_dark = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert_eq!(after_dark.appearance_preference, "dark");
+
+        // Update to 'light' succeeds
+        let light_res = rt.block_on(worker.update_appearance_preference("light".to_string())).expect("update light");
+        assert_eq!(light_res, "light");
+        let after_light = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert_eq!(after_light.appearance_preference, "light");
+
+        // Invalid preference is rejected
+        let invalid_err = rt.block_on(worker.update_appearance_preference("neon".to_string())).expect_err("invalid appearance must fail");
+        assert!(invalid_err.contains("Invalid appearance preference"), "Expected error, got: {}", invalid_err);
+    }
+
+    #[test]
+    fn test_guide_status_update_and_invalid_rejection() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("guide_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        // Initial default is 'unseen'
+        let initial = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert_eq!(initial.guide_status, "unseen");
+        assert_eq!(initial.guide_version, 1);
+
+        // Update to 'skipped' succeeds
+        let skip_res = rt.block_on(worker.update_guide_status("skipped".to_string(), 1)).expect("update skipped");
+        assert_eq!(skip_res, "skipped");
+        let after_skip = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert_eq!(after_skip.guide_status, "skipped");
+
+        // Update to 'completed' with version 2 succeeds
+        let comp_res = rt.block_on(worker.update_guide_status("completed".to_string(), 2)).expect("update completed");
+        assert_eq!(comp_res, "completed");
+        let after_comp = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert_eq!(after_comp.guide_status, "completed");
+        assert_eq!(after_comp.guide_version, 2);
+
+        // Invalid status is rejected
+        let invalid_err = rt.block_on(worker.update_guide_status("dismissed".to_string(), 1)).expect_err("invalid status must fail");
+        assert!(invalid_err.contains("Invalid guide status"), "Expected error, got: {}", invalid_err);
+    }
+
+    #[test]
+    fn test_initial_business_setup_atomic_completion() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("setup_atomic_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        let settings = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert!(!settings.is_setup_completed, "Fresh settings must have is_setup_completed=false");
+
+        // 1. Attempt save with invalid currency: must fail and NOT mark setup complete
+        let mut invalid_settings = settings.clone();
+        invalid_settings.currency_code = "XYZ".to_string();
+        invalid_settings.is_setup_completed = true;
+        let err = rt.block_on(worker.update_business_settings(invalid_settings)).expect_err("invalid currency must fail");
+        assert!(err.contains("Unsupported currency code"), "Expected currency error, got: {}", err);
+
+        let check_after_fail = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert!(!check_after_fail.is_setup_completed, "Setup must NOT be marked complete after failed save");
+
+        // 2. Successful atomic setup for UAE / AED using complete_business_setup
+        let profile = BusinessProfileDto {
+            business_name: "Gulf Tech Supplies".to_string(),
+            legal_name: None,
+            tax_identifier: Some("100200300400003".to_string()),
+            phone: "+971 50 123 4567".to_string(),
+            email: None,
+            address_line1: "Business Bay".to_string(),
+            address_line2: None,
+            city: "Dubai".to_string(),
+            state: "Dubai".to_string(),
+            postal_code: "".to_string(),
+            country: "United Arab Emirates".to_string(),
+            currency_code: "AED".to_string(),
+            currency_symbol: "AED".to_string(),
+            currency_exponent: 2,
+            locale: "en-AE".to_string(),
+            timezone: "Asia/Dubai".to_string(),
+            invoice_prefix: "INV".to_string(),
+            terms_and_conditions: None,
+        };
+
+        let saved = rt.block_on(worker.complete_business_setup(profile)).expect("complete setup");
+        assert!(saved.is_setup_completed);
+        assert_eq!(saved.business_name, "Gulf Tech Supplies");
+        assert_eq!(saved.country, "United Arab Emirates");
+        assert_eq!(saved.currency_code, "AED");
+        assert_eq!(saved.timezone, "Asia/Dubai");
+
+        let reloaded = rt.block_on(worker.get_business_settings()).expect("reload settings");
+        assert!(reloaded.is_setup_completed);
+        assert_eq!(reloaded.business_name, "Gulf Tech Supplies");
+    }
+
+    #[test]
+    fn test_stale_profile_save_preserves_appearance_guide_and_setup_state() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("stale_save_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        // 1. Initial setup complete + appearance set to 'dark' + guide status set to 'completed' v2
+        let setup_profile = BusinessProfileDto {
+            business_name: "Original Store".to_string(),
+            legal_name: None,
+            tax_identifier: None,
+            phone: "+91 9999999999".to_string(),
+            email: None,
+            address_line1: "1st Avenue".to_string(),
+            address_line2: None,
+            city: "Kochi".to_string(),
+            state: "Kerala".to_string(),
+            postal_code: "682001".to_string(),
+            country: "India".to_string(),
+            currency_code: "INR".to_string(),
+            currency_symbol: "₹".to_string(),
+            currency_exponent: 2,
+            locale: "en-IN".to_string(),
+            timezone: "Asia/Kolkata".to_string(),
+            invoice_prefix: "INV".to_string(),
+            terms_and_conditions: None,
+        };
+        rt.block_on(worker.complete_business_setup(setup_profile)).expect("setup");
+        rt.block_on(worker.update_appearance_preference("dark".to_string())).expect("dark");
+        rt.block_on(worker.update_guide_status("completed".to_string(), 2)).expect("guide");
+
+        let baseline = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert!(baseline.is_setup_completed);
+        assert_eq!(baseline.appearance_preference, "dark");
+        assert_eq!(baseline.guide_status, "completed");
+        assert_eq!(baseline.guide_version, 2);
+
+        // 2. Client performs an ordinary business profile save with a STALE DTO
+        // simulating the browser holding old state: appearance='system', is_setup_completed=false, guide_status='unseen'
+        let mut stale_dto = baseline.clone();
+        stale_dto.business_name = "Renamed Store".to_string();
+        stale_dto.appearance_preference = "system".to_string(); // Stale!
+        stale_dto.is_setup_completed = false;                   // Stale!
+        stale_dto.guide_status = "unseen".to_string();           // Stale!
+        stale_dto.guide_version = 1;                             // Stale!
+
+        let updated = rt.block_on(worker.update_business_settings(stale_dto)).expect("update business settings");
+
+        // Profile field MUST be updated
+        assert_eq!(updated.business_name, "Renamed Store");
+
+        // Independently owned fields MUST be strictly preserved
+        assert!(updated.is_setup_completed, "is_setup_completed must not be reset by stale profile save");
+        assert_eq!(updated.appearance_preference, "dark", "appearance_preference must not be reset by stale profile save");
+        assert_eq!(updated.guide_status, "completed", "guide_status must not be reset by stale profile save");
+        assert_eq!(updated.guide_version, 2, "guide_version must not be reset by stale profile save");
+
+        // Verify from fresh database query
+        let from_db = rt.block_on(worker.get_business_settings()).expect("get settings");
+        assert_eq!(from_db.business_name, "Renamed Store");
+        assert!(from_db.is_setup_completed);
+        assert_eq!(from_db.appearance_preference, "dark");
+        assert_eq!(from_db.guide_status, "completed");
+        assert_eq!(from_db.guide_version, 2);
+    }
+
+    #[test]
+    fn test_interleaved_settings_updates() {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        let dir = tempdir().expect("failed to create tempdir");
+        let db_path = dir.path().join("interleaved_test.db");
+        let worker = DbWorkerHandle::new(db_path).expect("worker should start");
+
+        // Interleave 1: Change appearance to dark
+        rt.block_on(worker.update_appearance_preference("dark".to_string())).expect("set dark");
+
+        // Interleave 2: Update business profile
+        let profile1 = BusinessProfileDto {
+            business_name: "Apex Trading".to_string(),
+            legal_name: None,
+            tax_identifier: None,
+            phone: "+91 9876500000".to_string(),
+            email: None,
+            address_line1: "Main St".to_string(),
+            address_line2: None,
+            city: "Calicut".to_string(),
+            state: "Kerala".to_string(),
+            postal_code: "673001".to_string(),
+            country: "India".to_string(),
+            currency_code: "INR".to_string(),
+            currency_symbol: "₹".to_string(),
+            currency_exponent: 2,
+            locale: "en-IN".to_string(),
+            timezone: "Asia/Kolkata".to_string(),
+            invoice_prefix: "APX".to_string(),
+            terms_and_conditions: None,
+        };
+        let res1 = rt.block_on(worker.update_business_profile(profile1)).expect("update profile 1");
+        assert_eq!(res1.appearance_preference, "dark");
+        assert_eq!(res1.business_name, "Apex Trading");
+
+        // Interleave 3: Change guide status to skipped
+        rt.block_on(worker.update_guide_status("skipped".to_string(), 1)).expect("set guide");
+
+        // Interleave 4: Change appearance to light
+        rt.block_on(worker.update_appearance_preference("light".to_string())).expect("set light");
+
+        // Interleave 5: Update business settings via legacy DTO
+        let mut legacy_dto = res1;
+        legacy_dto.address_line1 = "Second St".to_string();
+        legacy_dto.appearance_preference = "dark".to_string(); // older view!
+        let res2 = rt.block_on(worker.update_business_settings(legacy_dto)).expect("update legacy");
+
+        assert_eq!(res2.address_line1, "Second St");
+        assert_eq!(res2.appearance_preference, "light", "Should keep light from interleave 4");
+        assert_eq!(res2.guide_status, "skipped", "Should keep skipped from interleave 3");
+    }
 }
+
 

@@ -274,3 +274,126 @@
 - Fresh independent checks: 40 Rust tests, 14 frontend tests, production build, four PDF matrix scenarios and native cross-process probe all passed. Additional migration edge-case coverage remains useful before broad closure claims.
 - User prioritizes an Android app for a friend and responsive mobile layouts. Added `docs/android-beta-next-task.md` with native project/toolchain setup, app-private SQLite storage, lifecycle and desktop data preservation, phone/tablet/desktop responsive acceptance, real emulator/device offline tests and signed self-contained APK delivery. M4 invoicing is deferred for this beta task, not represented as implemented.
 - No Android implementation or APK was produced during this review/prompt task. Existing local commits can be published through configured GitHub authentication; remote CI success must be checked separately.
+
+## 2026-10-18 — Android Beta Toolchain, Storage Lifecycle & Responsive Reflow
+- **Goals**: Implement Android Beta prerequisites (Section 1: legacy migration edge cases & dual-checksum compatibility; Section 2 & 3: mobile app-private SQLite storage & print gating; Section 4: responsive phone/tablet/desktop reflow with automated Playwright matrix; Section 5 & 6: local rootless Android toolchain & standalone APK build).
+- **Completed Tasks**:
+  - **Section 1: Migration Safety & Deterministic Merges**:
+    - Enhanced `src-tauri/src/db/migrations/v5_category_nocase.sql` with deterministic description inheritance (`ORDER BY merged_category_id ASC`).
+    - Added `INTERMEDIATE_V5_CHECKSUM` dual compatibility to `src-tauri/src/db/mod.rs`.
+    - Added integration test `test_v5_migration_acceptance_edge_cases_and_unknown_checksum` (41/41 Cargo tests passing).
+    - Committed as `ce5903f`.
+  - **Section 2 & 3: Android Storage & Lifecycle Protection**:
+    - Updated `src-tauri/src/lib.rs` to dynamically resolve app-private SQLite storage in `setup()` for Android target (`/data/user/0/com.billzen.desktop/files/billzen.db`) while strictly preserving desktop path (`~/.local/share/billzen/billzen.db`) and `fs2` advisory flock.
+    - Updated `src-tauri/src/commands/system.rs` gating CUPS/GTK checks to non-Android; Android returns `platform: "android"`, `empirical_status: "unsupported"`.
+    - Committed as `71275e2`.
+  - **Section 4: Responsive UI Reflow & Automated Verification**:
+    - Added compact header with BillZen mark, beta badge, environment status, and reachable language switcher.
+    - Added fixed thumb-friendly bottom navigation bar for mobile and tablet screens (`< lg`).
+    - Implemented mobile card layouts with 44-48px touch targets for Products and Customers while preserving full desktop tables on `md+` screens.
+    - Implemented scrollable modal drawer dialogs with sticky headers and sticky action footers.
+    - Created `scripts/verify_responsive_playwright.js` testing 6 viewports (320px, 360px, 390px, 412px, 768px, 1280px) verifying zero horizontal scroll, modal accessibility, and Arabic RTL.
+    - All 6 responsive viewports passed (`test_artifacts/responsive/responsive_verification_report.json`).
+    - Committed as `2e5b0b5`.
+  - **Section 5: Rootless Android Toolchain Setup**:
+    - Unpacked OpenJDK 17 headless without root/sudo into `/home/jabir/.android-toolchain/jdk`.
+    - Prepared automated SDK/NDK installer `scripts/setup_android_sdk.sh`.
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 41/41 passed.
+  - `npm test`: 14/14 passed.
+  - `npm run build`: Passed cleanly.
+  - `npm run test:responsive`: 6/6 viewports passed (zero document overflow).
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 scenarios passed.
+  - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
+  - `git push origin main`: Blocked by interactive authentication; commits retained locally on `main`.
+- **Pending Tasks**:
+  - Complete Android SDK commandline-tools & NDK setup.
+  - Run `tauri android init` and `tauri android build --apk` to produce standalone beta APK.
+
+## 2026-10-18 — Appearance Settings, First-Use Onboarding, Getting Started Guide & Android Beta
+- **Goals**: Implement Appearance preferences (System, Light, Dark in Settings only), First-use Business Setup Wizard (`OnboardingSetupWizard`), 3-slide versioned Getting-Started Guide (`GettingStartedGuide`), database migration v6, and build standalone signed Android beta APK.
+- **Completed Tasks**:
+  - **Section 1: Data Model, Migration v6 & Rust Backend**:
+    - Created `src-tauri/src/db/migrations/v6_setup_and_onboarding.sql` adding `is_setup_completed`, `appearance_preference`, and `last_seen_guide_version`.
+    - Added SHA-256 checksum enforcement in migration runner.
+    - Implemented `update_appearance_preference` and `update_guide_status` commands, DB worker methods, and ACL permissions.
+    - Verified all 45 Cargo tests passing (`cargo test --manifest-path src-tauri/Cargo.toml`).
+  - **Section 2: Appearance & Theme Engine**:
+    - Configured `darkMode: 'class'` in `tailwind.config.js`.
+    - Implemented `src/contexts/ThemeContext.tsx` with zero-flash startup `initThemeBeforeMount()`, live OS `prefers-color-scheme` listener, and Android `<meta name="theme-color">` synchronization.
+    - Added 3 appearance options (`System — default`, `Light`, `Dark`) strictly isolated to Settings (`src/components/SettingsView.tsx`).
+    - Enforced print paper purity in `@media print`: `#printable-invoice-root` renders with pure white background (`rgb(255, 255, 255)`) and dark text (`rgb(0, 0, 0)`), suppressing dark-mode tokens during printing or PDF exports.
+  - **Section 3: First-Use Setup Wizard & Getting Started Guide**:
+    - Built `src/components/OnboardingSetupWizard.tsx`: 3-step modal wizard with regional presets for India & GCC (IN, AE, SA, QA, KW, BH, OM), automatically updating suggested currency, precision exponent, and timezone.
+    - Built `src/components/GettingStartedGuide.tsx`: 3-slide accessible dialog with Skip, Back, Next controls, and replay button in Settings -> Help & Getting Started.
+    - Updated `src/App.tsx` gating first-use databases with `<OnboardingSetupWizard>` and showing `<GettingStartedGuide>` on first launch.
+    - Added English, Malayalam, and Arabic localization for all wizard and appearance controls.
+    - Verified production frontend build (`npm run build`) and Vitest unit tests (14/14 passed).
+  - **Section 4: Automated Verification**:
+    - Repaired `scripts/verify_responsive_playwright.js` false-positive bug (modal selector now strictly verifies modal opening).
+    - `npm run test:responsive`: All 6 viewports passed cleanly (`test_artifacts/responsive/responsive_verification_report.json`).
+    - Created `scripts/verify_onboarding_appearance.js` testing wizard flow, country presets, guide navigation/skip/replay, theme switching, OS dark-mode emulation, and white print paper purity in dark mode.
+    - `npm run test:onboarding`: All 20 tests passed (`test_artifacts/onboarding/onboarding_appearance_report.json`).
+  - **Section 5: Android Beta Packaging & Toolchain**:
+    - Sanitized credentials in `scripts/build_android_apk.sh` (uses `BILLZEN_KEYSTORE_PASS`).
+    - Configured 16 KB page-size alignment for native library (`RUSTFLAGS="-C link-arg=-z -C link-arg=max-page-size=16384"`).
+    - Native library `libbillzen_lib.so` compiled for `aarch64-linux-android` with 16 KB page alignment.
+    - Android APK build packaging executed via Gradle daemon.
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 45/45 passed.
+  - `npm test`: 14/14 passed.
+  - `npm run build`: Passed cleanly.
+  - `npm run test:responsive`: 6/6 viewports passed (zero document overflow).
+  - `npm run test:onboarding`: 20/20 tests passed across all 5 verification sections.
+  - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 print scenarios passed.
+  - **Pending Tasks**:
+    - [Completed in Session 6] Complete settings ownership isolation, dark theme across Product/Customer views, guide copy update, and Android beta packaging.
+
+## 2026-10-18 / 2026-10-19 — Settings Ownership Stabilization, Dark Theme Completion & Android Beta Delivery
+- **Goals**: Stabilize appearance and onboarding settings ownership, complete full light/dark theme audit across Products and Customers, align guide lifecycle/copy, and package + verify standalone Android beta APK.
+- **Completed Tasks**:
+  - **1. Settings Ownership Isolation & Worker Safety**:
+    - Identified and fixed bug where saving business profile overwrote independent user appearance preferences back to `'system'`.
+    - Added `update_business_profile` command and DB worker method omitting `is_setup_completed`, `appearance_preference`, `guide_status`, and `guide_version`.
+    - `SettingsView.tsx`: Bound profile form mutation exclusively to `updateBusinessProfile(profile)`.
+    - `ThemeContext.tsx`: Added optimistic UI state updates with rollback on native error and cache invalidation.
+    - Added backend integration tests `test_stale_profile_save_preserves_appearance_guide_and_setup_state` and `test_interleaved_settings_updates`.
+  - **2. Onboarding & Guide Lifecycle**:
+    - Conservative upgrade logic: existing databases with customized settings are preserved as completed setup.
+    - `OnboardingSetupWizard.tsx`: Starts blank rather than prefilling fictional names; adds resumable draft in `localStorage` (`billzen_setup_draft`); makes postal code optional for UAE, Qatar, and Oman (`['AE', 'QA', 'OM']`).
+    - `GettingStartedGuide.tsx` & `src/i18n/index.ts`: Updated Slide 2 copy to "Customer Directory & Profiles" (address book, contacts, GSTIN/TRN) in English, Malayalam, and Arabic.
+    - `App.tsx`: Auto-opens guide on cold launch if setup is completed and guide is unseen.
+  - **3. Full App Light / Dark Mode Audit**:
+    - Theme controls strictly isolated to `SettingsView` (zero switches in headers, nav, or onboarding).
+    - `ProductCatalogView.tsx`: Added dark-mode styling (`dark:bg-zinc-900`, `dark:border-zinc-800`, `dark:text-zinc-100`, etc.) to table, mobile cards, search toolbar, and create/edit modal.
+    - `CustomerCatalogView.tsx`: Added dark-mode styling across header, search/filter toolbar, table, badges, mobile cards, and customer modal drawer.
+    - Print paper purity preserved: `#printable-invoice-root` renders pure white background (`rgb(255, 255, 255)`) and dark text (`rgb(0, 0, 0)`) in print media.
+  - **4. Android Beta Toolchain & APK Assembly**:
+    - Upgraded Gradle configuration to `compileSdk = 36` and `buildToolsVersion = "36.0.0"` in `src-tauri/gen/android/app/build.gradle.kts`.
+    - Built signed standalone ARM64 APK: `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk` (15M, SHA-256: `d99e9b154c7c424e269a2f5984e47a28e989b97ac2c0f57d7ff0225d671a39d2`).
+    - Verified 16 KB page-size ELF alignment for Android 15+ (`readelf -l` shows `0x4000` alignment across all LOAD segments).
+    - Verified 4-byte `zipalign` and APK signature scheme v2/v3 via `apksigner`.
+- **Files Modified / Added**:
+  - `src-tauri/src/db/worker.rs`, `src-tauri/src/db/mod.rs`, `src-tauri/src/commands/settings.rs`, `src-tauri/src/domain/models.rs`, `src-tauri/src/lib.rs`
+  - `src-tauri/gen/android/app/build.gradle.kts`, `scripts/build_android_apk.sh`
+  - `src/contexts/ThemeContext.tsx`, `src/components/SettingsView.tsx`, `src/components/OnboardingSetupWizard.tsx`, `src/components/GettingStartedGuide.tsx`
+  - `src/components/ProductCatalogView.tsx`, `src/components/CustomerCatalogView.tsx`, `src/App.tsx`, `src/types/index.ts`, `src/adapters/tauri.ts`, `src/i18n/index.ts`
+  - `scripts/verify_onboarding_appearance.js`, `scripts/verify_responsive_playwright.js`, `scripts/verify_catalog_playwright.js`
+  - `docs/verification-status.md`, `brain/architecture.md`, `brain/sessions.md`
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 49/49 passed.
+  - `npm test`: 14/14 passed.
+  - `npm run build`: Passed cleanly (`tsc && vite build`).
+  - `npm run test:responsive`: 6/6 viewports passed (zero document overflow).
+  - `npm run test:onboarding`: 22/22 passed across all 6 verification sections.
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 print scenarios passed.
+  - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
+  - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 16 KB page alignment confirmed, zipalign confirmed, apksigner verified.
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone 4: Invoice draft/finalize transactions, stock decrement allocations, payment allocation, thermal/A4 receipt printing.
+
+

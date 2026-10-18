@@ -72,6 +72,14 @@ async function main() {
 
       const page = await context.newPage();
       await page.goto('http://localhost:4177', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(300);
+
+      // Dismiss getting-started guide if visible
+      const guideSkipBtn = await page.$('[data-testid="guide-skip-button"], [data-testid="guide-close-button"]');
+      if (guideSkipBtn) {
+        await guideSkipBtn.click();
+        await page.waitForTimeout(300);
+      }
 
       // 1. Verify No Horizontal Scrolling on initial load
       const hasHorizontalScrollInitial = await page.evaluate(() => {
@@ -94,11 +102,7 @@ async function main() {
       }
 
       // 3. Test Add Product Modal and Form Scrollability
-      const addBtnSelector = vp.width < 640 
-        ? '[data-testid="mobile-add-product-button"]' 
-        : '[data-testid="add-product-button"]';
-      
-      const addBtn = await page.$(addBtnSelector);
+      const addBtn = await page.$('[data-testid="add-product-button"], [data-testid="mobile-add-product-button"]');
       let modalOpenedCleanly = false;
       if (addBtn) {
         await addBtn.click();
@@ -118,7 +122,7 @@ async function main() {
           await page.waitForTimeout(200);
         }
       } else {
-        modalOpenedCleanly = true; // Fallback if button already in view
+        modalOpenedCleanly = false; // Missing Add button must fail verification
       }
 
       // 4. Test Language Switcher to Arabic (RTL)
@@ -198,6 +202,8 @@ async function main() {
 
   if (!report.allPassed) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 

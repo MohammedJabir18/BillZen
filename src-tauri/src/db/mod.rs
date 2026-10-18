@@ -26,8 +26,11 @@ pub const V2_MIGRATION_SQL: &str = include_str!("migrations/v2_regional_foundati
 pub const V3_MIGRATION_SQL: &str = include_str!("migrations/v3_protect_currency_exponent.sql");
 pub const V4_MIGRATION_SQL: &str = include_str!("migrations/v4_catalog.sql");
 pub const V5_MIGRATION_SQL: &str = include_str!("migrations/v5_category_nocase.sql");
+pub const V6_MIGRATION_SQL: &str = include_str!("migrations/v6_setup_and_onboarding.sql");
 pub const INITIAL_V5_CHECKSUM: &str = "04d82447f839b02a0cc09c20534fa5f6d5688a1a79fb96e17b6a4bbe4d544a46";
 pub const INTERMEDIATE_V5_CHECKSUM: &str = "0d748aafb38054e1e01f260dd3bbc486e6e378a7bd97db6545d4ab4f9e166d36";
+pub const INITIAL_V6_CHECKSUM: &str = "c454f1673814b4ad7cd05f766f71f1bea165b3924fbb1d62c1fdf1292f34b944";
+
 
 pub fn configure_connection(conn: &Connection) -> Result<(), DbError> {
     conn.execute_batch(
@@ -248,6 +251,72 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
             tx.commit()?;
         }
     }
+
+    // Migration 6: Business Setup State, Appearance Preference, and Getting-Started Guide
+    let mut hasher6 = Sha256::new();
+    hasher6.update(V6_MIGRATION_SQL.as_bytes());
+    let current_checksum6 = format!("{:x}", hasher6.finalize());
+
+    let existing_checksum6: Option<String> = conn
+        .query_row(
+            "SELECT checksum FROM schema_migrations WHERE version = 6;",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match existing_checksum6 {
+        Some(stored_checksum) => {
+            if stored_checksum != current_checksum6 && stored_checksum != INITIAL_V6_CHECKSUM {
+                return Err(DbError::ChecksumMismatch {
+                    version: 6,
+                    expected: stored_checksum,
+                    found: current_checksum6,
+                });
+            }
+            // Conservative upgrade policy for existing installations even if migrated with initial V6
+            conn.execute_batch(
+                "UPDATE business_settings
+                SET is_setup_completed = 1,
+                    guide_status = 'completed'
+                WHERE (
+                    business_name != 'My Retail Store'
+                    OR legal_name IS NOT NULL
+                    OR tax_identifier IS NOT NULL
+                    OR phone != '+91 9876543210'
+                    OR email IS NOT NULL
+                    OR address_line1 != '123 Market Road'
+                    OR address_line2 IS NOT NULL
+                    OR city != 'Kochi'
+                    OR state != 'Kerala'
+                    OR postal_code != '682001'
+                    OR (country != 'IND' AND country != 'India')
+                    OR currency_code != 'INR'
+                    OR timezone != 'Asia/Kolkata'
+                    OR invoice_prefix != 'INV'
+                    OR locale != 'en-IN'
+                    OR (terms_and_conditions IS NOT NULL AND terms_and_conditions != 'Thank you for your business!')
+                    OR EXISTS (SELECT 1 FROM products LIMIT 1)
+                    OR EXISTS (SELECT 1 FROM customers LIMIT 1)
+                    OR EXISTS (SELECT 1 FROM invoices LIMIT 1)
+                    OR EXISTS (SELECT 1 FROM categories LIMIT 1)
+                    OR EXISTS (SELECT 1 FROM payments LIMIT 1)
+                    OR EXISTS (SELECT 1 FROM expenses LIMIT 1)
+                );",
+            )?;
+        }
+        None => {
+            let tx = conn.transaction()?;
+            tx.execute_batch(V6_MIGRATION_SQL)?;
+            let now = chrono::Utc::now().timestamp_millis();
+            tx.execute(
+                "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
+                params![6, "v6_setup_and_onboarding", now, current_checksum6],
+            )?;
+            tx.commit()?;
+        }
+    }
+
 
     Ok(())
 }
@@ -1267,4 +1336,245 @@ mod tests {
             other => panic!("Expected ChecksumMismatch error, got: {:?}", other),
         }
     }
+
+    fn test_checksum(sql: &str) -> String {
+        let mut h = Sha256::new();
+        h.update(sql.as_bytes());
+        format!("{:x}", h.finalize())
+    }
+
+    #[test]
+    fn test_upgrade_v5_database_to_v6_fresh_and_populated() {
+        let now = chrono::Utc::now().timestamp_millis();
+        let chk1 = test_checksum(V1_MIGRATION_SQL);
+        let chk2 = test_checksum(V2_MIGRATION_SQL);
+        let chk3 = test_checksum(V3_MIGRATION_SQL);
+        let chk4 = test_checksum(V4_MIGRATION_SQL);
+        let chk5 = test_checksum(V5_MIGRATION_SQL);
+
+        // --- Sub-test A: Populated V5 database upgrades with conservative setup=completed ---
+        let mut conn_populated = Connection::open_in_memory().unwrap();
+        conn_populated.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );"
+        ).unwrap();
+        conn_populated.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn_populated.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn_populated.execute_batch(V3_MIGRATION_SQL).unwrap();
+        conn_populated.execute_batch(V4_MIGRATION_SQL).unwrap();
+        conn_populated.execute_batch(V5_MIGRATION_SQL).unwrap();
+
+        // Record migrations 1-5
+        conn_populated.execute("INSERT INTO schema_migrations VALUES (1, 'v1', ?1, ?2);", params![now, chk1]).unwrap();
+        conn_populated.execute("INSERT INTO schema_migrations VALUES (2, 'v2', ?1, ?2);", params![now, chk2]).unwrap();
+        conn_populated.execute("INSERT INTO schema_migrations VALUES (3, 'v3', ?1, ?2);", params![now, chk3]).unwrap();
+        conn_populated.execute("INSERT INTO schema_migrations VALUES (4, 'v4', ?1, ?2);", params![now, chk4]).unwrap();
+        conn_populated.execute("INSERT INTO schema_migrations VALUES (5, 'v5', ?1, ?2);", params![now, chk5]).unwrap();
+
+        // Seed customized business settings and a product
+        conn_populated.execute(
+            "INSERT INTO business_settings (
+                id, business_name, phone, address_line1, city, state, postal_code, country,
+                currency_code, currency_symbol, currency_exponent, locale, timezone, invoice_prefix,
+                created_at, updated_at
+            ) VALUES (
+                'default', 'Jabir Electronics LLC', '+971 50 1234567', 'Al Fahidi St', 'Dubai', 'Dubai', '00000', 'ARE',
+                'AED', 'AED', 2, 'en-AE', 'Asia/Dubai', 'INV',
+                1000, 1000
+            );",
+            [],
+        ).unwrap();
+
+        // Run V6 upgrade
+        run_migrations(&mut conn_populated).expect("Upgrade populated V5 to V6 must succeed");
+
+        // Verify conservative policy: is_setup_completed = 1, guide_status = 'completed'
+        let (setup_done, app_pref, guide_stat, guide_ver): (i32, String, String, i32) = conn_populated.query_row(
+            "SELECT is_setup_completed, appearance_preference, guide_status, guide_version FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        ).unwrap();
+        assert_eq!(setup_done, 1, "Populated/customized database must be marked setup completed on V6 upgrade");
+        assert_eq!(app_pref, "system", "Default appearance must be system");
+        assert_eq!(guide_stat, "completed", "Existing user guide status must be completed");
+        assert_eq!(guide_ver, 1);
+
+        // --- Sub-test B: Fresh default V5 database upgrades with setup=0 and guide=unseen ---
+        let mut conn_fresh = Connection::open_in_memory().unwrap();
+        conn_fresh.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );"
+        ).unwrap();
+        conn_fresh.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn_fresh.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn_fresh.execute_batch(V3_MIGRATION_SQL).unwrap();
+        conn_fresh.execute_batch(V4_MIGRATION_SQL).unwrap();
+        conn_fresh.execute_batch(V5_MIGRATION_SQL).unwrap();
+
+        conn_fresh.execute("INSERT INTO schema_migrations VALUES (1, 'v1', ?1, ?2);", params![now, chk1]).unwrap();
+        conn_fresh.execute("INSERT INTO schema_migrations VALUES (2, 'v2', ?1, ?2);", params![now, chk2]).unwrap();
+        conn_fresh.execute("INSERT INTO schema_migrations VALUES (3, 'v3', ?1, ?2);", params![now, chk3]).unwrap();
+        conn_fresh.execute("INSERT INTO schema_migrations VALUES (4, 'v4', ?1, ?2);", params![now, chk4]).unwrap();
+        conn_fresh.execute("INSERT INTO schema_migrations VALUES (5, 'v5', ?1, ?2);", params![now, chk5]).unwrap();
+
+        // Seed un-customized default business settings (same as default seed)
+        conn_fresh.execute(
+            "INSERT INTO business_settings (
+                id, business_name, phone, address_line1, city, state, postal_code, country,
+                currency_code, currency_symbol, currency_exponent, locale, timezone, invoice_prefix,
+                created_at, updated_at
+            ) VALUES (
+                'default', 'My Retail Store', '+91 9876543210', '123 Market Road', 'Kochi', 'Kerala', '682001', 'IND',
+                'INR', '₹', 2, 'en-IN', 'Asia/Kolkata', 'INV',
+                1000, 1000
+            );",
+            [],
+        ).unwrap();
+
+        // Run V6 upgrade on fresh DB
+        run_migrations(&mut conn_fresh).expect("Upgrade fresh V5 to V6 must succeed");
+
+        let (fresh_setup_done, fresh_guide_stat): (i32, String) = conn_fresh.query_row(
+            "SELECT is_setup_completed, guide_status FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).unwrap();
+        assert_eq!(fresh_setup_done, 0, "Fresh un-customized database must keep setup=0");
+        assert_eq!(fresh_guide_stat, "unseen", "Fresh database must keep guide=unseen");
+
+        // Idempotency
+        run_migrations(&mut conn_fresh).expect("Repeat migration must be idempotent");
+    }
+
+    #[test]
+    fn test_upgrade_legacy_database_with_default_name_but_custom_regional_settings() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );"
+        ).unwrap();
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V4_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V5_MIGRATION_SQL).unwrap();
+
+        let now = chrono::Utc::now().timestamp_millis();
+        let chk1 = test_checksum(V1_MIGRATION_SQL);
+        let chk2 = test_checksum(V2_MIGRATION_SQL);
+        let chk3 = test_checksum(V3_MIGRATION_SQL);
+        let chk4 = test_checksum(V4_MIGRATION_SQL);
+        let chk5 = test_checksum(V5_MIGRATION_SQL);
+        conn.execute("INSERT INTO schema_migrations VALUES (1, 'v1', ?1, ?2);", params![now, chk1]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (2, 'v2', ?1, ?2);", params![now, chk2]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (3, 'v3', ?1, ?2);", params![now, chk3]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (4, 'v4', ?1, ?2);", params![now, chk4]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (5, 'v5', ?1, ?2);", params![now, chk5]).unwrap();
+
+        // Seed with DEFAULT business_name ("My Retail Store") BUT customized UAE phone, address, currency, timezone
+        conn.execute(
+            "INSERT INTO business_settings (
+                id, business_name, phone, address_line1, city, state, postal_code, country,
+                currency_code, currency_symbol, currency_exponent, locale, timezone, invoice_prefix,
+                created_at, updated_at
+            ) VALUES (
+                'default', 'My Retail Store', '+971 50 123 4567', 'Al Wasl Road', 'Dubai', 'Dubai', '', 'United Arab Emirates',
+                'AED', 'AED', 2, 'en-AE', 'Asia/Dubai', 'DXB',
+                1000, 1000
+            );",
+            [],
+        ).unwrap();
+
+        // Run V6 migration
+        run_migrations(&mut conn).expect("Upgrade must succeed");
+
+        let (setup_done, guide_stat): (i32, String) = conn.query_row(
+            "SELECT is_setup_completed, guide_status FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).unwrap();
+
+        assert_eq!(
+            setup_done, 1,
+            "A business with default name but custom UAE phone/address/AED/timezone must be marked setup completed"
+        );
+        assert_eq!(
+            guide_stat, "completed",
+            "An existing customized business must not be interrupted with guide on upgrade"
+        );
+    }
+
+    #[test]
+    fn test_v6_dual_checksum_compatibility_and_repair() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );"
+        ).unwrap();
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V4_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V5_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V6_MIGRATION_SQL).unwrap();
+
+        let now = chrono::Utc::now().timestamp_millis();
+        let chk1 = test_checksum(V1_MIGRATION_SQL);
+        let chk2 = test_checksum(V2_MIGRATION_SQL);
+        let chk3 = test_checksum(V3_MIGRATION_SQL);
+        let chk4 = test_checksum(V4_MIGRATION_SQL);
+        let chk5 = test_checksum(V5_MIGRATION_SQL);
+        conn.execute("INSERT INTO schema_migrations VALUES (1, 'v1', ?1, ?2);", params![now, chk1]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (2, 'v2', ?1, ?2);", params![now, chk2]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (3, 'v3', ?1, ?2);", params![now, chk3]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (4, 'v4', ?1, ?2);", params![now, chk4]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (5, 'v5', ?1, ?2);", params![now, chk5]).unwrap();
+        // Insert with INITIAL_V6_CHECKSUM
+        conn.execute("INSERT INTO schema_migrations VALUES (6, 'v6', ?1, ?2);", params![now, INITIAL_V6_CHECKSUM]).unwrap();
+
+        // Seed with customized business settings that initial V6 missed (is_setup_completed = 0)
+        conn.execute(
+            "INSERT INTO business_settings (
+                id, business_name, phone, address_line1, city, state, postal_code, country,
+                currency_code, currency_symbol, currency_exponent, locale, timezone, invoice_prefix,
+                is_setup_completed, appearance_preference, guide_status, guide_version,
+                created_at, updated_at
+            ) VALUES (
+                'default', 'My Retail Store', '+971 50 123 4567', 'Business Bay', 'Dubai', 'Dubai', '', 'United Arab Emirates',
+                'AED', 'AED', 2, 'en-AE', 'Asia/Dubai', 'INV',
+                0, 'dark', 'unseen', 1,
+                1000, 1000
+            );",
+            [],
+        ).unwrap();
+
+        // Running migrations must succeed with INITIAL_V6_CHECKSUM and repair is_setup_completed = 1
+        run_migrations(&mut conn).expect("Dual-checksum upgrade must succeed");
+
+        let (setup_done, app_pref): (i32, String) = conn.query_row(
+            "SELECT is_setup_completed, appearance_preference FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).unwrap();
+
+        assert_eq!(setup_done, 1, "Conservative repair must mark setup completed for customized business");
+        assert_eq!(app_pref, "dark", "User's dark appearance must be preserved");
+    }
 }
+

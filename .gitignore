@@ -61,3 +61,20 @@ brain/.obsidian/workspace*.json
 
 # Local diagram authoring workspace (published copies live under docs/diagrams)
 .archify/
+
+# Android Build Outputs & Keystores
+.gradle/
+**/gen/android/.gradle/
+**/gen/android/build/
+**/gen/android/app/build/
+**/gen/android/.idea/
+**/gen/android/local.properties
+dist-android/
+*.apk
+*.keystore
+*.jks
+*.so
+**/gen/android/app/src/main/jniLibs/
+**/.kotlin/
+
+
