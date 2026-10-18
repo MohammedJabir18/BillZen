@@ -33,7 +33,8 @@ async function verifyScenario(page, scenario) {
   });
 
   await page.goto(scenario.url, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(1000); // Allow fonts and styles to fully settle
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(500); // Allow fonts and styles to fully settle
 
   if (pageErrors.length > 0) {
     throw new Error(`Page encountered errors during load: ${pageErrors.join('; ')}`);
@@ -81,9 +82,15 @@ async function verifyScenario(page, scenario) {
   // Extract text with pdftotext
   const textOut = execSync(`pdftotext "${pdfPath}" -`).toString();
 
+  // Whitespace-normalized text comparison to handle cross-platform line-wrapping while strictly
+  // preserving word sequence, numerical amounts, and preventing text omission.
+  const normalizeWs = (s) => s.replace(/\s+/g, ' ').trim();
+  const normalizedTextOut = normalizeWs(textOut);
+
   // Validate required strings
   for (const req of scenario.requiredStrings) {
-    if (!textOut.includes(req)) {
+    const normalizedReq = normalizeWs(req);
+    if (!normalizedTextOut.includes(normalizedReq)) {
       throw new Error(`Scenario ${scenario.id} missing required string: "${req}"`);
     }
   }
@@ -100,7 +107,8 @@ async function verifyScenario(page, scenario) {
   ];
   const allForbidden = [...defaultForbidden, ...(scenario.forbiddenStrings || [])];
   for (const forb of allForbidden) {
-    if (textOut.includes(forb)) {
+    const normalizedForb = normalizeWs(forb);
+    if (normalizedTextOut.includes(normalizedForb)) {
       throw new Error(`Scenario ${scenario.id} leaked forbidden UI/browser text: "${forb}"`);
     }
   }
