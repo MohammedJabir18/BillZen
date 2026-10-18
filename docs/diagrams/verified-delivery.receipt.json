@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "workflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-delivery-20261018-220000/candidate.json",
+    "sha256": "70145f673856cdbe937c1c4adbea672aff76b70f3d0d3f5a4289970feae3cd95",
+    "bytes": 3182
+  },
+  "artifact": {
+    "path": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-delivery-20261018-220000/verified-delivery.html",
+    "sha256": "9ae8c2b9b4f996b8c5ebd8d11f253f46cdc05661564e3b6d1c08f37147982438",
+    "bytes": 753323
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-delivery-20261018-220000/verified-delivery.finalize.json",
+    "summaryReceipt": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-delivery-20261018-220000/verified-delivery.finalize-summary.json",
+    "browserCheckReceipt": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-delivery-20261018-220000/verified-delivery.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-valid"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2198
+}
