@@ -1,0 +1,524 @@
+{
+  "communities": {
+    "0": [
+      "ref_lucide_react",
+      "ref_react",
+      "ref_tanstack_react_query",
+      "src_adapters_tauri",
+      "src_adapters_tauri_checkprintsupport",
+      "src_adapters_tauri_getbusinesssettings",
+      "src_adapters_tauri_istaurienvironment",
+      "src_adapters_tauri_pingbackend",
+      "src_adapters_tauri_updatebusinesssettings",
+      "src_app",
+      "src_app_activetab",
+      "src_app_app",
+      "src_app_appcontent",
+      "src_app_queryclient",
+      "src_components_printableinvoicedocument",
+      "src_components_printableinvoicedocument_printableinvoicedocument",
+      "src_components_printableinvoicedocument_printableinvoiceprops",
+      "src_components_printfeasibilityprobe",
+      "src_components_printfeasibilityprobe_dialogstatus",
+      "src_components_printfeasibilityprobe_outputstatus",
+      "src_components_printfeasibilityprobe_printfeasibilityprobe",
+      "src_components_printfeasibilityprobe_printfeasibilityprobeprops",
+      "src_components_settingsview",
+      "src_components_settingsview_currencypreset",
+      "src_components_settingsview_regional_currencies",
+      "src_components_settingsview_settingsview",
+      "src_domain_invoice_view_model_calculatedinvoiceviewmodel",
+      "src_domain_test_scenarios",
+      "src_domain_test_scenarios_getinvoiceforscenario",
+      "src_domain_test_scenarios_kwd_three_decimal_invoice_dto",
+      "src_domain_test_scenarios_long_content_invoice_dto",
+      "src_domain_test_scenarios_multipage_invoice_dto",
+      "src_main",
+      "src_styles_globals",
+      "src_types_index",
+      "src_types_index_businesssettings",
+      "src_types_index_invoicedto",
+      "src_types_index_invoiceitemdto",
+      "src_types_index_printsupportinfo"
+    ],
+    "1": [
+      "businesssettings",
+      "initialize_database",
+      "rusqlite",
+      "sender",
+      "src_tauri_src_commands_settings",
+      "src_tauri_src_commands_settings_get_business_settings",
+      "src_tauri_src_commands_settings_rs_businesssettings",
+      "src_tauri_src_commands_settings_update_business_settings",
+      "src_tauri_src_db_worker",
+      "src_tauri_src_db_worker_dbrequest",
+      "src_tauri_src_db_worker_dbrequest_getbusinesssettings",
+      "src_tauri_src_db_worker_dbrequest_ping",
+      "src_tauri_src_db_worker_dbrequest_updatebusinesssettings",
+      "src_tauri_src_db_worker_dbworkerhandle",
+      "src_tauri_src_db_worker_dbworkerhandle_get_business_settings",
+      "src_tauri_src_db_worker_dbworkerhandle_new",
+      "src_tauri_src_db_worker_dbworkerhandle_ping",
+      "src_tauri_src_db_worker_dbworkerhandle_update_business_settings",
+      "src_tauri_src_db_worker_fetch_business_settings",
+      "src_tauri_src_db_worker_rs_connection",
+      "src_tauri_src_db_worker_save_business_settings",
+      "src_tauri_src_db_worker_seed_default_settings",
+      "src_tauri_src_db_worker_test_currency_change_prevented_when_products_or_invoices_exist",
+      "src_tauri_src_db_worker_test_invalid_currency_code_or_exponent_rejected_on_save",
+      "src_tauri_src_db_worker_test_settings_persistence_across_full_worker_restarts",
+      "state",
+      "sync",
+      "tempdir"
+    ],
+    "2": [
+      "package",
+      "package_name",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_dev",
+      "package_scripts_preview",
+      "package_scripts_tauri",
+      "package_scripts_test",
+      "package_type",
+      "package_version",
+      "ref_autoprefixer",
+      "ref_clsx",
+      "ref_node_url",
+      "ref_postcss",
+      "ref_react_dom",
+      "ref_tailwind_merge",
+      "ref_tailwindcss",
+      "ref_tauri_apps_api",
+      "ref_tauri_apps_cli",
+      "ref_types_node",
+      "ref_types_react",
+      "ref_types_react_dom",
+      "ref_typescript",
+      "ref_vite",
+      "ref_vitejs_plugin_react",
+      "ref_zustand",
+      "vite_config"
+    ],
+    "3": [
+      "src_tauri_src_domain_financial",
+      "src_tauri_src_domain_financial_calculate_invoice_totals",
+      "src_tauri_src_domain_financial_calculate_line_item",
+      "src_tauri_src_domain_financial_currency_minor_factor",
+      "src_tauri_src_domain_financial_financialerror",
+      "src_tauri_src_domain_financial_financialerror_discountexceedsgross",
+      "src_tauri_src_domain_financial_financialerror_overflow",
+      "src_tauri_src_domain_financial_financialerror_overpaymentnotallowed",
+      "src_tauri_src_domain_financial_financialerror_quantityoutofbounds",
+      "src_tauri_src_domain_financial_financialerror_taxrateoutofbounds",
+      "src_tauri_src_domain_financial_financialerror_unitpriceoutofbounds",
+      "src_tauri_src_domain_financial_format_minor_units",
+      "src_tauri_src_domain_financial_invoicetotalscalculation",
+      "src_tauri_src_domain_financial_lineitemcalculation",
+      "src_tauri_src_domain_financial_max_money_minor",
+      "src_tauri_src_domain_financial_max_quantity_scaled",
+      "src_tauri_src_domain_financial_parse_to_minor_units",
+      "src_tauri_src_domain_financial_quantity_scaled_factor",
+      "src_tauri_src_domain_financial_round_half_up",
+      "src_tauri_src_domain_financial_tax_basis_points_factor",
+      "src_tauri_src_domain_financial_test_formatting_and_parsing_negative_minor_units",
+      "src_tauri_src_domain_financial_test_overpayment_rejected",
+      "src_tauri_src_domain_financial_test_thousands_grouping_and_excess_precision_rejection",
+      "src_tauri_src_domain_financial_test_worked_example_1_standard_unit",
+      "src_tauri_src_domain_financial_test_worked_example_2_fractional_quantity",
+      "src_tauri_src_domain_financial_test_worked_example_3_three_decimal_currency_kwd",
+      "src_tauri_src_domain_financial_test_zero_total_invoice_settlement_status"
+    ],
+    "4": [
+      "acquire_instance_lock",
+      "dbworkerhandle",
+      "file",
+      "fileext",
+      "fs",
+      "manager",
+      "path",
+      "pathbuf",
+      "src_tauri_src_bin_db_probe",
+      "src_tauri_src_bin_db_probe_main",
+      "src_tauri_src_bin_lock_probe",
+      "src_tauri_src_bin_lock_probe_main",
+      "src_tauri_src_lib",
+      "src_tauri_src_lib_acquire_instance_lock",
+      "src_tauri_src_lib_get_app_data_dir",
+      "src_tauri_src_lib_instancelock",
+      "src_tauri_src_lib_instancelock_drop",
+      "src_tauri_src_lib_run",
+      "src_tauri_src_lib_test_configuration_verification_window_capabilities_allow_main_and_deny_unprivileged",
+      "src_tauri_src_lib_test_database_worker_handshake_fails_on_inaccessible_path",
+      "src_tauri_src_lib_test_database_worker_handshake_succeeds_on_valid_temp_database",
+      "src_tauri_src_lib_test_single_instance_lock_mutual_exclusion_and_release",
+      "write"
+    ],
+    "5": [
+      "error",
+      "sha2",
+      "src_tauri_src_db_mod",
+      "src_tauri_src_db_mod_configure_connection",
+      "src_tauri_src_db_mod_dberror",
+      "src_tauri_src_db_mod_dberror_checksummismatch",
+      "src_tauri_src_db_mod_dberror_integritycheckfailed",
+      "src_tauri_src_db_mod_dberror_io",
+      "src_tauri_src_db_mod_dberror_sqlite",
+      "src_tauri_src_db_mod_initialize_database",
+      "src_tauri_src_db_mod_rs_connection",
+      "src_tauri_src_db_mod_run_integrity_check",
+      "src_tauri_src_db_mod_run_migrations",
+      "src_tauri_src_db_mod_test_currency_change_prevented_when_finalized_invoices_exist",
+      "src_tauri_src_db_mod_test_customer_receivables_derivation_and_matching",
+      "src_tauri_src_db_mod_test_migrations_and_triggers_against_fresh_db",
+      "src_tauri_src_db_mod_test_prohibited_mutations_fail_on_finalized_invoice",
+      "src_tauri_src_db_mod_test_rollback_mid_transaction_after_real_writes_preserves_opening_movements",
+      "src_tauri_src_db_mod_test_upgrade_populated_v2_database_to_v3",
+      "src_tauri_src_db_mod_v1_migration_sql",
+      "src_tauri_src_db_mod_v2_migration_sql",
+      "src_tauri_src_db_mod_v3_migration_sql"
+    ],
+    "6": [
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_allowimportingtsextensions",
+      "tsconfig_compileroptions_baseurl",
+      "tsconfig_compileroptions_isolatedmodules",
+      "tsconfig_compileroptions_jsx",
+      "tsconfig_compileroptions_lib",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_moduleresolution",
+      "tsconfig_compileroptions_noemit",
+      "tsconfig_compileroptions_nofallthroughcasesinswitch",
+      "tsconfig_compileroptions_nounusedlocals",
+      "tsconfig_compileroptions_nounusedparameters",
+      "tsconfig_compileroptions_paths",
+      "tsconfig_compileroptions_resolvejsonmodule",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target",
+      "tsconfig_compileroptions_usedefineforclassfields",
+      "tsconfig_include"
+    ],
+    "7": [
+      "ref_vitest",
+      "src_domain_financial",
+      "src_domain_financial_calculateinvoicetotals",
+      "src_domain_financial_calculatelineitem",
+      "src_domain_financial_formatminorunits",
+      "src_domain_financial_max_money_minor",
+      "src_domain_financial_max_quantity_scaled",
+      "src_domain_financial_parsetominorunits",
+      "src_domain_financial_quantity_scaled_factor",
+      "src_domain_financial_roundhalfup",
+      "src_domain_financial_tax_basis_points_factor",
+      "src_domain_financial_test",
+      "src_domain_invoice_view_model",
+      "src_domain_invoice_view_model_calculatedinvoiceitemviewmodel",
+      "src_domain_invoice_view_model_createinvoiceviewmodel",
+      "src_domain_invoice_view_model_sample_two_line_invoice_dto",
+      "src_domain_invoice_view_model_test",
+      "src_types_index_invoicetotalscalculation",
+      "src_types_index_lineitemcalculation"
+    ],
+    "8": [
+      "src_tauri_tauri_conf",
+      "src_tauri_tauri_conf_app",
+      "src_tauri_tauri_conf_app_security",
+      "src_tauri_tauri_conf_app_windows",
+      "src_tauri_tauri_conf_build",
+      "src_tauri_tauri_conf_build_beforebuildcommand",
+      "src_tauri_tauri_conf_build_beforedevcommand",
+      "src_tauri_tauri_conf_build_devurl",
+      "src_tauri_tauri_conf_build_frontenddist",
+      "src_tauri_tauri_conf_bundle",
+      "src_tauri_tauri_conf_bundle_active",
+      "src_tauri_tauri_conf_bundle_targets",
+      "src_tauri_tauri_conf_identifier",
+      "src_tauri_tauri_conf_productname",
+      "src_tauri_tauri_conf_schema",
+      "src_tauri_tauri_conf_security_csp",
+      "src_tauri_tauri_conf_version"
+    ],
+    "9": [
+      "ref_child_process",
+      "ref_fs",
+      "ref_path",
+      "ref_playwright",
+      "scripts_verify_matrix_playwright",
+      "scripts_verify_matrix_playwright_artifacts_dir",
+      "scripts_verify_matrix_playwright_report_path",
+      "scripts_verify_matrix_playwright_run",
+      "scripts_verify_matrix_playwright_verifyscenario",
+      "scripts_verify_matrix_playwright_waitforserver",
+      "scripts_verify_pdf_a4",
+      "scripts_verify_pdf_a4_artifacts_dir",
+      "scripts_verify_pdf_a4_pdf_path",
+      "scripts_verify_pdf_a4_png_prefix",
+      "scripts_verify_pdf_a4_report_path",
+      "scripts_verify_pdf_a4_run"
+    ],
+    "10": [
+      "package_devdependencies",
+      "package_devdependencies_autoprefixer",
+      "package_devdependencies_playwright",
+      "package_devdependencies_postcss",
+      "package_devdependencies_tailwindcss",
+      "package_devdependencies_tauri_apps_cli",
+      "package_devdependencies_types_node",
+      "package_devdependencies_types_react",
+      "package_devdependencies_types_react_dom",
+      "package_devdependencies_typescript",
+      "package_devdependencies_vite",
+      "package_devdependencies_vitejs_plugin_react",
+      "package_devdependencies_vitest"
+    ],
+    "11": [
+      "agents_rules_brain_workflow_session_end",
+      "agents_rules_brain_workflow_session_start",
+      "brain_architecture_api_endpoints",
+      "brain_architecture_billzen_architecture",
+      "brain_architecture_data_models",
+      "brain_architecture_system_overview",
+      "brain_architecture_tech_stack",
+      "brain_sessions_session_20261018",
+      "brain_sessions_session_log"
+    ],
+    "12": [
+      "package_dependencies",
+      "package_dependencies_clsx",
+      "package_dependencies_lucide_react",
+      "package_dependencies_react",
+      "package_dependencies_react_dom",
+      "package_dependencies_tailwind_merge",
+      "package_dependencies_tanstack_react_query",
+      "package_dependencies_tauri_apps_api",
+      "package_dependencies_zustand"
+    ],
+    "13": [
+      "serde",
+      "src_tauri_src_commands_system",
+      "src_tauri_src_commands_system_check_print_support",
+      "src_tauri_src_commands_system_ping",
+      "src_tauri_src_commands_system_printsupportinfo",
+      "src_tauri_src_domain_models",
+      "src_tauri_src_domain_models_businesssettings",
+      "src_tauri_src_domain_models_businesssettings_default"
+    ],
+    "14": [
+      "shared_fixtures_calculations",
+      "shared_fixtures_calculations_cases",
+      "shared_fixtures_calculations_description",
+      "shared_fixtures_calculations_scaling",
+      "shared_fixtures_calculations_scaling_currency_minor_factor",
+      "shared_fixtures_calculations_scaling_quantity_scaled_factor",
+      "shared_fixtures_calculations_scaling_tax_basis_points_factor",
+      "shared_fixtures_calculations_schema"
+    ],
+    "15": [
+      "src_tauri_src_domain_currency",
+      "src_tauri_src_domain_currency_currencyspec",
+      "src_tauri_src_domain_currency_supported_currencies",
+      "src_tauri_src_domain_currency_test_invalid_exponent_rejected",
+      "src_tauri_src_domain_currency_test_unknown_currency_rejected",
+      "src_tauri_src_domain_currency_test_valid_currencies",
+      "src_tauri_src_domain_currency_validate_currency",
+      "super"
+    ],
+    "16": [
+      "src_tauri_capabilities_default",
+      "src_tauri_capabilities_default_description",
+      "src_tauri_capabilities_default_identifier",
+      "src_tauri_capabilities_default_permissions",
+      "src_tauri_capabilities_default_schema",
+      "src_tauri_capabilities_default_windows"
+    ],
+    "17": [
+      "src_tauri_capabilities_unprivileged",
+      "src_tauri_capabilities_unprivileged_description",
+      "src_tauri_capabilities_unprivileged_identifier",
+      "src_tauri_capabilities_unprivileged_permissions",
+      "src_tauri_capabilities_unprivileged_schema",
+      "src_tauri_capabilities_unprivileged_windows"
+    ],
+    "18": [
+      "agents_agents_instructions",
+      "agents_rules_brain_workflow_graphify_sync",
+      "agents_rules_brain_workflow_rules",
+      "brain_sessions_second_brain_setup"
+    ],
+    "19": [
+      "src_tauri_build",
+      "src_tauri_build_main"
+    ],
+    "20": [
+      "src_tauri_src_main",
+      "src_tauri_src_main_main"
+    ],
+    "21": [
+      "connection"
+    ],
+    "22": [
+      "pkg_billzen"
+    ],
+    "23": [
+      "postcss_config"
+    ],
+    "24": [
+      "src_tauri_src_commands_mod"
+    ],
+    "25": [
+      "src_tauri_src_db_worker_rs_businesssettings"
+    ],
+    "26": [
+      "src_tauri_src_domain_mod"
+    ],
+    "27": [
+      "tailwind_config"
+    ]
+  },
+  "cohesion": {
+    "0": 0.11875843454790823,
+    "1": 0.1455026455026455,
+    "2": 0.07407407407407407,
+    "3": 0.1339031339031339,
+    "4": 0.11462450592885376,
+    "5": 0.17316017316017315,
+    "6": 0.1,
+    "7": 0.18128654970760233,
+    "8": 0.11764705882352941,
+    "9": 0.15833333333333333,
+    "10": 0.15384615384615385,
+    "11": 0.25,
+    "12": 0.2222222222222222,
+    "13": 0.2857142857142857,
+    "14": 0.25,
+    "15": 0.39285714285714285,
+    "16": 0.3333333333333333,
+    "17": 0.3333333333333333,
+    "18": 0.5,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0
+  },
+  "gods": [
+    {
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 18
+    },
+    {
+      "id": "src_tauri_src_db_mod_run_migrations",
+      "label": "run_migrations()",
+      "degree": 12
+    },
+    {
+      "id": "src_tauri_src_domain_financial_calculate_line_item",
+      "label": "calculate_line_item()",
+      "degree": 12
+    },
+    {
+      "id": "src_tauri_src_domain_financial_financialerror",
+      "label": "FinancialError",
+      "degree": 11
+    },
+    {
+      "id": "src_tauri_src_db_worker_dbworkerhandle",
+      "label": "DbWorkerHandle",
+      "degree": 10
+    },
+    {
+      "id": "src_tauri_src_db_mod_dberror",
+      "label": "DbError",
+      "degree": 9
+    },
+    {
+      "id": "src_tauri_src_domain_financial_calculate_invoice_totals",
+      "label": "calculate_invoice_totals()",
+      "degree": 9
+    },
+    {
+      "id": "src_app_appcontent",
+      "label": "AppContent()",
+      "degree": 8
+    },
+    {
+      "id": "src_types_index_invoicedto",
+      "label": "InvoiceDTO",
+      "degree": 8
+    },
+    {
+      "id": "src_adapters_tauri_istaurienvironment",
+      "label": "isTauriEnvironment()",
+      "degree": 7
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Session End Protocol",
+      "target": "BillZen Architecture",
+      "source_files": [
+        ".agents/rules/brain-workflow.md",
+        "brain/architecture.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories; peripheral node `Session End Protocol` unexpectedly reaches hub `BillZen Architecture`"
+    },
+    {
+      "source": "Session Start Protocol",
+      "target": "BillZen Architecture",
+      "source_files": [
+        ".agents/rules/brain-workflow.md",
+        "brain/architecture.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories; peripheral node `Session Start Protocol` unexpectedly reaches hub `BillZen Architecture`"
+    },
+    {
+      "source": "Graphify Knowledge Sync",
+      "target": "Second Brain Setup",
+      "source_files": [
+        ".agents/rules/brain-workflow.md",
+        "brain/sessions.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "Second Brain Setup",
+      "target": "Second Brain Workflow Rules",
+      "source_files": [
+        "brain/sessions.md",
+        ".agents/rules/brain-workflow.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "Agent Instructions",
+      "target": "Second Brain Workflow Rules",
+      "source_files": [
+        "AGENTS.md",
+        ".agents/rules/brain-workflow.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "references",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

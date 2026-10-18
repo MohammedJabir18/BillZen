@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "unprivileged",
+  "description": "Unprivileged capability for secondary untrusted window with zero app-command permissions",
+  "windows": ["unprivileged-window"],
+  "permissions": [
+    "core:default"
+  ]
+}

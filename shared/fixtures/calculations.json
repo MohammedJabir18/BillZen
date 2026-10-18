@@ -1,0 +1,112 @@
+{
+  "$schema": "./schema.json",
+  "description": "Shared calculation fixtures for BillZen Rust domain engine and React frontend preview parity",
+  "scaling": {
+    "currency_minor_factor": 100,
+    "quantity_scaled_factor": 1000,
+    "tax_basis_points_factor": 10000
+  },
+  "cases": [
+    {
+      "id": "worked_example_1_standard_unit",
+      "description": "2 units @ ₹100.00 with ₹10.00 discount and 18% tax, ₹100.00 paid",
+      "input": {
+        "quantity_scaled": 2000,
+        "unit_price_minor": 10000,
+        "discount_minor": 1000,
+        "tax_rate_bp": 1800,
+        "paid_minor": 10000
+      },
+      "expected": {
+        "gross_minor": 20000,
+        "taxable_minor": 19000,
+        "tax_minor": 3420,
+        "line_total_minor": 22420,
+        "grand_total_minor": 22420,
+        "balance_due_minor": 12420,
+        "settlement_status": "partially_paid"
+      }
+    },
+    {
+      "id": "worked_example_2_fractional_quantity",
+      "description": "1.375 kg @ ₹245.50/kg with ₹5.00 discount and 5% tax",
+      "input": {
+        "quantity_scaled": 1375,
+        "unit_price_minor": 24550,
+        "discount_minor": 500,
+        "tax_rate_bp": 500,
+        "paid_minor": 34919
+      },
+      "expected": {
+        "gross_minor": 33756,
+        "taxable_minor": 33256,
+        "tax_minor": 1663,
+        "line_total_minor": 34919,
+        "grand_total_minor": 34919,
+        "balance_due_minor": 0,
+        "settlement_status": "fully_paid"
+      }
+    },
+    {
+      "id": "edge_case_zero_total_invoice",
+      "description": "1 unit @ ₹100.00 with ₹100.00 discount and 18% tax (100% discount free item)",
+      "input": {
+        "quantity_scaled": 1000,
+        "unit_price_minor": 10000,
+        "discount_minor": 10000,
+        "tax_rate_bp": 1800,
+        "paid_minor": 0
+      },
+      "expected": {
+        "gross_minor": 10000,
+        "taxable_minor": 0,
+        "tax_minor": 0,
+        "line_total_minor": 0,
+        "grand_total_minor": 0,
+        "balance_due_minor": 0,
+        "settlement_status": "fully_paid"
+      }
+    },
+    {
+      "id": "edge_case_half_up_boundary_exact_half",
+      "description": "Quantity and price product produces exact half minor unit (500 remainder), should round up",
+      "input": {
+        "quantity_scaled": 1500,
+        "unit_price_minor": 1001,
+        "discount_minor": 0,
+        "tax_rate_bp": 0,
+        "paid_minor": 0
+      },
+      "expected": {
+        "gross_minor": 1502,
+        "taxable_minor": 1502,
+        "tax_minor": 0,
+        "line_total_minor": 1502,
+        "grand_total_minor": 1502,
+        "balance_due_minor": 1502,
+        "settlement_status": "unpaid"
+      }
+    },
+    {
+      "id": "worked_example_3_three_decimal_currency_kwd",
+      "description": "3-decimal currency (KWD/BHD/OMR): 1.500 kg @ 2.250 KWD/kg (2250 fils) with 0.250 KWD discount (250 fils) and 5% tax (500 bp), paid in full",
+      "currency_exponent": 3,
+      "input": {
+        "quantity_scaled": 1500,
+        "unit_price_minor": 2250,
+        "discount_minor": 250,
+        "tax_rate_bp": 500,
+        "paid_minor": 3281
+      },
+      "expected": {
+        "gross_minor": 3375,
+        "taxable_minor": 3125,
+        "tax_minor": 156,
+        "line_total_minor": 3281,
+        "grand_total_minor": 3281,
+        "balance_due_minor": 0,
+        "settlement_status": "fully_paid"
+      }
+    }
+  ]
+}

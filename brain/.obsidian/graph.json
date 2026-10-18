@@ -1,0 +1,25 @@
+{
+  "colorGroups": [
+    {
+      "query": "tag:#community/BillZen_System__Architecture",
+      "color": {
+        "a": 1,
+        "rgb": 5142951
+      }
+    },
+    {
+      "query": "tag:#community/Agent_Rules__Sync_Infrastructure",
+      "color": {
+        "a": 1,
+        "rgb": 15896107
+      }
+    },
+    {
+      "query": "tag:#community/Session_Protocols__Logs",
+      "color": {
+        "a": 1,
+        "rgb": 14767961
+      }
+    }
+  ]
+}
