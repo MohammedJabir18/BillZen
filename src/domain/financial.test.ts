@@ -5,6 +5,18 @@ import fixtures from '../../shared/fixtures/calculations.json';
 describe('Financial Calculation Parity Tests', () => {
   for (const tc of fixtures.cases) {
     it(`evaluates fixture: ${tc.id} (${tc.description})`, () => {
+      if ((tc as any).should_overflow) {
+        expect(() =>
+          calculateLineItem(
+            tc.input.quantity_scaled,
+            tc.input.unit_price_minor,
+            tc.input.discount_minor,
+            tc.input.tax_rate_bp
+          )
+        ).toThrow(/Numeric overflow/);
+        return;
+      }
+
       const line = calculateLineItem(
         tc.input.quantity_scaled,
         tc.input.unit_price_minor,
@@ -12,17 +24,24 @@ describe('Financial Calculation Parity Tests', () => {
         tc.input.tax_rate_bp
       );
 
-      expect(line.gross_minor).toBe(tc.expected.gross_minor);
-      expect(line.taxable_minor).toBe(tc.expected.taxable_minor);
-      expect(line.tax_minor).toBe(tc.expected.tax_minor);
-      expect(line.line_total_minor).toBe(tc.expected.line_total_minor);
+      expect(line.gross_minor).toBe(tc.expected!.gross_minor);
+      expect(line.taxable_minor).toBe(tc.expected!.taxable_minor);
+      expect(line.tax_minor).toBe(tc.expected!.tax_minor);
+      expect(line.line_total_minor).toBe(tc.expected!.line_total_minor);
 
       const totals = calculateInvoiceTotals([line], tc.input.paid_minor);
-      expect(totals.grand_total_minor).toBe(tc.expected.grand_total_minor);
-      expect(totals.balance_due_minor).toBe(tc.expected.balance_due_minor);
-      expect(totals.settlement_status).toBe(tc.expected.settlement_status);
+      expect(totals.grand_total_minor).toBe(tc.expected!.grand_total_minor);
+      expect(totals.balance_due_minor).toBe(tc.expected!.balance_due_minor);
+      expect(totals.settlement_status).toBe(tc.expected!.settlement_status);
     });
   }
+
+  it('rejects multi-item accumulation when total exceeds MAX_SAFE_MONEY_MINOR', () => {
+    // Two lines, each at 5 Quadrillion minor units (5,000,000,000,000,000), accumulating to 10 Quadrillion (> 9,007,199,254,740,991)
+    const line1 = calculateLineItem(500000000, 10000000000, 0, 0); // 5 Quadrillion
+    const line2 = calculateLineItem(500000000, 10000000000, 0, 0); // 5 Quadrillion
+    expect(() => calculateInvoiceTotals([line1, line2], 0)).toThrow(/Numeric overflow/);
+  });
 
   it('rejects overpayment cleanly', () => {
     const line = calculateLineItem(1000, 10000, 0, 0);

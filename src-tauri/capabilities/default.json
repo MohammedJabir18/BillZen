@@ -8,6 +8,18 @@
     "allow-get-business-settings",
     "allow-update-business-settings",
     "allow-check-print-support",
-    "allow-ping"
+    "allow-ping",
+    "allow-get-products",
+    "allow-create-product",
+    "allow-update-product",
+    "allow-archive-product",
+    "allow-restore-product",
+    "allow-get-customers",
+    "allow-create-customer",
+    "allow-update-customer",
+    "allow-archive-customer",
+    "allow-restore-customer",
+    "allow-get-categories",
+    "allow-create-category"
   ]
 }

@@ -88,6 +88,18 @@ pub fn run() {
             commands::settings::update_business_settings,
             commands::system::check_print_support,
             commands::system::ping,
+            commands::catalog::get_products,
+            commands::catalog::create_product,
+            commands::catalog::update_product,
+            commands::catalog::archive_product,
+            commands::catalog::restore_product,
+            commands::catalog::get_customers,
+            commands::catalog::create_customer,
+            commands::catalog::update_customer,
+            commands::catalog::archive_customer,
+            commands::catalog::restore_customer,
+            commands::catalog::get_categories,
+            commands::catalog::create_category,
         ])
         .run(tauri::generate_context!())
         .expect("error while running BillZen application");
@@ -190,6 +202,18 @@ mod tests {
         assert!(main_perms_str.contains(&"allow-update-business-settings"));
         assert!(main_perms_str.contains(&"allow-check-print-support"));
         assert!(main_perms_str.contains(&"allow-ping"));
+        assert!(main_perms_str.contains(&"allow-get-products"));
+        assert!(main_perms_str.contains(&"allow-create-product"));
+        assert!(main_perms_str.contains(&"allow-update-product"));
+        assert!(main_perms_str.contains(&"allow-archive-product"));
+        assert!(main_perms_str.contains(&"allow-restore-product"));
+        assert!(main_perms_str.contains(&"allow-get-customers"));
+        assert!(main_perms_str.contains(&"allow-create-customer"));
+        assert!(main_perms_str.contains(&"allow-update-customer"));
+        assert!(main_perms_str.contains(&"allow-archive-customer"));
+        assert!(main_perms_str.contains(&"allow-restore-customer"));
+        assert!(main_perms_str.contains(&"allow-get-categories"));
+        assert!(main_perms_str.contains(&"allow-create-category"));
 
         // 2. Verify unprivileged window is DENIED custom app-commands
         let unpriv_windows = unpriv_cap["windows"]
@@ -208,5 +232,11 @@ mod tests {
         assert!(!unpriv_perms_str.contains(&"allow-update-business-settings"));
         assert!(!unpriv_perms_str.contains(&"allow-check-print-support"));
         assert!(!unpriv_perms_str.contains(&"allow-ping"));
+        assert!(!unpriv_perms_str.contains(&"allow-get-products"));
+        assert!(!unpriv_perms_str.contains(&"allow-create-product"));
+        assert!(!unpriv_perms_str.contains(&"allow-get-customers"));
+        assert!(!unpriv_perms_str.contains(&"allow-create-customer"));
+        assert!(!unpriv_perms_str.contains(&"allow-get-categories"));
+        assert!(!unpriv_perms_str.contains(&"allow-create-category"));
     }
 }

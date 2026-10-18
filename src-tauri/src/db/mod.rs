@@ -24,6 +24,7 @@ pub enum DbError {
 pub const V1_MIGRATION_SQL: &str = include_str!("migrations/v1_init.sql");
 pub const V2_MIGRATION_SQL: &str = include_str!("migrations/v2_regional_foundation.sql");
 pub const V3_MIGRATION_SQL: &str = include_str!("migrations/v3_protect_currency_exponent.sql");
+pub const V4_MIGRATION_SQL: &str = include_str!("migrations/v4_catalog.sql");
 
 pub fn configure_connection(conn: &Connection) -> Result<(), DbError> {
     conn.execute_batch(
@@ -160,6 +161,41 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
             tx.execute(
                 "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
                 params![3, "v3_protect_currency_exponent", now, current_checksum3],
+            )?;
+            tx.commit()?;
+        }
+    }
+
+    // Migration 4: Catalog Enhancements (Categories, Min Stock, Customer Details)
+    let mut hasher4 = Sha256::new();
+    hasher4.update(V4_MIGRATION_SQL.as_bytes());
+    let current_checksum4 = format!("{:x}", hasher4.finalize());
+
+    let existing_checksum4: Option<String> = conn
+        .query_row(
+            "SELECT checksum FROM schema_migrations WHERE version = 4;",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match existing_checksum4 {
+        Some(stored_checksum) => {
+            if stored_checksum != current_checksum4 {
+                return Err(DbError::ChecksumMismatch {
+                    version: 4,
+                    expected: stored_checksum,
+                    found: current_checksum4,
+                });
+            }
+        }
+        None => {
+            let tx = conn.transaction()?;
+            tx.execute_batch(V4_MIGRATION_SQL)?;
+            let now = chrono::Utc::now().timestamp_millis();
+            tx.execute(
+                "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
+                params![4, "v4_catalog", now, current_checksum4],
             )?;
             tx.commit()?;
         }
@@ -684,5 +720,104 @@ mod tests {
             params![now + 1000],
         );
         assert!(legitimate_settlement.is_ok(), "Legitimate payment settlement must succeed after v3 upgrade");
+    }
+
+    #[test]
+    fn test_upgrade_populated_v3_database_to_v4() {
+        let mut conn = Connection::open_in_memory().expect("In-memory db failed");
+        configure_connection(&conn).unwrap();
+
+        // 1. Apply v1, v2, v3
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );",
+        ).unwrap();
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+
+        let mut h1 = Sha256::new(); h1.update(V1_MIGRATION_SQL.as_bytes());
+        let mut h2 = Sha256::new(); h2.update(V2_MIGRATION_SQL.as_bytes());
+        let mut h3 = Sha256::new(); h3.update(V3_MIGRATION_SQL.as_bytes());
+        conn.execute("INSERT INTO schema_migrations VALUES (1, 'v1_init', 100, ?1);", params![format!("{:x}", h1.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (2, 'v2_regional_foundation', 200, ?1);", params![format!("{:x}", h2.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (3, 'v3_protect_currency_exponent', 300, ?1);", params![format!("{:x}", h3.finalize())]).unwrap();
+
+        let now = chrono::Utc::now().timestamp_millis();
+
+        // 2. Populate existing product and customer under v3
+        conn.execute(
+            "INSERT INTO products (
+                id, sku, barcode, name, description, unit, unit_price_minor, cost_price_minor,
+                tax_rate_bp, is_stock_tracked, current_stock_scaled, is_active, created_at, updated_at
+            ) VALUES (
+                'p_existing', 'SKU-EXIST-01', '8901234567890', 'Existing Tea 500g', 'Fine tea',
+                'kg', 12000, 8000, 500, 1, 25000, 1, ?1, ?1
+            )",
+            params![now],
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO customers (
+                id, name, phone, email, address_line1, city, state, postal_code, tax_identifier,
+                current_balance_minor, is_active, created_at, updated_at
+            ) VALUES (
+                'c_existing', 'Existing Customer', '+91 9876543210', 'existing@example.com',
+                'MG Road', 'Kochi', 'Kerala', '682001', '32AAAAA0000A1Z5', 0, 1, ?1, ?1
+            )",
+            params![now],
+        ).unwrap();
+
+        // 3. Run migration upgrade to v4
+        run_migrations(&mut conn).expect("Upgrade to v4 must succeed");
+
+        // Verify v4 is recorded in schema_migrations
+        let v4_applied: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 4);",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert!(v4_applied, "Migration 4 must be recorded in schema_migrations");
+
+        // Verify existing product was preserved and new column default applied
+        let (name, min_stock): (String, i64) = conn.query_row(
+            "SELECT name, min_stock_threshold_scaled FROM products WHERE id = 'p_existing';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).unwrap();
+        assert_eq!(name, "Existing Tea 500g");
+        assert_eq!(min_stock, 0);
+
+        // Verify existing customer was preserved and country default applied
+        let (cust_name, country): (String, String) = conn.query_row(
+            "SELECT name, country FROM customers WHERE id = 'c_existing';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).unwrap();
+        assert_eq!(cust_name, "Existing Customer");
+        assert_eq!(country, "IND");
+
+        // Verify categories table is functional
+        conn.execute(
+            "INSERT INTO categories (id, name, description, created_at, updated_at) VALUES ('cat_1', 'Beverages', 'Hot and cold beverages', ?1, ?1);",
+            params![now],
+        ).unwrap();
+
+        // Link product to category
+        conn.execute(
+            "UPDATE products SET category_id = 'cat_1', min_stock_threshold_scaled = 5000 WHERE id = 'p_existing';",
+            [],
+        ).unwrap();
+
+        let cat_id: Option<String> = conn.query_row(
+            "SELECT category_id FROM products WHERE id = 'p_existing';",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(cat_id, Some("cat_1".to_string()));
     }
 }

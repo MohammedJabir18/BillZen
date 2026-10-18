@@ -111,4 +111,48 @@
   - Playwright A4 Matrix Report: `test_artifacts/pdf/matrix_verification_report.json` (allPassed: true).
   - Physical printing: `NOT RUN — hardware unavailable`.
 - **Pending Tasks / Next Steps**:
-  - Proceed to Milestone 3 (M3): Product catalog, categories, pricing, unit conversion, barcode scanner input, and opening stock movements.
+  - [Completed in Session 5] Milestone 3 (M3): Product catalog, categories, pricing, unit conversion, barcode scanner input, and opening stock movements.
+
+## 2026-10-18 - Milestone 3: Catalog Domain, Inventory Ledger, Multi-Language & Scanner Verification
+- **Goals**: Implement Milestone 3 (M3: Product & Customer Catalog, Categories, Pricing, Barcode indexing & preservation, Keyboard-Wedge Scanner support, Nonnegative tracked opening stock ledger movements, Bundled offline fonts, Trilingual UI localization, Playwright E2E verification).
+- **Completed Tasks**:
+  - **Numeric Contract & Universal Bounds**:
+    - Aligned TypeScript and Rust financial engines to `MAX_SAFE_MONEY_MINOR = 9_007_199_254_740_991` (`Number.MAX_SAFE_INTEGER`).
+    - Added checked `i128` intermediate gross calculation in Rust `round_half_up_128` to eliminate arithmetic overflow while maintaining exact integer accuracy.
+    - Added boundary test fixtures in `shared/fixtures/calculations.json` verifying exact rejection and success boundaries across Vitest and Cargo.
+  - **Database Schema & Migrations (`v4_catalog.sql`)**:
+    - Created `categories` table with unique name index.
+    - Extended `products` with `min_stock_threshold_scaled` and `category_id` FK.
+    - Extended `customers` with `country` and `address_line2`.
+    - Integrated SHA-256 migration runner and verified migration upgrade path `test_upgrade_populated_v3_database_to_v4`.
+  - **Database Worker & Catalog Domain Operations**:
+    - Implemented `Product`, `Customer`, `Category` DTOs and filters in `src-tauri/src/domain/catalog.rs`.
+    - Implemented atomic opening stock movement insertion (`reference_type = 'opening'`) in `src-tauri/src/db/worker.rs`.
+    - Protected inventory ledger immutability: `update_product` strictly omits `current_stock_scaled`.
+    - Enforced uppercase SKU normalization and string barcode trimming preserving standard leading zeros (e.g. `"0012345678905"`).
+    - Added comprehensive unit and integration tests (32/32 Cargo tests passing).
+  - **Tauri IPC Command Handlers & Window Permissions**:
+    - Created `src-tauri/src/commands/catalog.rs` exposing 12 commands: `get_products`, `create_product`, `update_product`, `archive_product`, `restore_product`, `get_customers`, `create_customer`, `update_customer`, `archive_customer`, `restore_customer`, `get_categories`, `create_category`.
+    - Registered commands in `src-tauri/build.rs` `AppManifest` and `src-tauri/capabilities/default.json`.
+    - Verified permission boundaries: `main` window allowed, `unprivileged` window denied.
+  - **Offline Font Bundling & CSS Architecture**:
+    - Copied `NotoSans-Regular.ttf`, `NotoSansMalayalam-Regular.ttf`, and `NotoSansArabic-Regular.ttf` to `public/fonts/`.
+    - Added `@font-face` rules to `src/styles/globals.css` ensuring reliable 100% offline rendering without CDN or system font reliance.
+  - **Frontend UI, Barcode Scanner & Trilingual Localization**:
+    - Created `src/i18n/index.ts` supporting English (`en`), Malayalam (`ml`), and Arabic (`ar`) with dynamic RTL support (`dir="rtl"`).
+    - Built `ProductCatalogView.tsx` featuring live search, category filter, low-stock filter, keyboard-wedge scanner Enter-recognition, and create/edit modal.
+    - Built `CustomerCatalogView.tsx` featuring phone prefix preservation, tax ID display, address lines, and search.
+    - Updated `src/App.tsx` tab navigation and language switcher.
+  - **Playwright Automated Verification Suite**:
+    - Created `scripts/verify_catalog_playwright.js` verifying UI loading, product creation, leading zero barcode preservation, keyboard-wedge Enter scanner feedback, customer contact preservation, and Malayalam/Arabic RTL rendering.
+    - Captured visual artifacts in `test_artifacts/catalog/` (`catalog_products.png`, `catalog_customers.png`, `catalog_malayalam.png`, `catalog_arabic_rtl.png`).
+    - Updated `.github/workflows/ci.yml` to run Playwright verification.
+- **Verification Evidence**:
+  - Vitest Unit Tests: 14/14 passed.
+  - Cargo Tests: 32/32 passed.
+  - Production Frontend Build: `npm run build` passed.
+  - Playwright Catalog E2E: `test_artifacts/catalog/catalog_verification_report.json` (allPassed: true).
+  - Playwright A4 Print Matrix: 4/4 scenarios passed (`matrix_verification_report.json`).
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, payment allocations, and receipt printing.
+
