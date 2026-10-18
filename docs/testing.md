@@ -21,7 +21,7 @@ cargo run --bin catalog_probe --manifest-path src-tauri/Cargo.toml -- "$probe_di
 rm -r -- "$probe_dir"
 ```
 
-The existing `npm run test:native-probe` uses a fixed `/tmp` path and POSIX shell commands; it is not portable to Windows shells. Prefer isolated paths as above. This probe exercises the actual Rust worker and SQLite across process restarts. It does not drive a Tauri webview, IPC calls or native print dialogs.
+Prefer `npm run test:native-probe`: its Node runner now uses `os.tmpdir()`, an isolated temporary directory and two child processes. It cleans up its owned directory in a finally block. The manual commands above are a POSIX alternative. Runtime execution of the portable runner has only been verified on Linux. This probe exercises the actual Rust worker and SQLite across process restarts. It does not drive a Tauri webview, IPC calls or native print dialogs.
 
 ## Evidence boundaries
 
