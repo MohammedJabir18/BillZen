@@ -11,7 +11,8 @@
     "test:catalog": "node scripts/verify_catalog_playwright.js",
     "test:matrix": "node scripts/verify_matrix_playwright.js",
     "test:native-probe": "node scripts/run_native_probe.js",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "icons:generate": "node scripts/generate_icons.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",

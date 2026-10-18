@@ -147,3 +147,7 @@ flowchart TD
 
 ## Independent M3 review — upgrade caveat (2026-10-18)
 The V5 category index currently fails on V4 data containing valid case variants such as `Groceries` and `groceries`. Startup propagates the migration error. M3 closure requires a data-preserving upgrade policy and regression coverage; see `docs/reviews/2026-10-18-m3-review.md`. No migration behavior was changed by the README/license task.
+
+
+## Application brand assets (2026-10-18)
+`public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.

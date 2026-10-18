@@ -92,9 +92,15 @@ const AppContent: React.FC = () => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 no-print shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-              BZ
-            </div>
+            <img
+              src="/brand/billzen-icon.svg"
+              alt=""
+              aria-hidden="true"
+              width={36}
+              height={36}
+              className="w-9 h-9 shrink-0"
+              draggable={false}
+            />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-bold text-slate-900 tracking-tight">BillZen</h1>
