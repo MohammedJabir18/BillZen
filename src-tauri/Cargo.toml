@@ -1,0 +1,30 @@
+[package]
+name = "billzen"
+version = "0.1.0"
+default-run = "billzen"
+description = "Offline-first desktop billing and inventory management"
+authors = ["BillZen Team"]
+edition = "2021"
+
+[lib]
+name = "billzen_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.4", features = [] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.149"
+rusqlite = { version = "0.40.2", features = ["bundled", "chrono", "uuid"] }
+uuid = { version = "1.18.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+tokio = { version = "1.43.0", features = ["sync", "rt", "macros"] }
+thiserror = "2.0.11"
+sha2 = "0.10.8"
+dirs = "6.0.0"
+fs2 = "0.4.3"
+
+[dev-dependencies]
+tempfile = "3.17.1"

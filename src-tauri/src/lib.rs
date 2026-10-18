@@ -1,0 +1,212 @@
+pub mod commands;
+pub mod db;
+pub mod domain;
+
+use crate::db::worker::DbWorkerHandle;
+use fs2::FileExt;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use tauri::Manager;
+
+#[derive(Debug)]
+pub struct InstanceLock {
+    file: File,
+    pub lock_path: PathBuf,
+}
+
+impl Drop for InstanceLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+    }
+}
+
+pub fn get_app_data_dir() -> PathBuf {
+    dirs::data_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("billzen")
+}
+
+pub fn acquire_instance_lock(app_data_dir: &Path) -> Result<InstanceLock, String> {
+    std::fs::create_dir_all(app_data_dir)
+        .map_err(|e| format!("Failed to create application data directory: {}", e))?;
+
+    let lock_path = app_data_dir.join("billzen.lock");
+
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&lock_path)
+        .map_err(|e| format!("Failed to open single-instance lock file at {:?}: {}", lock_path, e))?;
+
+    file.try_lock_exclusive().map_err(|e| {
+        format!(
+            "Another instance of BillZen is already running or holding lock at {:?}: {}",
+            lock_path, e
+        )
+    })?;
+
+    // Record the current process ID into the lockfile for operator diagnostics
+    let mut file = file;
+    let _ = file.set_len(0);
+    let _ = writeln!(file, "pid: {}", std::process::id());
+    let _ = file.flush();
+
+    Ok(InstanceLock { file, lock_path })
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let app_data_dir = get_app_data_dir();
+
+    // Acquire single instance lock
+    let _lock = match acquire_instance_lock(&app_data_dir) {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("[BillZen Fatal] Another instance of BillZen is already running or lock failed: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let db_path = app_data_dir.join("billzen.db");
+    let worker_handle = match DbWorkerHandle::new(db_path) {
+        Ok(h) => h,
+        Err(e) => {
+            eprintln!("[BillZen Fatal] Failed to initialize database worker: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    tauri::Builder::default()
+        .setup(move |app| {
+            app.manage(worker_handle);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::settings::get_business_settings,
+            commands::settings::update_business_settings,
+            commands::system::check_print_support,
+            commands::system::ping,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running BillZen application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_single_instance_lock_mutual_exclusion_and_release() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let dir_path = dir.path();
+
+        // 1. First process / caller acquires the lock successfully
+        let lock1 = acquire_instance_lock(dir_path);
+        assert!(lock1.is_ok(), "First lock acquisition must succeed");
+        let held_lock = lock1.unwrap();
+
+        // 2. Second process / caller attempting to acquire the same lock MUST be rejected
+        let lock2 = acquire_instance_lock(dir_path);
+        assert!(
+            lock2.is_err(),
+            "Second lock acquisition while first is held must fail"
+        );
+        let err_msg = lock2.unwrap_err();
+        assert!(
+            err_msg.contains("Another instance of BillZen is already running"),
+            "Error message must clearly communicate lock contention: {}",
+            err_msg
+        );
+
+        // 3. Drop first lock (simulating process exit or termination)
+        drop(held_lock);
+
+        // 4. Third caller can now acquire the lock cleanly
+        let lock3 = acquire_instance_lock(dir_path);
+        assert!(
+            lock3.is_ok(),
+            "Subsequent lock acquisition after drop must succeed"
+        );
+    }
+
+    #[test]
+    fn test_database_worker_handshake_fails_on_inaccessible_path() {
+        // Path inside a non-directory / forbidden path that cannot be created or opened
+        let invalid_path = PathBuf::from("/dev/null/forbidden_dir/invalid.db");
+
+        let handle = DbWorkerHandle::new(invalid_path);
+        assert!(
+            handle.is_err(),
+            "DbWorkerHandle::new must fail handshake when database path is inaccessible"
+        );
+
+        let err = handle.err().unwrap();
+        assert!(
+            err.contains("Database initialization failed")
+                || err.contains("terminated before completing initialization handshake"),
+            "Error must clearly indicate database initialization failure: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_database_worker_handshake_succeeds_on_valid_temp_database() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let valid_path = dir.path().join("test_handshake.db");
+
+        let handle = DbWorkerHandle::new(valid_path);
+        assert!(
+            handle.is_ok(),
+            "DbWorkerHandle::new must succeed handshake on accessible database path"
+        );
+    }
+
+    #[test]
+    fn test_configuration_verification_window_capabilities_allow_main_and_deny_unprivileged() {
+        // Read capability files to verify window-level permission boundaries (Configuration Verification)
+        let default_cap_str = include_str!("../capabilities/default.json");
+        let unpriv_cap_str = include_str!("../capabilities/unprivileged.json");
+
+        let default_cap: serde_json::Value =
+            serde_json::from_str(default_cap_str).expect("default.json must be valid JSON");
+        let unpriv_cap: serde_json::Value =
+            serde_json::from_str(unpriv_cap_str).expect("unprivileged.json must be valid JSON");
+
+        // 1. Verify main window has full app-command permissions
+        let main_windows = default_cap["windows"]
+            .as_array()
+            .expect("windows must be an array");
+        assert!(main_windows.iter().any(|w| w.as_str() == Some("main")));
+
+        let main_perms = default_cap["permissions"]
+            .as_array()
+            .expect("permissions must be an array");
+        let main_perms_str: Vec<&str> = main_perms.iter().filter_map(|p| p.as_str()).collect();
+
+        assert!(main_perms_str.contains(&"allow-get-business-settings"));
+        assert!(main_perms_str.contains(&"allow-update-business-settings"));
+        assert!(main_perms_str.contains(&"allow-check-print-support"));
+        assert!(main_perms_str.contains(&"allow-ping"));
+
+        // 2. Verify unprivileged window is DENIED custom app-commands
+        let unpriv_windows = unpriv_cap["windows"]
+            .as_array()
+            .expect("windows must be an array");
+        assert!(unpriv_windows
+            .iter()
+            .any(|w| w.as_str() == Some("unprivileged-window")));
+
+        let unpriv_perms = unpriv_cap["permissions"]
+            .as_array()
+            .expect("permissions must be an array");
+        let unpriv_perms_str: Vec<&str> = unpriv_perms.iter().filter_map(|p| p.as_str()).collect();
+
+        assert!(!unpriv_perms_str.contains(&"allow-get-business-settings"));
+        assert!(!unpriv_perms_str.contains(&"allow-update-business-settings"));
+        assert!(!unpriv_perms_str.contains(&"allow-check-print-support"));
+        assert!(!unpriv_perms_str.contains(&"allow-ping"));
+    }
+}
