@@ -54,10 +54,12 @@ WHERE category_id IN (
     SELECT id FROM Ranked WHERE id != canonical_id
 );
 
--- Preserve description: if canonical category has no description, inherit from duplicate
+-- Preserve description: if canonical category has no description, inherit from duplicate.
+-- When several duplicates offer different descriptions, tie-break deterministically by merged_category_id ASC.
 WITH MergedWithDesc AS (
     SELECT 
         canonical_category_id,
+        merged_category_id,
         merged_description
     FROM category_merges
     WHERE merged_description IS NOT NULL AND trim(merged_description) != ''
@@ -66,6 +68,7 @@ UPDATE categories
 SET description = (
     SELECT merged_description FROM MergedWithDesc 
     WHERE MergedWithDesc.canonical_category_id = categories.id
+    ORDER BY merged_category_id ASC
     LIMIT 1
 )
 WHERE (description IS NULL OR trim(description) = '')
