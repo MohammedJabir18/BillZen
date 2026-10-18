@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:catalog": "node scripts/verify_catalog_playwright.js",
     "test:matrix": "node scripts/verify_matrix_playwright.js",
+    "test:native-probe": "rm -f /tmp/test_catalog_probe.db* && cargo run --bin catalog_probe --manifest-path src-tauri/Cargo.toml -- /tmp/test_catalog_probe.db write && cargo run --bin catalog_probe --manifest-path src-tauri/Cargo.toml -- /tmp/test_catalog_probe.db read_and_verify && rm -f /tmp/test_catalog_probe.db*",
     "tauri": "tauri"
   },
   "dependencies": {
