@@ -23,9 +23,10 @@ The executable schema is the ordered SQL under [`src-tauri/src/db/migrations`](.
 2. `v2_regional_foundation.sql`: regional settings and currency protections.
 3. `v3_protect_currency_exponent.sql`: additional finalized-invoice currency protection.
 4. `v4_catalog.sql`: categories, category relationship, minimum stock thresholds and customer address additions.
+5. `v5_category_nocase.sql`: unique NOCASE category-name index. Existing V4 case-colliding rows currently cause this upgrade to fail; see the review.
 
 Never edit an already-applied migration in a release; add a numbered migration and register it in `src-tauri/src/db/mod.rs::run_migrations`. Test both new database creation and upgrades from an existing database. A checksum mismatch must be investigated rather than bypassed.
 
 Products reference categories; invoice lines reference invoice headers and product data; payments connect to invoices through allocations. Finalized document triggers constrain header and line edits. These database protections are a foundation: a complete finalization transaction, invoice numbering workflow and stock decrement workflow still need implementation.
 
-Opening stock and its movement are transactional for tracked products. Untracked opening stock and later tracking transitions need reconciliation fixes. Category name uniqueness is currently case-sensitive; the NOCASE lookup index is not a case-insensitive unique constraint.
+Opening stock and its movement are transactional for tracked products. Untracked creation now rejects nonzero opening stock; enabling tracking rejects a balance that diverges from ledger history. V5 enforces ASCII-oriented NOCASE name uniqueness, but does not yet reconcile existing V4 case variants before creating the index. That upgrade gap can prevent startup. See [M3 review](reviews/2026-10-18-m3-review.md).

@@ -21,7 +21,7 @@ The connection enables foreign keys, WAL, synchronous FULL and a busy timeout. T
 - Tax: integer basis points.
 - Rounding: explicit half-up operations; BigInt intermediates in TypeScript and checked integer arithmetic in Rust.
 
-JSON numbers must remain within JavaScript's safe integer range. Domain-specific bounds can be tighter. Catalog validation and invoice calculation bounds currently differ; see the known issues before implementing billing.
+JSON numbers must remain within JavaScript's safe integer range. Domain-specific bounds can be tighter. Catalog price and quantity limits were aligned with the financial constants in M3. Safe upgrade handling remains a blocker before implementing billing; see the known issues.
 
 ## Security and documents
 

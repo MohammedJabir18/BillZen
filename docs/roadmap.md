@@ -1,8 +1,16 @@
 # Roadmap
 
-## Next: M3 integrity closure
+## M3 catalog integrity — implemented corrections
 
-Fix the stock tracking transition/reconciliation case, align catalog and billing numeric limits, enforce safe scaled quantities, decide category name case behavior, and make probe/browser automation portable. Add focused regression tests demonstrating each defect before applying the fix. Re-run Rust, frontend, browser and persistence checks. Keep feature scope limited to these corrections.
+Stock/price/quantity bounds, tracking transition checks, the category unique index and the portable native probe were added in `a116ac0`. Independent review reproduced a legacy-upgrade failure, so M3 closure remains conditional.
+
+## CI correction checkpoint
+
+Diagnose the CI-only long-text PDF extraction assertion using retained artifacts; keep missing-content detection intact. See [verification status](verification-status.md). Commit/push this as a separate verified section.
+
+## Next product correction: M3.1 migration safety
+
+Reconcile valid V4 category case collisions before enforcing uniqueness. Preserve product references and category metadata with a deterministic, transactional policy. Respect checksum history for any existing V5 installation. Test colliding and collision-free upgrades, clean install, rollback, repeat startup and foreign-key integrity. See [the review](reviews/2026-10-18-m3-review.md) and [Antigravity handoff](antigravity-next-task.md).
 
 ## Then: M4A draft invoice vertical slice
 

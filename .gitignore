@@ -58,3 +58,6 @@ coverage/
 playwright-report/
 test-results/
 brain/.obsidian/workspace*.json
+
+# Local diagram authoring workspace (published copies live under docs/diagrams)
+.archify/

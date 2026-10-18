@@ -33,3 +33,17 @@ When the user says "Wrap up this session" or when major milestones are completed
    ```bash
    graphify . --obsidian --obsidian-dir ./brain --update
    ```
+
+
+## GitHub Delivery — User-authorized workflow
+
+The owner explicitly requests a commit and GitHub push after each completed logical section. This applies to Antigravity and other coding agents working in this repository.
+
+1. Complete a coherent, reviewable section (feature, correction or documentation section), not every individual line or save.
+2. Inspect the diff and run the checks relevant to that section. Record actual results and meaningful limitations. Do not claim a failed or unrun check passed.
+3. Stage only the intended files. Exclude secrets, real business records, local databases and generated build/test directories.
+4. Commit with a descriptive message and push the current intended branch to `origin` using existing configured authentication. The current project branch is `main`; follow a user-requested feature-branch workflow when one exists.
+5. Verify the remote commit matches, inspect the triggered CI run and report its actual state. Local success and remote CI success are separate facts.
+6. Continue to the next independent section. If verification fails, fix it before marking that section complete; report any external blocker honestly.
+
+Never force-push, rewrite shared history, reset user changes or bypass a failed safety check to satisfy this rule. Do not put credentials in remote URLs, tracked files, prompts or logs. If authentication or push access is unavailable, retain the local commit and report the exact blocked step. Do not change repository visibility or publish application deployments without a separate user instruction.
