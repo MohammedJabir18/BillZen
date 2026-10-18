@@ -86,34 +86,41 @@ const AppContent: React.FC = () => {
 
   const activeSettings = settings || fallbackSettings;
 
+  const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+  const environmentLabel = isTauri
+    ? isAndroid
+      ? 'Android (Tauri 2)'
+      : 'Desktop (Tauri 2)'
+    : 'Browser Mode';
+
   return (
     <div className={`min-h-screen bg-slate-50 flex flex-col font-sans ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Top Application Bar (no-print) */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 no-print shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             <img
               src="/brand/billzen-icon.svg"
-              alt=""
+              alt="BillZen"
               aria-hidden="true"
               width={36}
               height={36}
-              className="w-9 h-9 shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 shrink-0"
               draggable={false}
             />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-slate-900 tracking-tight">BillZen</h1>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium border border-indigo-200">
-                  v0.1.0-alpha
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">BillZen</h1>
+                <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium border border-indigo-200 shrink-0">
+                  beta
                 </span>
               </div>
-              <p className="text-xs text-slate-500">Offline Desktop Billing System</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 truncate">Offline Billing System</p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="flex space-x-1 bg-slate-100 p-1 rounded-xl">
+          {/* Desktop Navigation Tabs (hidden on mobile/tablet, shown on lg and above) */}
+          <nav className="hidden lg:flex space-x-1 bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab('products')}
               data-testid="tab-products"
@@ -168,14 +175,15 @@ const AppContent: React.FC = () => {
           </nav>
 
           {/* Right Controls: Language Selector & Environment Status */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Language Switcher */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-              <Globe className="w-4 h-4 text-slate-500 ml-1.5" />
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 ml-1" />
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Language)}
                 data-testid="language-select"
+                aria-label="Select Language"
                 className="text-xs bg-transparent border-none text-slate-700 font-medium focus:outline-none pr-1 cursor-pointer"
               >
                 <option value="en">English (EN)</option>
@@ -184,16 +192,16 @@ const AppContent: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {isTauri ? 'Desktop (Tauri 2)' : 'Browser Mode'}
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-emerald-700 bg-emerald-50 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-200">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{environmentLabel}</span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 w-full mx-auto py-6">
+      {/* Main Content Area with bottom padding on mobile for thumb bar */}
+      <main className="flex-1 w-full mx-auto py-4 sm:py-6 px-3 sm:px-6 lg:px-8 pb-24 lg:pb-6">
         {activeTab === 'products' && (
           <ProductCatalogView settings={activeSettings} language={language} />
         )}
@@ -204,13 +212,64 @@ const AppContent: React.FC = () => {
         {activeTab === 'print' && <PrintFeasibilityProbe invoice={activeInvoice} />}
       </main>
 
+      {/* Mobile Bottom Navigation Bar (no-print, <lg only) */}
+      <nav
+        aria-label="Mobile Navigation"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 shadow-lg px-2 py-1 flex justify-around items-center no-print"
+        style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
+      >
+        <button
+          onClick={() => setActiveTab('products')}
+          data-testid="mobile-tab-products"
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
+            activeTab === 'products' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Package className={`w-5 h-5 mb-0.5 ${activeTab === 'products' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <span>{t.tab_products}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('customers')}
+          data-testid="mobile-tab-customers"
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
+            activeTab === 'customers' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Users className={`w-5 h-5 mb-0.5 ${activeTab === 'customers' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <span>{t.tab_customers}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('settings')}
+          data-testid="mobile-tab-settings"
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
+            activeTab === 'settings' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Building2 className={`w-5 h-5 mb-0.5 ${activeTab === 'settings' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <span>{t.tab_settings}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('print')}
+          data-testid="mobile-tab-print"
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
+            activeTab === 'print' ? 'text-indigo-600 font-semibold' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Printer className={`w-5 h-5 mb-0.5 ${activeTab === 'print' ? 'text-indigo-600' : 'text-slate-400'}`} />
+          <span>{t.tab_print_probe}</span>
+        </button>
+      </nav>
+
       {/* Global Printable Document Container: Isolated and formatted exclusively for print media */}
       <div className="hidden print:block">
         <PrintableInvoiceDocument invoice={activeInvoice} />
       </div>
 
-      {/* Bottom Status Bar (no-print) */}
-      <footer className="bg-white border-t border-slate-200 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 no-print">
+      {/* Desktop Bottom Status Bar (no-print, hidden on mobile) */}
+      <footer className="hidden md:block bg-white border-t border-slate-200 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 no-print">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">

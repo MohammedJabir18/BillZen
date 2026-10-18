@@ -192,7 +192,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
   };
 
   return (
-    <div className={`p-6 max-w-7xl mx-auto ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`p-4 sm:p-6 pb-24 lg:pb-6 max-w-7xl mx-auto ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
@@ -271,132 +271,226 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
             <p className="text-sm text-gray-400 mt-1">Add a new customer to start maintaining contacts</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200 uppercase text-xs">
-                <tr>
-                  <th className="py-3 px-4">{t.customer_name}</th>
-                  <th className="py-3 px-4">Contact Info</th>
-                  <th className="py-3 px-4">Location</th>
-                  <th className="py-3 px-4">{t.customer_tax_id}</th>
-                  <th className="py-3 px-4 text-right">{t.customer_balance}</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {customers.map((c) => (
-                  <tr
-                    key={c.id}
-                    data-testid={`customer-row-${c.name}`}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="py-3 px-4">
-                      <span className="font-semibold text-gray-900 block">{c.name}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {c.phone && (
-                        <span className="text-xs text-gray-700 flex items-center gap-1 font-mono">
-                          <Phone className="w-3.5 h-3.5 text-gray-400" />
-                          {c.phone}
-                        </span>
-                      )}
-                      {c.email && (
-                        <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                          <Mail className="w-3.5 h-3.5 text-gray-400" />
-                          {c.email}
-                        </span>
-                      )}
-                      {!c.phone && !c.email && <span className="text-gray-400 text-xs">—</span>}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-xs text-gray-700 flex items-center gap-1">
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-600">
+                <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200 uppercase text-xs">
+                  <tr>
+                    <th className="py-3 px-4">{t.customer_name}</th>
+                    <th className="py-3 px-4">Contact Info</th>
+                    <th className="py-3 px-4">Location</th>
+                    <th className="py-3 px-4">{t.customer_tax_id}</th>
+                    <th className="py-3 px-4 text-right">{t.customer_balance}</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {customers.map((c) => (
+                    <tr
+                      key={c.id}
+                      data-testid={`customer-row-${c.name}`}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-gray-900 block">{c.name}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {c.phone && (
+                          <span className="text-xs text-gray-700 flex items-center gap-1 font-mono">
+                            <Phone className="w-3.5 h-3.5 text-gray-400" />
+                            {c.phone}
+                          </span>
+                        )}
+                        {c.email && (
+                          <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <Mail className="w-3.5 h-3.5 text-gray-400" />
+                            {c.email}
+                          </span>
+                        )}
+                        {!c.phone && !c.email && <span className="text-gray-400 text-xs">—</span>}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-xs text-gray-700 flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          <span>
+                            {[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        {c.tax_identifier ? (
+                          <span className="font-mono text-xs text-gray-800 bg-gray-100 px-2 py-0.5 rounded">
+                            {c.tax_identifier}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium text-gray-900 tabular-nums">
+                        {settings.currency_symbol}{' '}
+                        {formatMinorUnits(c.current_balance_minor, settings.currency_exponent)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        {c.is_active ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {t.status_active}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                            {t.status_archived}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openEditModal(c)}
+                            data-testid={`edit-customer-${c.name}`}
+                            title={t.action_edit}
+                            className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          {c.is_active ? (
+                            <button
+                              onClick={() => handleArchive(c.id)}
+                              data-testid={`archive-customer-${c.name}`}
+                              title={t.action_archive}
+                              className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                            >
+                              <Archive className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleRestore(c.id)}
+                              data-testid={`restore-customer-${c.name}`}
+                              title={t.action_restore}
+                              className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="block md:hidden divide-y divide-gray-100">
+              {customers.map((c) => (
+                <div
+                  key={c.id}
+                  data-testid={`customer-row-${c.name}`}
+                  className="p-4 hover:bg-gray-50 transition-colors space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-semibold text-gray-900 block text-base">{c.name}</span>
+                      <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                        <span>
-                          {[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}
-                        </span>
+                        <span>{[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}</span>
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      {c.tax_identifier ? (
-                        <span className="font-mono text-xs text-gray-800 bg-gray-100 px-2 py-0.5 rounded">
-                          {c.tax_identifier}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right font-medium text-gray-900 tabular-nums">
+                    </div>
+                    {c.is_active ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {t.status_active}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                        {t.status_archived}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Contact Info Badges */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {c.phone && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-md font-mono text-gray-700">
+                        <Phone className="w-3 h-3 text-gray-500" />
+                        {c.phone}
+                      </span>
+                    )}
+                    {c.email && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-md text-gray-700">
+                        <Mail className="w-3 h-3 text-gray-500" />
+                        {c.email}
+                      </span>
+                    )}
+                    {c.tax_identifier && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 border border-indigo-100 rounded-md font-mono text-indigo-700">
+                        TRN: {c.tax_identifier}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Balance Display */}
+                  <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50">
+                    <span className="text-xs text-gray-500 uppercase tracking-wider">{t.customer_balance}</span>
+                    <span className="font-bold text-gray-900 tabular-nums">
                       {settings.currency_symbol}{' '}
                       {formatMinorUnits(c.current_balance_minor, settings.currency_exponent)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      {c.is_active ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {t.status_active}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                          {t.status_archived}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => openEditModal(c)}
-                          data-testid={`edit-customer-${c.name}`}
-                          title={t.action_edit}
-                          className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        {c.is_active ? (
-                          <button
-                            onClick={() => handleArchive(c.id)}
-                            data-testid={`archive-customer-${c.name}`}
-                            title={t.action_archive}
-                            className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                          >
-                            <Archive className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleRestore(c.id)}
-                            data-testid={`restore-customer-${c.name}`}
-                            title={t.action_restore}
-                            className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </span>
+                  </div>
+
+                  {/* Actions Toolbar - Thumb friendly */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => openEditModal(c)}
+                      data-testid={`edit-customer-${c.name}`}
+                      className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 rounded-lg transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-gray-600" />
+                      {t.action_edit}
+                    </button>
+                    {c.is_active ? (
+                      <button
+                        onClick={() => handleArchive(c.id)}
+                        data-testid={`archive-customer-${c.name}`}
+                        className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 rounded-lg transition-colors border border-rose-100"
+                      >
+                        <Archive className="w-3.5 h-3.5 text-rose-600" />
+                        {t.action_archive}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRestore(c.id)}
+                        data-testid={`restore-customer-${c.name}`}
+                        className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 rounded-lg transition-colors border border-emerald-100"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                        {t.action_restore}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* Modal Drawer for Create / Edit Customer */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingCustomer ? t.action_edit : t.action_add_new} {t.tab_customers}
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveCustomer} className="p-6 space-y-4">
+            <form onSubmit={handleSaveCustomer} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
               {formError && (
                 <div
                   data-testid="customer-form-error"
@@ -556,11 +650,11 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
               </div>
 
               {/* Modal Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="sticky bottom-0 bg-white flex justify-end gap-3 pt-4 pb-2 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="min-h-[44px] px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center"
                 >
                   {t.action_cancel}
                 </button>
@@ -568,7 +662,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                   type="submit"
                   data-testid="save-customer-submit"
                   disabled={saving}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm disabled:opacity-50 flex items-center gap-2"
+                  className="min-h-[44px] px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving && <RefreshCw className="w-4 h-4 animate-spin" />}
                   {t.action_save}
