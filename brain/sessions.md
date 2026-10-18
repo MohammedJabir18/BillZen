@@ -229,3 +229,41 @@
 - Verification: 14 frontend tests, production build, catalog browser checks, explicit header/favicon/manifest browser checks and Linux Debian bundle all passed. Package contains the launcher desktop entry and native icons. Source/config received independent review; its screenshot-refresh finding was addressed.
 - Mobile/Windows/macOS assets generated only; native builds/device behavior on those targets remain unverified. Existing migration/CI issues were not altered by branding work.
 - Code-only Graphify refresh performed; full semantic extraction still requires the previously unconfigured LLM key.
+
+## 2026-10-18 — CI PDF Discrepancy Resolution & M3.1 Legacy Category Migration Safety
+- **Goals**: Resolve remote CI PDF line-wrapping discrepancy (Section A) and resolve legacy category collision migration blocker (Section B / M3.1) with audit safety and dual-checksum backward compatibility.
+- **Completed Tasks**:
+  - **Section A: CI PDF Discrepancy Resolution**:
+    - Diagnosed font-metric differences causing soft line-breaks in multi-word customer strings (`"South Asian Trans-Regional Infrastructure"`) across different Linux distribution font rendering engines.
+    - Updated `scripts/verify_matrix_playwright.js` to wait explicitly for webfont settlement via `document.fonts.ready`.
+    - Added whitespace normalization (`normalizeWs = (s) => s.replace(/\s+/g, ' ').trim()`) for comparing extracted PDF text against required and forbidden strings. Preserves strict word sequence and numerical exactness while avoiding brittle line-break failures.
+  - **Section B: M3.1 Legacy Category Migration Safety**:
+    - Created failing regression test `test_upgrade_v4_with_duplicate_categories_and_products_reconciliation` in `src-tauri/src/db/mod.rs` reproducing duplicate category collision on V4->V5 upgrade.
+    - Enhanced `src-tauri/src/db/migrations/v5_category_nocase.sql`:
+      - Created `category_merges` audit table to record `(merged_category_id, canonical_category_id, merged_name, merged_description, merged_at)`.
+      - Partitioned duplicates using SQLite window function `FIRST_VALUE(id) OVER (PARTITION BY name COLLATE NOCASE ORDER BY created_at ASC, id ASC)`.
+      - Repointed all product references (`products.category_id`) to canonical categories.
+      - Preserved non-empty descriptions from duplicate categories into canonical category when canonical description is blank.
+      - Deleted duplicate rows and established `CREATE UNIQUE INDEX idx_categories_name_nocase ON categories(name COLLATE NOCASE)`.
+    - Implemented dual-checksum compatibility in `src-tauri/src/db/mod.rs` accepting `INITIAL_V5_CHECKSUM`, ensuring existing V5 databases upgrade without `ChecksumMismatch` while ensuring `category_merges` table is created.
+    - Added `test_upgrade_existing_v5_database_checksum_compatibility` proving existing V5 databases succeed.
+    - Expanded numeric bounds regression coverage in `src-tauri/src/db/worker.rs` verifying inclusive maximum acceptance (`MAX_MONEY_MINOR`, `MAX_QUANTITY_SCALED`) and rejection during `update_product`.
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 40/40 passed.
+  - `npm test`: 14/14 passed.
+  - `npm run build`: Passed cleanly.
+  - `npm run test:native-probe`: Passed (clean temp DB lifecycle).
+  - `npm run test:matrix`: 4/4 scenarios passed (1, 3, 1, 1 pages).
+  - `npm run test:catalog`: All 6 steps passed.
+- **Files Modified**:
+  - `scripts/verify_matrix_playwright.js`
+  - `src-tauri/src/db/migrations/v5_category_nocase.sql`
+  - `src-tauri/src/db/mod.rs`
+  - `src-tauri/src/db/worker.rs`
+  - `docs/verification-status.md`
+  - `docs/roadmap.md`
+  - `brain/architecture.md`
+  - `brain/sessions.md`
+- **Pending Tasks / Immediate Next Steps**:
+  - Commit and push Section A and Section B.
+  - Milestone 4A (M4A): Draft invoice management vertical slice.

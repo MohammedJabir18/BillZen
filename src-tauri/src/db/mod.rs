@@ -26,6 +26,7 @@ pub const V2_MIGRATION_SQL: &str = include_str!("migrations/v2_regional_foundati
 pub const V3_MIGRATION_SQL: &str = include_str!("migrations/v3_protect_currency_exponent.sql");
 pub const V4_MIGRATION_SQL: &str = include_str!("migrations/v4_catalog.sql");
 pub const V5_MIGRATION_SQL: &str = include_str!("migrations/v5_category_nocase.sql");
+pub const INITIAL_V5_CHECKSUM: &str = "04d82447f839b02a0cc09c20534fa5f6d5688a1a79fb96e17b6a4bbe4d544a46";
 
 pub fn configure_connection(conn: &Connection) -> Result<(), DbError> {
     conn.execute_batch(
@@ -217,13 +218,23 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
 
     match existing_checksum5 {
         Some(stored_checksum) => {
-            if stored_checksum != current_checksum5 {
+            if stored_checksum != current_checksum5 && stored_checksum != INITIAL_V5_CHECKSUM {
                 return Err(DbError::ChecksumMismatch {
                     version: 5,
                     expected: stored_checksum,
                     found: current_checksum5,
                 });
             }
+            // Ensure category_merges audit table is present even on databases upgraded with initial V5
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS category_merges (
+                    merged_category_id TEXT PRIMARY KEY NOT NULL,
+                    canonical_category_id TEXT NOT NULL,
+                    merged_name TEXT NOT NULL,
+                    merged_description TEXT,
+                    merged_at INTEGER NOT NULL
+                );",
+            )?;
         }
         None => {
             let tx = conn.transaction()?;
@@ -927,5 +938,187 @@ mod tests {
             params![now],
         );
         assert!(dup_err.is_err(), "Inserting case-insensitive duplicate category must fail at SQLite index level");
+    }
+
+    #[test]
+    fn test_upgrade_v4_with_duplicate_categories_and_products_reconciliation() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        configure_connection(&conn).unwrap();
+
+        // Apply migrations 1, 2, 3, 4 manually
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );",
+        ).unwrap();
+
+        let now = chrono::Utc::now().timestamp_millis();
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        let mut h1 = Sha256::new();
+        h1.update(V1_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (1, 'v1_init', ?1, ?2);",
+            params![now, format!("{:x}", h1.finalize())],
+        ).unwrap();
+
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        let mut h2 = Sha256::new();
+        h2.update(V2_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (2, 'v2_regional_foundation', ?1, ?2);",
+            params![now, format!("{:x}", h2.finalize())],
+        ).unwrap();
+
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+        let mut h3 = Sha256::new();
+        h3.update(V3_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (3, 'v3_protect_currency_exponent', ?1, ?2);",
+            params![now, format!("{:x}", h3.finalize())],
+        ).unwrap();
+
+        conn.execute_batch(V4_MIGRATION_SQL).unwrap();
+        let mut h4 = Sha256::new();
+        h4.update(V4_MIGRATION_SQL.as_bytes());
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES (4, 'v4_catalog', ?1, ?2);",
+            params![now, format!("{:x}", h4.finalize())],
+        ).unwrap();
+
+        // Insert colliding categories in V4 (Groceries at t=100, groceries at t=200)
+        conn.execute(
+            "INSERT INTO categories (id, name, description, created_at, updated_at) VALUES ('cat_legacy_a', 'Groceries', 'Original Groceries', 100, 100);",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO categories (id, name, description, created_at, updated_at) VALUES ('cat_legacy_b', 'groceries', 'Duplicate groceries lowercase', 200, 200);",
+            [],
+        ).unwrap();
+
+        // Assign product 1 to cat_legacy_a and product 2 to cat_legacy_b
+        conn.execute(
+            "INSERT INTO products (
+                id, sku, barcode, name, description, category_id, unit, unit_price_minor,
+                cost_price_minor, tax_rate_bp, is_stock_tracked, current_stock_scaled,
+                min_stock_threshold_scaled, is_active, created_at, updated_at
+            ) VALUES (
+                'prod_1', 'SKU-001', NULL, 'Product One', NULL, 'cat_legacy_a', 'pcs', 1000,
+                800, 500, 1, 10000, 0, 1, 100, 100
+            );",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO products (
+                id, sku, barcode, name, description, category_id, unit, unit_price_minor,
+                cost_price_minor, tax_rate_bp, is_stock_tracked, current_stock_scaled,
+                min_stock_threshold_scaled, is_active, created_at, updated_at
+            ) VALUES (
+                'prod_2', 'SKU-002', NULL, 'Product Two', NULL, 'cat_legacy_b', 'pcs', 2000,
+                1500, 500, 1, 5000, 0, 1, 200, 200
+            );",
+            [],
+        ).unwrap();
+
+        // Now run migrations - this MUST reconcile duplicates and succeed!
+        run_migrations(&mut conn).expect("Migration must reconcile legacy duplicate categories without failing");
+
+        // 1. Exactly 1 category remains
+        let cat_count: i64 = conn.query_row("SELECT COUNT(*) FROM categories;", [], |r| r.get(0)).unwrap();
+        assert_eq!(cat_count, 1, "Only the canonical category should remain");
+
+        // 2. The canonical category is cat_legacy_a ('Groceries')
+        let (surviving_id, surviving_name, surviving_desc): (String, String, Option<String>) = conn.query_row(
+            "SELECT id, name, description FROM categories;",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        ).unwrap();
+        assert_eq!(surviving_id, "cat_legacy_a");
+        assert_eq!(surviving_name, "Groceries");
+        assert_eq!(surviving_desc.as_deref(), Some("Original Groceries"));
+
+        // 3. Both products are repointed to the canonical category
+        let p1_cat: Option<String> = conn.query_row("SELECT category_id FROM products WHERE id = 'prod_1';", [], |r| r.get(0)).unwrap();
+        let p2_cat: Option<String> = conn.query_row("SELECT category_id FROM products WHERE id = 'prod_2';", [], |r| r.get(0)).unwrap();
+        assert_eq!(p1_cat.as_deref(), Some("cat_legacy_a"));
+        assert_eq!(p2_cat.as_deref(), Some("cat_legacy_a"), "Product 2 must be repointed to canonical category");
+
+        // 4. Audit record exists in category_merges
+        let (merged_id, canonical_id, merged_name): (String, String, String) = conn.query_row(
+            "SELECT merged_category_id, canonical_category_id, merged_name FROM category_merges;",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        ).unwrap();
+        assert_eq!(merged_id, "cat_legacy_b");
+        assert_eq!(canonical_id, "cat_legacy_a");
+        assert_eq!(merged_name, "groceries");
+
+        // 5. Zero foreign key violations
+        {
+            let mut fk_stmt = conn.prepare("PRAGMA foreign_key_check;").unwrap();
+            let fk_violations = fk_stmt.query_map([], |_| Ok(())).unwrap().count();
+            assert_eq!(fk_violations, 0, "No foreign key violations permitted after reconciliation");
+        }
+
+        // 6. Case-insensitive duplicate insertion is strictly rejected
+        let dup_insert = conn.execute(
+            "INSERT INTO categories VALUES ('cat_new', 'groceries', NULL, 300, 300);",
+            [],
+        );
+        assert!(dup_insert.is_err(), "Duplicate category insertion must be rejected by unique index");
+
+        // 7. Repeated run_migrations execution is fully idempotent
+        run_migrations(&mut conn).expect("Repeated migration run must succeed idempotently");
+        let cat_count_after: i64 = conn.query_row("SELECT COUNT(*) FROM categories;", [], |r| r.get(0)).unwrap();
+        assert_eq!(cat_count_after, 1);
+    }
+
+    #[test]
+    fn test_upgrade_existing_v5_database_checksum_compatibility() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        configure_connection(&conn).unwrap();
+
+        let now = chrono::Utc::now().timestamp_millis();
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );",
+        ).unwrap();
+
+        // Apply migrations 1..4
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+        conn.execute_batch(V4_MIGRATION_SQL).unwrap();
+
+        let mut h1 = Sha256::new(); h1.update(V1_MIGRATION_SQL.as_bytes());
+        let mut h2 = Sha256::new(); h2.update(V2_MIGRATION_SQL.as_bytes());
+        let mut h3 = Sha256::new(); h3.update(V3_MIGRATION_SQL.as_bytes());
+        let mut h4 = Sha256::new(); h4.update(V4_MIGRATION_SQL.as_bytes());
+
+        conn.execute("INSERT INTO schema_migrations VALUES (1, 'v1_init', ?1, ?2);", params![now, format!("{:x}", h1.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (2, 'v2_regional_foundation', ?1, ?2);", params![now, format!("{:x}", h2.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (3, 'v3_protect_currency_exponent', ?1, ?2);", params![now, format!("{:x}", h3.finalize())]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (4, 'v4_catalog', ?1, ?2);", params![now, format!("{:x}", h4.finalize())]).unwrap();
+
+        // Simulate an already-applied V5 database with INITIAL_V5_CHECKSUM
+        conn.execute("INSERT INTO schema_migrations VALUES (5, 'v5_category_nocase', ?1, ?2);", params![now, INITIAL_V5_CHECKSUM]).unwrap();
+        conn.execute_batch("DROP INDEX IF EXISTS idx_categories_name; CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name_nocase ON categories(name COLLATE NOCASE);").unwrap();
+
+        // Run migrations on already-applied V5 database
+        run_migrations(&mut conn).expect("run_migrations must accept INITIAL_V5_CHECKSUM without ChecksumMismatch");
+
+        // Verify category_merges table is present
+        let merges_table_exists: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='category_merges');",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert!(merges_table_exists, "category_merges table must exist even on existing V5 databases");
     }
 }

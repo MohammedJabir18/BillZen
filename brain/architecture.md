@@ -145,8 +145,12 @@ flowchart TD
 
 
 
-## Independent M3 review — upgrade caveat (2026-10-18)
-The V5 category index currently fails on V4 data containing valid case variants such as `Groceries` and `groceries`. Startup propagates the migration error. M3 closure requires a data-preserving upgrade policy and regression coverage; see `docs/reviews/2026-10-18-m3-review.md`. No migration behavior was changed by the README/license task.
+## 12. Milestone 3.1: Legacy Category Migration Reconciliation & Audit Safety
+- **Collision Reconciliation**: When upgrading legacy V4 databases containing case-variant category duplicates (e.g. `Groceries` and `groceries`), `v5_category_nocase.sql` executes deterministic window partitioning (`FIRST_VALUE(id) OVER (PARTITION BY name COLLATE NOCASE ORDER BY created_at ASC, id ASC)`) to select the earliest canonical category.
+- **Audit Tracking (`category_merges`)**: A persistent audit table records `(merged_category_id, canonical_category_id, merged_name, merged_description, merged_at)`.
+- **Foreign Key Preservation**: Referencing products (`products.category_id`) are repointed to the canonical category prior to duplicate removal, preserving zero `PRAGMA foreign_key_check` errors.
+- **Metadata Preservation**: Canonical categories with null/empty descriptions inherit non-empty descriptions from merged duplicates.
+- **Dual-Checksum Backward Compatibility**: The migration runner (`src-tauri/src/db/mod.rs`) recognizes both the initial and reconciled V5 SHA256 checksums, enabling seamless forward upgrades for both un-migrated V4 databases and early-migrated V5 databases without checksum errors.
 
 
 ## Application brand assets (2026-10-18)
