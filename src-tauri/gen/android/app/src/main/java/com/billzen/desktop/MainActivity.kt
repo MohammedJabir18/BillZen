@@ -15,8 +15,19 @@ import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : TauriActivity() {
   private var webViewInstance: WebView? = null
+  @Volatile var updateInstallerActive = false
+  private var updateInstallerWasPaused = false
 
   class NativeBridge(private val activity: MainActivity) {
+    @JavascriptInterface
+    fun isUpdateInstallerActive(): Boolean = activity.updateInstallerActive
+
+    @JavascriptInterface
+    fun getUpdateDevice(): String = UpdateInstaller(activity).device()
+
+    @JavascriptInterface
+    fun installUpdate(): String = UpdateInstaller(activity).install()
+
     @JavascriptInterface
     fun setDarkMode(isDark: Boolean) {
       activity.runOnUiThread {
@@ -38,6 +49,7 @@ class MainActivity : TauriActivity() {
       WebView.setWebContentsDebuggingEnabled(true)
     }
     super.onCreate(savedInstanceState)
+    updateInstallerActive = savedInstanceState?.getBoolean("billzen-update-installer", false) ?: false
 
     ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
       updateInsets(insets)
@@ -93,8 +105,33 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  @Deprecated("Android installer compatibility callback")
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == UpdateInstaller.REQUEST_CODE) {
+      updateInstallerReturned()
+    }
+  }
+
+  fun updateInstallerReturned() {
+    updateInstallerActive = false
+    updateInstallerWasPaused = false
+    webViewInstance?.evaluateJavascript("window.dispatchEvent(new Event('billzen-update-returned'))", null)
+  }
+
+  override fun onSaveInstanceState(outState: Bundle) {
+    outState.putBoolean("billzen-update-installer", updateInstallerActive)
+    super.onSaveInstanceState(outState)
+  }
+
+  override fun onPause() {
+    if (updateInstallerActive) updateInstallerWasPaused = true
+    super.onPause()
+  }
+
   override fun onResume() {
     super.onResume()
+    if (updateInstallerWasPaused) updateInstallerReturned()
     updateInsets()
     syncSystemBarsFromDom()
   }

@@ -1,3 +1,4 @@
+import {useUpdateStartupCheck} from './hooks/useUpdateStartupCheck';
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SettingsView } from './components/SettingsView';
@@ -39,6 +40,7 @@ const queryClient = new QueryClient({
 type ActiveTab = 'cashbook' | 'products' | 'customers' | 'settings' | 'print';
 
 const AppContent: React.FC = () => {
+  useUpdateStartupCheck();
   const [activeTab, setActiveTab] = useState<ActiveTab>('cashbook');
   const [activePrintDocument, setActivePrintDocument] = useState<ActivePrintDocument>(null);
   const [language, setLanguageState] = useState<Language>(() => {

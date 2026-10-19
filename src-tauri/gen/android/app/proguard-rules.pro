@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Public JavaScript bridge methods are called by the offline WebView.
+-keepclassmembers class com.billzen.desktop.MainActivity$NativeBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}

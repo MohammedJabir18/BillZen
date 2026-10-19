@@ -388,3 +388,12 @@ flowchart TD
 - `html.dark` declares `color-scheme: dark`; the default is light. Native date/select controls follow the chosen theme, while print media explicitly uses light paper styling.
 - `scripts/verify_theme_contrast.js` audits computed solid-color text contrast, placeholders, resolved theme and horizontal page overflow across desktop/mobile dark/light states. It uses isolated synthetic browser contexts, excludes disabled controls and background content behind dialogs, and does not constitute a full accessibility certification.
 - `npm run test:theme` builds the frontend before running the regression matrix. Native WebKitGTK theme checks also run in `test:native-cashbook`.
+
+
+## Android update delivery (source implementation, not distribution accepted)
+- Candidate version metadata is centralized in `release/version.json` (0.1.1/code1005) and validated against package/Tauri/Cargo files. Environment overrides cannot bypass it.
+- `src-tauri/src/updates` verifies exact-byte Ed25519 manifests with a compile-time public pin, channel/package/ABI/replay rules and bounded HTTPS GitHub downloads. `commands/updates.rs` owns checked release/download/install states. No business records are uploaded.
+- Android uses the internal app cache (`app_cache_dir` → `activity.cacheDir`) and a narrow updates FileProvider. The installer checks cached digest/size, actual package/version/current certificate and non-debuggable APK before OS consent. Root lifecycle reconciliation resumes the serialized DB worker after return, including when Settings is re-mounted.
+- Worker preparation snapshots with SQLite backup, then pauses requests until resume. Native startup snapshots an older database before pending migrations; a failed snapshot blocks migration. Recovery files use DELETE journal to be standalone.
+- Settings hosts update controls; background discovery is throttled to once per 24h online. Missing production public pin reports unavailable; the distribution script refuses an updater-disabled build.
+- Original BillZen repository is public and is the approved release host. Production manifest key provisioning, existing APK signing password, populated two-version Android acceptance, desktop updater U3 and draft-publishing U4 remain outstanding. No signed updater APK has been delivered.

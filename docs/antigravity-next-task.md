@@ -1,25 +1,13 @@
-# Next priority — Release delivery and in-app updates (U0)
+# Next priority — Android update-enabled bootstrap acceptance
 
-Status: researched design proposed; implementation approval pending. C2 remains deferred behind the owner's update-delivery priority.
+The owner approved signed in-app update delivery and selected the original public `MohammedJabir18/BillZen` repository for releases. The unused BillZen-releases repository was deleted at the owner's request. Do not re-create it or ask for design approval again.
 
-Read AGENTS.md, brain/sessions.md, brain/architecture.md, and `docs/superpowers/specs/2026-10-19-release-updates-design.md`.
+Read AGENTS.md, brain/sessions.md, brain/architecture.md, `docs/android-update-delivery.md`, the approved release-update spec and implementation plan. Source implementation has started; **no distributable updater-enabled APK or end-to-end update acceptance exists yet**.
 
-The owner wants recipients to discover/install later releases inside the installed app instead of repeatedly receiving installer files. Existing direct APK recipients are the first audience. An updater-enabled bootstrap must be installed once because current releases contain no updater code.
+Blocking prerequisite: the owner does not know the existing Android APK keystore password. Preserve the original keystore/certificate. Recover its password via the original owner-controlled signing configuration, password manager or first APK build conversation. Do not print credentials, request them in chat, brute-force passwords, replace the APK signing key, uninstall the app or clear its business records.
 
-Use installed brainstorming guidance to obtain approval of the complete proposed design, then writing-plans, test-driven-development, systematic-debugging and verification-before-completion. Apply Karpathy Guidelines and Harness Engineering. Do not invent skill/plugin availability or require every installed skill on every step.
+A separate production Ed25519 manifest key/public pin must be provisioned securely. Do not ship the test fixture key or an updater-disabled build. After signing access is restored, verify 0.1.1/code1005 bootstrap against the existing certificate, then a strictly higher-code candidate with seeded company/voucher/product/customer/theme data. Test metadata, download, invalid signatures/certificates, permission return, activity recreation, cancellation, process restart and pre-migration recovery on a real emulator/device.
 
-The concrete design separates:
-- Android direct APK discovery + authenticated manifest + existing certificate + OS installer consent.
-- Desktop Tauri signed updates, using AppImage rather than the existing loose Linux executable.
-- CI on ordinary pushes, draft releases on version-tag/manual runs, and owner-controlled stable promotion.
-- Database recovery before migrations, including the bootstrap/external-upgrade path.
+Desktop U3 and versioned draft-release publishing U4 remain pending. Ordinary CI pushes must not publish live app updates. Do not call this task complete from unit tests, Kotlin compilation or a mocked update toast. Existing loose Linux executable is not updater-ready.
 
-After design approval, deliver U1–U4 in order with Android and Linux first. Prepare a concrete implementation plan with small verified sections. Windows/macOS are advertised only after their own release gates pass. No release/visibility changes, production key generation, secret changes or live publication are authorized by this handoff alone.
-
-Connected GitHub metadata confirms that the source repository is private. Keep it private; obtain approval for the proposed public artifact-only repository or website endpoint. Do not point anonymous clients directly at private release assets.
-
-Key prerequisites to verify securely: GitHub CLI push/release access, anonymous download availability, continuity of the existing Android signing certificate, updater signing keys/public keys, monotonically increasing Android versionCode, and portable Android CI toolchain configuration. Never request secret values in chat or replace the existing Android signing identity.
-
-Acceptance requires a real two-version native upgrade with populated local data preserved, plus offline, cancellation, invalid signature, wrong package/certificate, partial release and migration failure tests. A successful build or mocked Update button is insufficient.
-
-Commit and push coherent verified sections per AGENTS.md. Preserve local commits and report exact authentication blockers. Do not label this feature complete before an installed bootstrap actually receives and installs a newer signed version.
+Commit/push coherent verified sections per AGENTS.md. Report local and remote CI status separately; CLI authentication was unavailable at this checkpoint. Keep the next action focused on restoring signing continuity, not adding C2 financial features.

@@ -1,4 +1,5 @@
 fn main() {
+    println!("cargo:rerun-if-env-changed=BILLZEN_ANDROID_UPDATE_PUBLIC_KEY");
     tauri_build::try_build(
         tauri_build::Attributes::new().app_manifest(
             tauri_build::AppManifest::new().commands(&[
@@ -10,6 +11,12 @@ fn main() {
                 "update_guide_status",
                 "check_print_support",
 
+                "get_update_status",
+                "cancel_update",
+                "check_android_update",
+                "download_android_update",
+                "prepare_android_update",
+                "resume_after_update",
                 "ping",
                 "get_products",
                 "create_product",

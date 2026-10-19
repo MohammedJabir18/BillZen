@@ -4,10 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-TOOLCHAIN_DIR="/home/jabir/.android-toolchain"
-export JAVA_HOME="$TOOLCHAIN_DIR/jdk"
-export ANDROID_HOME="$TOOLCHAIN_DIR/android-sdk"
-export NDK_HOME="$ANDROID_HOME/ndk/26.1.10909125"
+TOOLCHAIN_DIR="${BILLZEN_ANDROID_TOOLCHAIN_DIR:-$HOME/.android-toolchain}"
+export JAVA_HOME="${JAVA_HOME:-$TOOLCHAIN_DIR/jdk}"
+export ANDROID_HOME="${ANDROID_HOME:-$TOOLCHAIN_DIR/android-sdk}"
+export NDK_HOME="${NDK_HOME:-$ANDROID_HOME/ndk/26.1.10909125}"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/36.0.0:$ANDROID_HOME/build-tools/34.0.0:$PATH"
 
 KEYSTORE="${BILLZEN_KEYSTORE_PATH:-$TOOLCHAIN_DIR/billzen-beta.keystore}"
@@ -40,28 +40,36 @@ fi
 
 cd "$ROOT_DIR"
 
+# A distributable updater build must pin the publisher's public key.
+if [ -z "${BILLZEN_ANDROID_UPDATE_PUBLIC_KEY:-}" ]; then
+    echo "Error: BILLZEN_ANDROID_UPDATE_PUBLIC_KEY is required; refusing an updater-disabled APK"
+    exit 1
+fi
+node scripts/release/version.mjs > /dev/null
+export BILLZEN_KEYSTORE_PASS="$KEY_PASS"
+
 # Clean previous build artifacts to prevent stale fallbacks
 BUILD_DIR="$ROOT_DIR/src-tauri/gen/android/app/build/outputs/apk"
 rm -rf "$BUILD_DIR"
 
 # Authoritative versioning
-export BILLZEN_VERSION_CODE="${BILLZEN_VERSION_CODE:-1004}"
-export BILLZEN_VERSION_NAME="${BILLZEN_VERSION_NAME:-0.1.0}"
+export BILLZEN_VERSION_CODE="${BILLZEN_VERSION_CODE:-$(node -p "JSON.parse(require('fs').readFileSync('release/version.json')).androidVersionCode")}"
+export BILLZEN_VERSION_NAME="${BILLZEN_VERSION_NAME:-$(node -p "JSON.parse(require('fs').readFileSync('release/version.json')).version")}"
 
 TARGET_ARCH="${1:-aarch64}"
 if [ "$TARGET_ARCH" = "x86_64" ]; then
     ABI_NAME="x86_64"
-    SIGNED_APK="$ROOT_DIR/dist-android/billzen-test-v0.1.0-x86_64.apk"
+    SIGNED_APK="$ROOT_DIR/dist-android/billzen-test-v${BILLZEN_VERSION_NAME}-x86_64.apk"
     export BILLZEN_ENABLE_WEBVIEW_DEBUGGING="${BILLZEN_ENABLE_WEBVIEW_DEBUGGING:-true}"
 elif [ "$TARGET_ARCH" = "x86_64_dist" ] || [ "$TARGET_ARCH" = "x86_64_no_debug" ]; then
     TARGET_ARCH="x86_64"
     ABI_NAME="x86_64"
-    SIGNED_APK="$ROOT_DIR/dist-android/billzen-dist-v0.1.0-x86_64.apk"
+    SIGNED_APK="$ROOT_DIR/dist-android/billzen-dist-v${BILLZEN_VERSION_NAME}-x86_64.apk"
     export BILLZEN_ENABLE_WEBVIEW_DEBUGGING="false"
 elif [ "$TARGET_ARCH" = "aarch64" ] || [ "$TARGET_ARCH" = "arm64-v8a" ]; then
     TARGET_ARCH="aarch64"
     ABI_NAME="arm64-v8a"
-    SIGNED_APK="$ROOT_DIR/dist-android/billzen-beta-v0.1.0-arm64-v8a.apk"
+    SIGNED_APK="$ROOT_DIR/dist-android/billzen-beta-v${BILLZEN_VERSION_NAME}-arm64-v8a.apk"
     export BILLZEN_ENABLE_WEBVIEW_DEBUGGING="${BILLZEN_ENABLE_WEBVIEW_DEBUGGING:-false}"
 else
     echo "ERROR: Unsupported target arch $TARGET_ARCH"
@@ -88,6 +96,7 @@ if [ "$BILLZEN_ENABLE_WEBVIEW_DEBUGGING" = "true" ]; then
 else
     TAURI_CONFIG_OVERRIDE='{"app":{"windows":[{"label":"main","devtools":false}]}}'
 fi
+TAURI_CONFIG_OVERRIDE=$(node -e 'const c=JSON.parse(process.argv[1]);c.version=process.env.BILLZEN_VERSION_NAME;c.bundle={android:{versionCode:Number(process.env.BILLZEN_VERSION_CODE)}};process.stdout.write(JSON.stringify(c))' "$TAURI_CONFIG_OVERRIDE")
 npx tauri android build --apk --target "$TARGET_ARCH" --ci --config "$TAURI_CONFIG_OVERRIDE"
 
 # Locate generated APK
@@ -110,14 +119,15 @@ rm -f "$SIGNED_APK"
 
 # Align and sign using the designated BillZen Beta Keystore with 16KB page alignment
 echo "--- 3. Aligning and Signing APK with BillZen Beta Keystore (16KB page-aligned) ---"
-ALIGNED_APK="/tmp/billzen-aligned.apk"
+ALIGNED_APK="$(mktemp /tmp/billzen-aligned-XXXXXX.apk)"
+trap 'rm -f "$ALIGNED_APK"' EXIT
 rm -f "$ALIGNED_APK"
 zipalign -v -f -P 16 4 "$RAW_APK" "$ALIGNED_APK"
 
 apksigner sign \
     --ks "$KEYSTORE" \
     --ks-key-alias "$KEY_ALIAS" \
-    --ks-pass "pass:$KEY_PASS" \
+    --ks-pass env:BILLZEN_KEYSTORE_PASS \
     --out "$SIGNED_APK" \
     "$ALIGNED_APK"
 rm -f "$ALIGNED_APK"

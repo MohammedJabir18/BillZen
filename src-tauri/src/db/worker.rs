@@ -10,6 +10,8 @@ use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 
 pub enum DbRequest {
+    PrepareUpdate { respond_to: oneshot::Sender<Result<PathBuf, String>> },
+    ResumeAfterUpdate { respond_to: oneshot::Sender<Result<(), String>> },
     GetBusinessSettings {
         respond_to: oneshot::Sender<Result<BusinessSettings, String>>,
     },
@@ -137,12 +139,63 @@ pub enum DbRequest {
     },
 }
 
+impl DbRequest {
+    fn reject_during_update(self) {
+        match self {
+            Self::PrepareUpdate { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::ResumeAfterUpdate { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetBusinessSettings { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::UpdateBusinessSettings { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::UpdateBusinessProfile { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::CompleteBusinessSetup { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::UpdateAppearancePreference { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::UpdateGuideStatus { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetProducts { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::CreateProduct { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::UpdateProduct { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::ArchiveProduct { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::RestoreProduct { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetCustomers { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::CreateCustomer { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::UpdateCustomer { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::ArchiveCustomer { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::RestoreCustomer { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetCategories { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::CreateCategory { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::Ping { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetMoneyAccounts { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::CreateMoneyAccount { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::UpdateMoneyAccount { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetCashbookCategories { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::CreateCashbookCategory { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetCashbookParties { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::CreateCashbookParty { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::PostCashbookVoucher { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::ReverseCashbookVoucher { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetCashbookLedger { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::ExportWorkspaceBackup { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::RestoreWorkspaceBackup { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct DbWorkerHandle {
     sender: mpsc::Sender<DbRequest>,
 }
 
 impl DbWorkerHandle {
+    pub async fn prepare_update(&self) -> Result<PathBuf, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(DbRequest::PrepareUpdate { respond_to: tx }).await.map_err(|_|"Database worker terminated")?;
+        rx.await.map_err(|_|"Database worker did not respond")?
+    }
+    pub async fn resume_after_update(&self) -> Result<(), String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(DbRequest::ResumeAfterUpdate { respond_to: tx }).await.map_err(|_|"Database worker terminated")?;
+        rx.await.map_err(|_|"Database worker did not respond")?
+    }
+
     pub fn new(db_path: PathBuf) -> Result<Self, String> {
         let (tx, mut rx) = mpsc::channel::<DbRequest>(100);
         let (init_tx, init_rx) = std::sync::mpsc::channel::<Result<(), String>>();
@@ -174,8 +227,23 @@ impl DbWorkerHandle {
                     return;
                 }
 
+                let mut update_paused = false;
                 while let Some(request) = rx.blocking_recv() {
+                    if update_paused && !matches!(&request, DbRequest::ResumeAfterUpdate { .. }) {
+                        request.reject_during_update();
+                        continue;
+                    }
                     match request {
+                        DbRequest::PrepareUpdate { respond_to } => {
+                            let directory = db_path.parent().unwrap_or_else(|| std::path::Path::new(".")).join("recovery");
+                            let result = crate::db::recovery::snapshot(&conn, &directory, "before-app-update").map_err(|e|e.to_string());
+                            if result.is_ok() { update_paused = true; }
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::ResumeAfterUpdate { respond_to } => {
+                            update_paused = false;
+                            let _ = respond_to.send(Ok(()));
+                        }
                         DbRequest::GetBusinessSettings { respond_to } => {
                             let result = fetch_business_settings(&conn);
                             let _ = respond_to.send(result);

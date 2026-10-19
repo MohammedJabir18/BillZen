@@ -1,3 +1,4 @@
+import {UpdatesSettings} from './UpdatesSettings';
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -321,6 +322,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           Failed to save settings: {String(mutation.error)}
         </div>
       )}
+
+      <UpdatesSettings hasUnsavedChanges={JSON.stringify(formData) !== JSON.stringify(settings)} workspaceBusy={isRestoring || isExporting} />
 
       {/* 1. APPEARANCE SETTINGS (Strictly in Settings, no header/bottom toggles) */}
       <div className="mt-6 bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
