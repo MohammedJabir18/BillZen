@@ -670,7 +670,48 @@
   - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 15M, SHA-256: `fb9f2d170afe535132a24329b5c5b5e6d6ce1b60b9adc0de39cbcf2a4d282279`, `versionCode = 1004`.
   - `dist-android/billzen-test-v0.1.0-x86_64.apk`: 14M, SHA-256: `adeda77f1ea88e64c6d9689f13fd0f1904b6da023dfa91732024e9dea51f5024`, `versionCode = 1004`.
 - **Unfinished Tasks / Immediate Next Steps**:
-  - Milestone 4A/4B (M4): Implement draft invoice management and finalized commercial snapshots following `docs/m4a-invoice-drafts-spec.md`.
+  - [Deferred to Phase C4] Milestone 4A/4B (M4): Implement draft invoice management and finalized commercial snapshots following `docs/m4a-invoice-drafts-spec.md`.
+  - [Active Priority] Milestone C0/C1: Offline Company Cashbook specification and implementation.
+
+## 2026-10-19 — Product Priority Shift to Offline Company Cashbook, Architectural Specification & Implementation Plan
+- **Goals**: Shift product priority from commercial invoicing to an offline-first company cashbook (Receipts & Payments, numbered vouchers, running balances, safe portable backup/restore) for a single operator on an independent device; author comprehensive architectural specification (`docs/cashbook-architecture-spec.md`) and sequenced implementation plan (`docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md`); update roadmap, PRD, handoff task, and Second Brain.
+- **Completed Tasks**:
+  - **1. Cashbook Architectural Specification Authored (`docs/cashbook-architecture-spec.md`)**:
+    - Grounded in reference research (`com.cashbook.expense.tracker`), corrected parity matrix with explicit evidence classifications (`screenshot-observed`, `listing-advertised`, `not-verified`).
+    - Decoupled cash movement direction (`INFLOW` vs `OUTFLOW`) from business classification (`operating_income`, `operating_expense`, `capital`, `loan`, `advance`, `refund`, `transfer`, `opening_balance`).
+    - Enforced the invariant that net cash flow and account balances represent liquidity, **never "Profit"**.
+    - Designed canonical ledger and zero double-cancellation reversal semantics: equal and opposite movements; queries do not exclude reversed rows; idempotency key with SHA-256 payload collision detection; duplicate reversals rejected.
+    - Designed party model with link to `customers` or ad-hoc entities, and immutable historical snapshot freezing on vouchers for stable reprints.
+    - Defined exact numerical amount contract: entry limit `MAX_MONEY_MINOR = 10^11`, cumulative limit `MAX_TOTAL_MINOR = 10^14 < Number.MAX_SAFE_INTEGER`, checked arithmetic in Rust and TypeScript, extended currency change protection trigger.
+    - Defined account and date policies: cash overdraft options, opening balance immutability, account archiving, deterministic ordering `(business_date ASC, sequence_number ASC, id ASC)`, and consistent voucher numbering `{PREFIX}-{YYYYMM}-{SEQUENCE:05d}`.
+    - Specified versioned JSON portable backup `1.0` with SHA-256 validation, staging and atomic replacement, and recovery copies (`billzen.db.recovery-{timestamp}`).
+  - **2. Sequenced Implementation Plan Authored (`docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md`)**:
+    - Structured into 3 bite-sized internal sections for Milestone C1:
+      - **C1A**: Schema migration `v7_cashbook_foundation.sql`, Rust domain entities, checked arithmetic, sequence generator, native commands, and transaction integrity tests.
+      - **C1B**: React UI (dashboard summary, entry modal, ledger table, filters) and printable voucher PDF engine (`RCP-`, `PAY-`).
+      - **C1C**: Persistent Web IndexedDB adapter, portable JSON backup and safe restore engine, and cross-platform verification suite.
+    - Defined C1 acceptance gate (7 empirical checks) and C2 transfer gate.
+  - **3. Repository Roadmap & Deliverables Updated**:
+    - Marked Milestone 4A specification (`docs/m4a-invoice-drafts-spec.md`) as deferred to Phase C4 while preserving full specification.
+    - Updated `docs/roadmap.md` with active cashbook roadmap (C0 through C4) and deferred invoicing.
+    - Updated `docs/product-requirements.md` adding requirements F15 (Cashbook), F16 (Backup/Restore), F17 (Transfers).
+    - Updated `docs/antigravity-next-task.md` with handoff instructions for Milestone C1A implementation.
+    - Updated `brain/architecture.md` with Section 17 documenting Cashbook architecture.
+- **Files Modified / Added**:
+  - `docs/cashbook-architecture-spec.md` (Added)
+  - `docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md` (Added)
+  - `docs/m4a-invoice-drafts-spec.md` (Modified)
+  - `docs/roadmap.md` (Modified)
+  - `docs/product-requirements.md` (Modified)
+  - `docs/antigravity-next-task.md` (Modified)
+  - `brain/architecture.md` (Modified)
+  - `brain/sessions.md` (Modified)
+- **Verification Evidence**:
+  - Repository documentation and plans checked against codebase invariants.
+  - Zero code regression: Existing 53 Rust tests, 14 Vitest unit tests, and production build remain clean.
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone C1A: Implement `v7_cashbook_foundation.sql`, Rust domain entities, checked arithmetic, sequence generator, native Tauri commands, and transaction integrity tests.
+
 
 
 

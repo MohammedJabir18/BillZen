@@ -23,16 +23,19 @@ Give retail shops, freelancers and small businesses an independent workspace for
 | F02 | Manage products and customers | Create/edit/search/archive/restore with validation and preserved identifiers | Implemented catalog |
 | F03 | Categorize products | Consistent name policy; existing-data upgrades preserve product references | V5 index implemented; duplicate-upgrade correction required |
 | F04 | Establish inventory balances | Opening stock commits with its ledger movement; invalid transitions rejected | Foundation implemented |
-| F05 | Build invoice drafts | Select customer, scan/search item, change quantity and save/recover draft without stock mutation | M4A planned |
-| F06 | Finalize documents | Allocate unique number and immutable snapshots atomically with stock movements | M4B planned |
+| F05 | Build invoice drafts | Select customer, scan/search item, change quantity and save/recover draft without stock mutation | Deferred to C4 (spec preserved) |
+| F06 | Finalize documents | Allocate unique number and immutable snapshots atomically with stock movements | Deferred to C4 |
 | F07 | Apply commercial adjustments | Defined ordering for tax, discounts and fees; Rust/TypeScript calculation parity | Arithmetic foundation; workflow pending |
-| F08 | Record partial payments | Idempotent payment allocation; no unexplained balance mutation; clear receipt | Planned |
-| F09 | Record expenses | Validated amount/category/date; traceable corrections and reconciled reports | Schema only |
+| F08 | Record partial payments | Idempotent payment allocation; no unexplained balance mutation; clear receipt | Deferred to C4 |
+| F09 | Record expenses | Validated amount/category/date; traceable corrections and reconciled reports | Integrated into Cashbook (C1) |
 | F10 | Explain business performance | Revenue, receivables, low stock and profit figures trace to persisted records | Planned |
 | F11 | Export and print | Reliable A4 document, later thermal formats; explicit native/hardware verification | A4 component + browser fixtures |
-| F12 | Back up and restore | Validate backup, restore into safe staging, preserve recoverability on failure | Planned |
-| F13 | Work on intended platforms | Native persistence, restart recovery and printing acceptance on each target | Linux development evidence only |
+| F12 | Back up and restore | Validate backup, restore into safe staging, preserve recoverability on failure | Planned (C1C) |
+| F13 | Work on intended platforms | Native persistence, restart recovery and printing acceptance on each target | Linux & Android 14 verified |
 | F14 | Optional synchronization | Core stays local; explicit sync state/conflicts, retries and account independence | Planned |
+| F15 | Offline Company Cashbook | Record receipts/payments with numbered vouchers, running balances, exact integer arithmetic, non-profit labeling | Active Priority (C1) |
+| F16 | Portable Cashbook Backup & Safe Restore | Versioned JSON format, SHA-256 validation, staging & atomic swap, recovery copy | Planned (C1C) |
+| F17 | Account Transfers (Contra) | 2-legged atomic movements, net zero company impact, excluded from P&L | Planned (C2) |
 
 ### Inventory policy
 
@@ -58,14 +61,14 @@ Store currency minor units as integers and quantities scaled by 1,000. Keep code
 No measured latency, load or bundle-size service level is established by this document. The requested sub-15 MB distribution is a target to measure, not a blanket release claim.
 
 ## Scope and sequencing
-
-1. Close the legacy category migration gap and expand boundary coverage.
-2. Deliver one recoverable draft invoice workflow (M4A).
-3. Deliver atomic invoice finalization and inventory movement (M4B).
-4. Add payments, expenses, reconciled analytics and backup/restore.
-5. Validate platform expansion and country-specific integrations.
-
-Do not start cloud sync, an AI feature, a new server framework or a large UI redesign during the migration/draft vertical slices. Mobile must eventually be a standalone offline product, not merely a read-only companion. Durable web storage needs an explicit adapter; current browser mocks do not satisfy it.
+ 
+1. Close foundation corrections, Android hardening, and beta release (Completed in v1004).
+2. Deliver the Offline Company Cashbook vertical slice (C1: C1A native engine, C1B UI & PDF, C1C Web & Backup/Restore).
+3. Deliver Account Transfers, Statements & XLSX exports (C2).
+4. Deliver Cash Counter, Budgets & App Security (C3).
+5. Integrate Invoicing & Commercial Billing (C4, resuming deferred M4A/M4B).
+ 
+Do not start cloud sync, an AI feature, a new server framework or a large UI redesign during the Cashbook slices. Mobile and Desktop operate as independent, standalone offline products. Durable web storage requires a genuine IndexedDB adapter; transient browser mocks are prohibited for financial persistence.
 
 ## Regional constraints
 

@@ -1,5 +1,8 @@
 # BillZen — Milestone 4A: Invoice Drafts Specification
 
+> [!NOTE]
+> **MILESTONE DEFERRED TO PHASE C4**: Per project owner requirement (2026-10-19), implementation of this invoice specification is deferred in favor of the Offline Company Cashbook (`docs/cashbook-architecture-spec.md`). This document is fully preserved as the authoritative blueprint for future Phase C4 commercial billing integration.
+
 ## 1. Executive Summary & Architectural Scope
 
 Milestone 4 (Invoicing, Stock Integration & Settlements) is divided into two discrete, verifiable engineering phases:
