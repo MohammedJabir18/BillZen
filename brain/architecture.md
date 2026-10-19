@@ -312,6 +312,15 @@ flowchart TD
 3. **Desktop Data Directory Isolation (`BILLZEN_DATA_DIR`)**:
    - `get_app_data_dir()` in `src-tauri/src/lib.rs` checks `BILLZEN_DATA_DIR`. When set, it redirects SQLite database path and instance lock path to an isolated custom directory, enabling parallel headless desktop testing and pristine test fixtures.
 
+## 21. Native Desktop Verification Harness (`scripts/verify_native_cashbook.js`)
+1. **WebKitGTK Inspector Remote Control**:
+   - Executes the standalone release binary (`src-tauri/target/release/billzen`) directly with `BILLZEN_DATA_DIR` pointing to an isolated temp directory and `WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9235`.
+   - Connects to `/socket/1/1/WebPage` via WebSocket and drives the application using the WebKit Remote Inspector protocol (`Runtime.evaluate` wrapped in `Target.sendMessageToTarget`).
+2. **Controlled Form Input Synchronization**:
+   - To reliably update React 19 controlled states across WebKitGTK without WebDriver overhead, input updates invoke the prototype property setters (`window.HTMLInputElement.prototype.value` and `window.HTMLTextAreaElement.prototype.value`) followed by `input` and `change` event dispatch.
+3. **Data Safety Assurance**:
+   - Real user business records in `~/.local/share/billzen` are protected by checking their modification timestamp before and after test execution to guarantee zero data alteration.
+
 
 
 
