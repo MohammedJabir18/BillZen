@@ -27,7 +27,7 @@ import type {
   PartyType,
   CategoryType,
 } from '../types/cashbook';
-import type { BusinessSettings } from '../types';
+import type { BusinessSettings, ActivePrintDocument } from '../types';
 import type { Language } from '../i18n';
 import {
   getMoneyAccounts,
@@ -41,16 +41,19 @@ import {
   getCashbookLedger,
   generateIdempotencyKey,
 } from '../adapters/cashbook';
-import { formatMinorUnits, parseToMinorUnits } from '../domain/financial';
+import { getTodayBusinessDate, formatMinorUnits, parseToMinorUnits } from '../domain/financial';
+import { isTauriEnvironment } from '../adapters/tauri';
+import { preparePrintStyles, cleanupPrintStyles } from '../utils/print';
 import { useBackHandler } from '../hooks/useBackHandler';
 import { PrintableVoucherDocument } from './PrintableVoucherDocument';
 
 interface CashbookViewProps {
   settings: BusinessSettings;
   language: Language;
+  onSetActivePrintDocument?: (doc: ActivePrintDocument) => void;
 }
 
-export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
+export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActivePrintDocument }) => {
   const queryClient = useQueryClient();
   const currencyExponent = settings.currency_exponent ?? 2;
   const currencyCode = settings.currency_code ?? 'INR';
@@ -74,6 +77,15 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
   const [voucherPrintFormat, setVoucherPrintFormat] = useState<'a4' | 'thermal80'>('a4');
   const [reversingVoucher, setReversingVoucher] = useState<CashbookVoucher | null>(null);
 
+  // State: Reversal Negative Balance Confirmation Dialog
+  const [reversalNegativeBalancePrompt, setReversalNegativeBalancePrompt] = useState<{
+    voucher: CashbookVoucher;
+    currentBalanceMinor: number;
+    amountMinor: number;
+    projectedBalanceMinor: number;
+    message: string;
+  } | null>(null);
+
   // State: Negative Balance Confirmation Dialog
   const [negativeBalancePrompt, setNegativeBalancePrompt] = useState<{
     pendingInput: CreateVoucherInput;
@@ -88,7 +100,12 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Queries
-  const { data: accounts = [] } = useQuery({
+  const {
+    data: accounts = [],
+    isLoading: isAccountsLoading,
+    error: accountsError,
+    refetch: refetchAccounts,
+  } = useQuery({
     queryKey: ['cashbook_accounts'],
     queryFn: getMoneyAccounts,
   });
@@ -112,7 +129,12 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
     include_archived: includeArchived,
   }), [selectedAccountId, startDate, endDate, classificationFilter, searchQuery, includeArchived]);
 
-  const { data: ledgerData } = useQuery({
+  const {
+    data: ledgerData,
+    isLoading: isLedgerLoading,
+    error: ledgerError,
+    refetch: refetchLedger,
+  } = useQuery({
     queryKey: ['cashbook_ledger', ledgerFilter],
     queryFn: () => getCashbookLedger(ledgerFilter),
   });
@@ -134,7 +156,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
   const [formAccountId, setFormAccountId] = useState<string>('');
   const [formAmountText, setFormAmountText] = useState<string>('');
   const [formBusinessDate, setFormBusinessDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    getTodayBusinessDate(settings.timezone)
   );
   const [formClassification, setFormClassification] = useState<CashbookClassification>('operating_income');
   const [formCategoryId, setFormCategoryId] = useState<string>('');
@@ -170,13 +192,29 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
   useBackHandler(Boolean(viewingVoucher), () => setViewingVoucher(null));
   useBackHandler(Boolean(reversingVoucher), () => setReversingVoucher(null));
   useBackHandler(Boolean(negativeBalancePrompt), () => setNegativeBalancePrompt(null));
+  useBackHandler(Boolean(reversalNegativeBalancePrompt), () => setReversalNegativeBalancePrompt(null));
+
+  // Synchronize active print document whenever viewed voucher or format changes
+  React.useEffect(() => {
+    if (viewingVoucher) {
+      onSetActivePrintDocument?.({
+        type: 'voucher',
+        voucher: viewingVoucher,
+        format: voucherPrintFormat,
+      });
+      preparePrintStyles(voucherPrintFormat);
+    } else {
+      onSetActivePrintDocument?.(null);
+      cleanupPrintStyles();
+    }
+  }, [viewingVoucher, voucherPrintFormat, onSetActivePrintDocument]);
 
   // Open Entry Modal with given direction
   const handleOpenEntry = (dir: MovementDirection) => {
     setEntryDirection(dir);
     setFormClassification(dir === 'inflow' ? 'operating_income' : 'operating_expense');
     setFormAmountText('');
-    setFormBusinessDate(new Date().toISOString().split('T')[0]);
+    setFormBusinessDate(getTodayBusinessDate(settings.timezone));
     setFormAccountId(activeAccounts[0]?.id || '');
     setFormCategoryId('');
     setFormPartyId('');
@@ -279,10 +317,22 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
   const reverseMutation = useMutation({
     mutationFn: ({ voucherId, confirmed }: { voucherId: string; confirmed: boolean }) =>
       reverseCashbookVoucher(voucherId, confirmed),
-    onSuccess: (res) => {
+    onSuccess: (res, variables) => {
       if (res.status === 'requires_confirmation') {
-        setErrorMessage(res.message);
+        const targetVoucher = reversingVoucher || entries.find((e) => e.voucher.id === variables.voucherId)?.voucher;
+        if (targetVoucher) {
+          setReversalNegativeBalancePrompt({
+            voucher: targetVoucher,
+            currentBalanceMinor: res.current_balance_minor,
+            amountMinor: res.amount_minor,
+            projectedBalanceMinor: res.projected_balance_minor,
+            message: res.message,
+          });
+        } else {
+          setErrorMessage(res.message);
+        }
       } else {
+        setReversalNegativeBalancePrompt(null);
         setReversingVoucher(null);
         setSuccessMessage(`Voucher reversed successfully. Reversal voucher: ${res.voucher_number}`);
         queryClient.invalidateQueries({ queryKey: ['cashbook_ledger'] });
@@ -294,6 +344,14 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
       setErrorMessage(msg);
     },
   });
+
+  const handleConfirmNegativeBalanceReversal = () => {
+    if (!reversalNegativeBalancePrompt) return;
+    reverseMutation.mutate({
+      voucherId: reversalNegativeBalancePrompt.voucher.id,
+      confirmed: true,
+    });
+  };
 
   // Account Creation Mutation
   const createAccountMutation = useMutation({
@@ -368,6 +426,12 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
   const handlePrint = (voucher: CashbookVoucher, format: 'a4' | 'thermal80') => {
     setViewingVoucher(voucher);
     setVoucherPrintFormat(format);
+    onSetActivePrintDocument?.({
+      type: 'voucher',
+      voucher,
+      format,
+    });
+    preparePrintStyles(format);
     setTimeout(() => {
       window.print();
     }, 150);
@@ -400,12 +464,45 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
         </div>
       )}
 
+      {/* Browser Mode Ephemeral In-Memory Banner */}
+      {!isTauriEnvironment() && (
+        <div data-testid="browser-mode-banner" className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl flex items-start gap-2.5 text-amber-800 dark:text-amber-200 text-xs">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="flex-1">
+            <strong>Browser Preview Mode:</strong> Transactions, accounts, and running balances are maintained in memory for preview and testing. Data will reset upon page reload. For permanent offline SQLite durability, launch BillZen Desktop or Android.
+          </div>
+        </div>
+      )}
+
+      {/* Query Error State with Retry Button */}
+      {(Boolean(accountsError) || Boolean(ledgerError)) && (
+        <div data-testid="cashbook-error-banner" className="p-4 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 rounded-xl flex items-center justify-between text-rose-800 dark:text-rose-200 text-xs sm:text-sm">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+            <span>Failed to load cashbook data. Please check connection and retry.</span>
+          </div>
+          <button
+            onClick={() => {
+              refetchAccounts();
+              refetchLedger();
+            }}
+            data-testid="btn-retry-cashbook-load"
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-xs"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Top Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2.5">
             <Wallet className="w-6 h-6 text-indigo-600 dark:text-lime-400" />
             <span>Company Cashbook</span>
+            {(isAccountsLoading || isLedgerLoading) && (
+              <span className="w-4 h-4 border-2 border-indigo-600 dark:border-lime-400 border-t-transparent rounded-full animate-spin" title="Loading data..." />
+            )}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
             Offline ledger for recording company receipts & payments with running balances.
@@ -903,6 +1000,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
               <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg">
                 <button
                   type="button"
+                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                   onClick={() => {
                     setEntryDirection('inflow');
                     setFormClassification('operating_income');
@@ -912,12 +1010,13 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                     entryDirection === 'inflow'
                       ? 'bg-emerald-600 text-white shadow-xs'
                       : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
-                  }`}
+                  } ${(isSubmittingVoucher || submitVoucherMutation.isPending) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   Receipt (Inflow)
                 </button>
                 <button
                   type="button"
+                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                   onClick={() => {
                     setEntryDirection('outflow');
                     setFormClassification('operating_expense');
@@ -927,7 +1026,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                     entryDirection === 'outflow'
                       ? 'bg-rose-600 text-white shadow-xs'
                       : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
-                  }`}
+                  } ${(isSubmittingVoucher || submitVoucherMutation.isPending) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   Payment (Outflow)
                 </button>
@@ -942,11 +1041,12 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                   <input
                     type="text"
                     required
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     placeholder={currencyExponent === 3 ? '0.000' : '0.00'}
                     value={formAmountText}
                     onChange={(e) => setFormAmountText(e.target.value)}
                     data-testid="input-voucher-amount"
-                    className="w-full text-base font-mono font-bold bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-base font-mono font-bold bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -956,10 +1056,11 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                   </label>
                   <select
                     required
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     value={formAccountId}
                     onChange={(e) => setFormAccountId(e.target.value)}
                     data-testid="select-voucher-account"
-                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="" disabled>Select Account</option>
                     {activeAccounts.map((a) => (
@@ -980,10 +1081,11 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                   <input
                     type="date"
                     required
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     value={formBusinessDate}
                     onChange={(e) => setFormBusinessDate(e.target.value)}
                     data-testid="input-voucher-date"
-                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -992,10 +1094,11 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                     Financial Classification *
                   </label>
                   <select
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     value={formClassification}
                     onChange={(e) => setFormClassification(e.target.value as CashbookClassification)}
                     data-testid="select-voucher-classification"
-                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 capitalize"
+                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 capitalize disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {entryDirection === 'inflow' ? (
                       <>
@@ -1025,22 +1128,24 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                   </label>
                   <button
                     type="button"
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     onClick={() => {
                       setNewCatName('');
                       setNewCatType(entryDirection === 'inflow' ? 'income' : 'expense');
                       setIsCategoryModalOpen(true);
                     }}
-                    className="text-[11px] text-indigo-600 dark:text-lime-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    className="text-[11px] text-indigo-600 dark:text-lime-400 hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-60 disabled:no-underline"
                   >
                     <Plus className="w-3 h-3" />
                     <span>New Category</span>
                   </button>
                 </div>
                 <select
+                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                   value={formCategoryId}
                   onChange={(e) => setFormCategoryId(e.target.value)}
                   data-testid="select-voucher-category"
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <option value="">No Category</option>
                   {compatibleCategories.map((c) => (
@@ -1059,23 +1164,25 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                   </label>
                   <button
                     type="button"
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     onClick={() => {
                       setNewPartyName('');
                       setNewPartyType(entryDirection === 'inflow' ? 'customer' : 'supplier');
                       setNewPartyPhone('');
                       setIsPartyModalOpen(true);
                     }}
-                    className="text-[11px] text-indigo-600 dark:text-lime-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    className="text-[11px] text-indigo-600 dark:text-lime-400 hover:underline flex items-center gap-0.5 cursor-pointer disabled:opacity-60 disabled:no-underline"
                   >
                     <Plus className="w-3 h-3" />
                     <span>New Party</span>
                   </button>
                 </div>
                 <select
+                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                   value={formPartyId}
                   onChange={(e) => setFormPartyId(e.target.value)}
                   data-testid="select-voucher-party"
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <option value="">Direct / Counter Party</option>
                   {parties.filter((p) => !p.is_archived).map((p) => (
@@ -1093,9 +1200,10 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                     Payment Method
                   </label>
                   <select
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     value={formPaymentMethod}
                     onChange={(e) => setFormPaymentMethod(e.target.value as PaymentMethod)}
-                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="cash">Cash</option>
                     <option value="upi">UPI / QR</option>
@@ -1112,11 +1220,12 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                   </label>
                   <input
                     type="text"
+                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                     placeholder="Ref #, transaction ID..."
                     value={formReferenceNote}
                     onChange={(e) => setFormReferenceNote(e.target.value)}
                     data-testid="input-voucher-reference"
-                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -1128,34 +1237,45 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                 </label>
                 <textarea
                   rows={2}
+                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                   placeholder="Additional remarks..."
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
                   data-testid="input-voucher-notes"
-                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
 
               <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-zinc-800">
                 <button
                   type="button"
+                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                   onClick={() => setIsEntryModalOpen(false)}
                   data-testid="btn-cancel-voucher-entry"
-                  className="px-4 py-2 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingVoucher}
+                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
                   data-testid="btn-submit-voucher"
-                  className={`px-5 py-2 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer ${
+                  className={`px-5 py-2 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer ${
                     entryDirection === 'inflow'
                       ? 'bg-emerald-600 hover:bg-emerald-700'
                       : 'bg-rose-600 hover:bg-rose-700'
-                  } ${isSubmittingVoucher ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${(isSubmittingVoucher || submitVoucherMutation.isPending) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  {isSubmittingVoucher ? 'Posting...' : entryDirection === 'inflow' ? 'Issue Receipt' : 'Issue Payment'}
+                  {(isSubmittingVoucher || submitVoucherMutation.isPending) && (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+                  <span>
+                    {(isSubmittingVoucher || submitVoucherMutation.isPending)
+                      ? 'Posting Voucher...'
+                      : entryDirection === 'inflow'
+                      ? 'Issue Receipt'
+                      : 'Issue Payment'}
+                  </span>
                 </button>
               </div>
             </form>
@@ -1271,17 +1391,104 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
               <button
                 type="button"
                 onClick={() => setReversingVoucher(null)}
-                className="px-4 py-2 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800"
+                disabled={reverseMutation.isPending}
+                className="px-4 py-2 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => reverseMutation.mutate({ voucherId: reversingVoucher.id, confirmed: false })}
+                disabled={reverseMutation.isPending}
                 data-testid="btn-confirm-reversal"
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-xs"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
-                Confirm Reversal
+                {reverseMutation.isPending && (
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                <span>Confirm Reversal</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* Reversal Negative Balance Confirmation Modal */}
+      {/* ========================================================================= */}
+      {reversalNegativeBalancePrompt && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="w-6 h-6 shrink-0" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                Negative Cash Balance Warning (Reversal)
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+              Reversing receipt voucher <strong>{reversalNegativeBalancePrompt.voucher.voucher_number}</strong> will deduct funds from the account, causing the cash balance to drop below zero. Owner confirmation is required to proceed.
+            </p>
+
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-900/60 text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-zinc-400">Original Voucher ID:</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-zinc-100">
+                  {reversalNegativeBalancePrompt.voucher.voucher_number}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-zinc-400">Current Balance:</span>
+                <span className="font-mono text-slate-900 dark:text-zinc-100">
+                  {currencySymbol} {formatMinorUnits(reversalNegativeBalancePrompt.currentBalanceMinor, currencyExponent)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-zinc-400">Reversal Deduction:</span>
+                <span className="font-mono text-rose-600 font-semibold">
+                  -{currencySymbol} {formatMinorUnits(reversalNegativeBalancePrompt.amountMinor, currencyExponent)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-amber-200 dark:border-amber-900/40 font-bold">
+                <span className="text-slate-700 dark:text-zinc-200">Projected Balance:</span>
+                <span className="font-mono text-rose-600">
+                  {currencySymbol} {formatMinorUnits(reversalNegativeBalancePrompt.projectedBalanceMinor, currencyExponent)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 italic">
+              Note: This confirmation will be logged immutably in the company cashbook audit trail.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setReversalNegativeBalancePrompt(null);
+                  setReversingVoucher(null);
+                }}
+                disabled={reverseMutation.isPending}
+                data-testid="btn-cancel-reversal-negative-balance"
+                className="px-4 py-2 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
+              >
+                Cancel (Make No Changes)
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmNegativeBalanceReversal}
+                disabled={reverseMutation.isPending}
+                data-testid="btn-confirm-reversal-negative-balance"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {reverseMutation.isPending && (
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                <span>Confirm (Proceed with Negative Balance)</span>
               </button>
             </div>
           </div>
@@ -1303,7 +1510,12 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                 <Building2 className="w-5 h-5 text-indigo-600 dark:text-lime-400" />
                 <span>Company Money Accounts</span>
               </h2>
-              <button onClick={() => setIsAccountModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded">
+              <button
+                type="button"
+                onClick={() => setIsAccountModalOpen(false)}
+                data-testid="btn-close-account-modal"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1351,6 +1563,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                       required
                       placeholder="e.g. Petty Cash, HDFC Bank"
                       value={newAccName}
+                      data-testid="input-new-account-name"
                       onChange={(e) => setNewAccName(e.target.value)}
                       className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2"
                     />
@@ -1362,6 +1575,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                     </label>
                     <select
                       value={newAccType}
+                      data-testid="select-new-account-type"
                       onChange={(e) => setNewAccType(e.target.value)}
                       className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2"
                     >
@@ -1381,6 +1595,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                     <input
                       type="text"
                       value={newAccOpeningText}
+                      data-testid="input-new-account-opening"
                       onChange={(e) => setNewAccOpeningText(e.target.value)}
                       className="w-full text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg p-2 font-mono"
                     />
@@ -1391,6 +1606,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                       <input
                         type="checkbox"
                         checked={newAccAllowNegative}
+                        data-testid="checkbox-new-account-allow-negative"
                         onChange={(e) => setNewAccAllowNegative(e.target.checked)}
                         className="rounded text-indigo-600"
                       />
@@ -1402,6 +1618,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
                 <div className="flex justify-end pt-2">
                   <button
                     type="submit"
+                    data-testid="btn-save-new-account"
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold cursor-pointer"
                   >
                     Save Account
@@ -1629,13 +1846,6 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings }) => {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Global Printable Voucher Container for window.print() isolation */}
-      {viewingVoucher && (
-        <div className="hidden print:block">
-          <PrintableVoucherDocument voucher={viewingVoucher} format={voucherPrintFormat} isPrintTarget={true} />
         </div>
       )}
     </div>

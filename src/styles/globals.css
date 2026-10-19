@@ -44,13 +44,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Explicit A4 Page Definition: Standard 210mm x 297mm (595.28 x 841.89 points) */
+/* Default A4 Page Definition: Standard 210mm x 297mm (595.28 x 841.89 points) */
 @page {
   size: A4 portrait;
-  margin: 12mm 15mm;
+  margin: 10mm 12mm;
 }
 
-/* Strict print media isolation: Only invoice prints, probe UI is 100% hidden, pure white paper */
+/* Strict print media isolation: Only the active printable document renders, taking 100% pure layout space */
 @media print {
   html, body {
     background: #ffffff !important;
@@ -61,8 +61,8 @@
     height: auto !important;
   }
 
-  /* Hide entire application shell and all non-print elements */
-  .no-print, header, nav, footer, button, .no-print * {
+  /* Completely hide all app shell, modals, and non-print elements so they take 0 layout space */
+  .no-print, header, nav, footer, button, main, [role="dialog"], .no-print * {
     display: none !important;
   }
 
@@ -71,17 +71,24 @@
     visibility: hidden !important;
   }
 
-  #printable-invoice-root, #printable-invoice-root *,
-  #printable-voucher-root, #printable-voucher-root * {
+  #active-printable-container,
+  #active-printable-container * {
     visibility: visible !important;
     color: #000000 !important;
+  }
+
+  #active-printable-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     background: transparent !important;
   }
 
-  #printable-invoice-root, #printable-voucher-root {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+  #printable-invoice-root,
+  #printable-voucher-root {
+    position: static !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -89,6 +96,14 @@
     box-shadow: none !important;
     border: none !important;
     background: #ffffff !important;
+  }
+
+  /* 80mm thermal receipt continuous layout */
+  body[data-print-format="thermal80"] #printable-voucher-root {
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 3mm !important;
   }
 
   /* Repeat table headers across pages where supported */
@@ -102,3 +117,4 @@
     page-break-inside: avoid !important;
   }
 }
+

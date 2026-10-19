@@ -15,6 +15,7 @@ import type {
   CashbookLedgerFilter,
 } from '../types/cashbook';
 import { isTauriEnvironment } from './tauri';
+import { getTodayBusinessDate } from '../domain/financial';
 
 export function generateIdempotencyKey(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -189,6 +190,13 @@ export async function createCashbookParty(dto: CreateCashbookPartyDto): Promise<
 
 export async function postCashbookVoucher(input: CreateVoucherInput): Promise<PostVoucherResult> {
   if (!isTauriEnvironment()) {
+    if (input.idempotency_key) {
+      const existing = mockState.vouchers.find((v) => v.idempotency_key === input.idempotency_key);
+      if (existing) {
+        return { ...existing, status: 'posted' as const };
+      }
+    }
+
     const acc = mockState.accounts.find((a) => a.id === input.account_id);
     if (!acc) throw new Error(`Account ${input.account_id} not found`);
 
@@ -303,7 +311,7 @@ export async function reverseCashbookVoucher(
     }
 
     const now = Date.now();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayBusinessDate('Asia/Kolkata');
     const ym = todayStr.replace(/-/g, '').substring(0, 6);
     const prefix = orig.direction === 'inflow' ? 'RCP-REV' : 'PAY-REV';
     const seq = mockState.vouchers.length + 1;

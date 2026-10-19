@@ -883,7 +883,68 @@
   - `npm run build`: Production build passed (`tsc && vite build`).
   - `npm run test:cashbook`: 7/7 passed (`test_artifacts/cashbook/cashbook_verification_report.json`).
 - **Unfinished Tasks / Immediate Next Steps**:
+  - [Completed in Session 11] Milestone C1B Focused Correction Pass & Automated Multi-Format Verification.
+  - Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine, and cross-platform acceptance suite.
+
+## 2026-10-19 — Milestone C1B Focused Correction Pass, Print Tree Isolation & Native Verification
+- **Goals**: Execute focused BillZen Milestone C1B corrections: complete print tree isolation between cashbook vouchers and invoice documents, dynamic format-specific page sizing (A4 vs 80mm thermal), negative-balance reversal confirmation, timezone-aware business dates, UI form flight-locking, LIFO modal back navigation, expanded 10-step Playwright test gate, and native desktop data directory isolation.
+- **Completed Tasks**:
+  - **1. Print Tree Isolation & Format-Specific Page Sizing**:
+    - Replaced permanently mounted `<PrintableInvoiceDocument>` in `src/App.tsx` with dynamic `#active-printable-container` rendering exclusively the selected document (`voucher` or `invoice`). Inactive documents are completely unmounted from the DOM.
+    - Created `src/utils/print.ts` dynamically injecting `@page` rules: exact millimeter height calculation for 80mm thermal receipts (`size: 80mm ${heightMm}mm !important; margin: 0;`) and portrait A4 (`size: A4 portrait !important; margin: 10mm 12mm;`).
+    - Configured strict `@media print` CSS rules in `src/styles/globals.css` ensuring layout space is completely zeroed for inactive UI (`main, header, nav, footer, button, [role="dialog"], .no-print *` set to `display: none !important;`).
+    - Authored automated PDF regression suite `scripts/verify_cashbook_pdf.js` using headless Chrome and Poppler utilities (`pdfinfo`, `pdftotext`). Verified 1 page, exact geometry, and zero text contamination across all 3 document scenarios (Voucher A4, Voucher 80mm Thermal, Invoice A4).
+  - **2. Negative-Balance Reversal Guard & Confirmation**:
+    - Implemented two-step modal confirmation in `CashbookView.tsx` when reversing a voucher causes an account's balance to drop below zero.
+    - Modal displays original voucher ID, current balance, reversal deduction, and projected negative balance.
+    - Cancel cleanly dismisses the entire reversal flow without posting; Confirm dispatches reversal with `confirmed_negative_balance = true`.
+  - **3. Timezone-Aware Dates & Input Flight-Locking**:
+    - Added `getTodayBusinessDate(timezone)` in `src/domain/financial.ts` using `Intl.DateTimeFormat('en-CA')` for consistent `YYYY-MM-DD` strings across all timezones.
+    - Bound voucher entry date defaults to business settings timezone.
+    - Added comprehensive unit tests in `src/domain/financial.test.ts`.
+    - Added `isFormLocked` in `CashbookView.tsx`, disabling all inputs, selectors, and buttons while voucher mutations are in flight.
+  - **4. Resilient Back Button & LIFO Modal Stack**:
+    - Updated `src/hooks/useBackHandler.ts` with a module-level LIFO array (`handlerStack`) so pressing Escape or the back button dismisses only the topmost active modal.
+  - **5. Expanded Playwright Acceptance Gate (10/10 Passed)**:
+    - Upgraded `scripts/verify_cashbook_playwright.js` into an exhaustive 10-step acceptance gate:
+      1. Initial dashboard load with ephemeral browser mode banner and verification that cash cards never use the word "Profit".
+      2. Account creation with initial opening balance (₹25,000.00).
+      3. Inflow receipt posting (₹10,000.00) with running balance check.
+      4. Outflow payment posting (₹2,500.00) with running balance check.
+      5. Negative-balance payment guard (Cancel cancels; Confirm posts).
+      6. Negative-balance reversal guard (Cancel cancels; Confirm posts `RCP-REV-202610-00004`).
+      7. Printable voucher document preview & A4 / 80mm thermal format switcher with zero invoice overlap.
+      8. Search filtering with financial statement balance independence.
+      9. Mobile viewport responsiveness (360px and 390px with zero horizontal scroll overflow).
+      10. Theme switcher support (Dark & Light modes).
+  - **6. Native Tauri Desktop Environment Data Directory Isolation**:
+    - Added `BILLZEN_DATA_DIR` environment variable support in `src-tauri/src/lib.rs` allowing complete database isolation in test runs and desktop invocations.
+    - Added unit test `test_get_app_data_dir_environment_override` in `src-tauri/src/lib.rs`.
+- **Files Modified / Added**:
+  - `src/domain/financial.ts` (Modified)
+  - `src/domain/financial.test.ts` (Modified)
+  - `src/utils/print.ts` (Added)
+  - `src/types/index.ts` (Modified)
+  - `src/styles/globals.css` (Modified)
+  - `src/hooks/useBackHandler.ts` (Modified)
+  - `src/App.tsx` (Modified)
+  - `src/components/CashbookView.tsx` (Modified)
+  - `src/adapters/cashbook.ts` (Modified)
+  - `src-tauri/src/lib.rs` (Modified)
+  - `scripts/verify_cashbook_pdf.js` (Added)
+  - `scripts/verify_cashbook_playwright.js` (Modified)
+  - `package.json` (Modified)
+  - `brain/sessions.md` (Modified)
+  - `brain/architecture.md` (Modified)
+- **Verification Evidence**:
+  - `npm test`: 26 passed across 4 files, 0 failed.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 77 passed (63 unit tests + 14 integration tests), 0 failed.
+  - `npm run build`: Production build succeeded in 1.63s (`tsc && vite build`).
+  - `node scripts/verify_cashbook_pdf.js`: 3/3 passed (`test_artifacts/pdf_cashbook/cashbook_pdf_report.json`).
+  - `node scripts/verify_cashbook_playwright.js`: 10/10 passed (`test_artifacts/cashbook/cashbook_verification_report.json`).
+- **Unfinished Tasks / Immediate Next Steps**:
   - Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine (versioned JSON with SHA-256 and pre-validation), and cross-platform acceptance suite.
+
 
 
 

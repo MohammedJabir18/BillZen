@@ -225,3 +225,28 @@ export function parseToMinorUnits(valueStr: string, exponent: number = 2): numbe
   const result = safeBigIntToNumber(minorBig);
   return isNegative ? -result : result;
 }
+
+/**
+ * Resolves the business date (YYYY-MM-DD) for a given date in the company's designated timezone.
+ * Defaults to 'Asia/Kolkata' if timezone is omitted or invalid.
+ */
+export function getTodayBusinessDate(timezone?: string | null, date: Date = new Date()): string {
+  const tz = timezone?.trim() || 'Asia/Kolkata';
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(date);
+  } catch {
+    const fallbackFormatter = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return fallbackFormatter.format(date);
+  }
+}
+

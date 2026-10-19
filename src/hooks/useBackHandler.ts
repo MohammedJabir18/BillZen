@@ -1,34 +1,51 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
- * Custom hook to handle Android back button and Desktop Escape key dismissal for modals.
- * Intercepts 'billzen-back-button' (dispatched from Android native MainActivity)
- * and 'keydown' (Escape key). Calls onDismiss and marks the event as handled.
+ * Global LIFO stack of modal dismiss handlers.
+ * When Escape or Android back button is triggered, only the topmost active dialog handler is popped and executed,
+ * preventing nested modals from all closing simultaneously.
  */
+const handlerStack: Array<() => void> = [];
+
+if (typeof window !== 'undefined') {
+  const popAndExecute = (e: Event) => {
+    if (handlerStack.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      const topHandler = handlerStack[handlerStack.length - 1];
+      topHandler();
+    }
+  };
+
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      popAndExecute(e);
+    }
+  });
+
+  window.addEventListener('billzen-back-button', (e: Event) => {
+    popAndExecute(e);
+  });
+}
+
 export function useBackHandler(isOpen: boolean, onDismiss: () => void) {
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onDismiss();
-      }
+    const handler = () => {
+      dismissRef.current();
     };
 
-    const handleCustomBack = (e: Event) => {
-      e.preventDefault(); // Marks it handled so Android MainActivity does not exit the app
-      e.stopPropagation();
-      onDismiss();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('billzen-back-button', handleCustomBack);
+    handlerStack.push(handler);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('billzen-back-button', handleCustomBack);
+      const idx = handlerStack.lastIndexOf(handler);
+      if (idx !== -1) {
+        handlerStack.splice(idx, 1);
+      }
     };
-  }, [isOpen, onDismiss]);
+  }, [isOpen]);
 }

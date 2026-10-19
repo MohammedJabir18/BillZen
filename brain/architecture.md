@@ -299,5 +299,19 @@ flowchart TD
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
 
+## 20. Print Tree Isolation & Desktop Data Directory Isolation (C1B Refinements)
+1. **Dynamic Active Print Container (`src/App.tsx`, `src/utils/print.ts`)**:
+   - Replaced permanently mounted invoice documents with `#active-printable-container` which mounts exclusively the selected document (`ActivePrintDocument: 'invoice' | 'voucher' | null`). Inactive documents are completely unmounted from the DOM, eliminating multi-page print contamination.
+   - Dynamic `@page` CSS rule injection in `src/utils/print.ts`:
+     - 80mm Thermal: Dynamically calculates element scroll height in millimeters and sets `@page { size: 80mm ${heightMm}mm !important; margin: 0; }` to prevent Chromium from forcing standard Letter/A4 pages.
+     - A4 Portrait: Sets `@page { size: A4 portrait !important; margin: 10mm 12mm; }`.
+   - Strict `@media print` isolation: `main, header, nav, footer, button, [role="dialog"], .no-print *` set to `display: none !important;`, preventing screen elements from claiming layout height or generating blank extra pages.
+2. **Reversal Negative-Balance Confirmation**:
+   - Reversing a receipt voucher deducts funds from an account. If the resulting balance would become negative and the account does not permit negative balances, the operation prompts the operator with a dedicated two-step warning modal (`reversalNegativeBalancePrompt`) showing original voucher number, current balance, reversal deduction, and projected balance.
+   - Confirming sends `confirmed_negative_balance = true`, committing the reversal and recording the transaction in `cashbook_audit_events`.
+3. **Desktop Data Directory Isolation (`BILLZEN_DATA_DIR`)**:
+   - `get_app_data_dir()` in `src-tauri/src/lib.rs` checks `BILLZEN_DATA_DIR`. When set, it redirects SQLite database path and instance lock path to an isolated custom directory, enabling parallel headless desktop testing and pristine test fixtures.
+
+
 
 

@@ -22,6 +22,12 @@ impl Drop for InstanceLock {
 }
 
 pub fn get_app_data_dir() -> PathBuf {
+    if let Ok(custom) = std::env::var("BILLZEN_DATA_DIR") {
+        let trimmed = custom.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed);
+        }
+    }
     dirs::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("billzen")
@@ -306,5 +312,16 @@ mod tests {
         assert!(!unpriv_perms_str.contains(&"allow-create-customer"));
         assert!(!unpriv_perms_str.contains(&"allow-get-categories"));
         assert!(!unpriv_perms_str.contains(&"allow-create-category"));
+    }
+
+    #[test]
+    fn test_get_app_data_dir_environment_override() {
+        let test_dir = "/tmp/billzen_custom_isolated_test_dir";
+        std::env::set_var("BILLZEN_DATA_DIR", test_dir);
+        assert_eq!(get_app_data_dir(), PathBuf::from(test_dir));
+
+        std::env::remove_var("BILLZEN_DATA_DIR");
+        let default_dir = get_app_data_dir();
+        assert!(default_dir.ends_with("billzen"));
     }
 }
