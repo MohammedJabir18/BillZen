@@ -83,3 +83,51 @@ export async function verifyBackupEnvelope(envelope: Record<string, any>): Promi
 
   return { valid: true, expectedChecksum, computedChecksum };
 }
+
+function normalizeOptStr(s?: string | null): string | null {
+  if (!s) return null;
+  const trimmed = s.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Computes canonical SHA-256 client intent hash for cashbook voucher idempotency,
+ * matching Rust domain::cashbook::compute_client_intent_hash byte-for-byte.
+ */
+export async function computeClientIntentHash(input: {
+  account_id: string;
+  amount_minor: number;
+  business_date: string;
+  category_id?: string | null;
+  classification: string;
+  direction: string;
+  notes?: string | null;
+  party_id?: string | null;
+  payment_method: string;
+  reference_note?: string | null;
+}): Promise<string> {
+  const canonical = {
+    account_id: input.account_id.trim(),
+    amount_minor: input.amount_minor,
+    business_date: input.business_date.trim(),
+    category_id: normalizeOptStr(input.category_id),
+    classification: input.classification,
+    direction: input.direction,
+    notes: normalizeOptStr(input.notes),
+    party_id: normalizeOptStr(input.party_id),
+    payment_method: input.payment_method,
+    reference_note: normalizeOptStr(input.reference_note),
+  };
+  const jsonStr = JSON.stringify(canonical);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(jsonStr);
+
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    throw new Error('Web Crypto API (crypto.subtle) is not available');
+  }
+  const hashBuffer = await subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+

@@ -85,4 +85,33 @@ describe('backup_crypto', () => {
     expect(invalidVerRes.valid).toBe(false);
     expect(invalidVerRes.error).toContain('Unsupported backup format version');
   });
+
+  it('computeClientIntentHash matches Rust canonical client intent hash', async () => {
+    const { computeClientIntentHash } = await import('./backup_crypto');
+    const input = {
+      account_id: 'acc-1',
+      amount_minor: 100000,
+      business_date: '2026-10-19',
+      category_id: 'cat-1',
+      classification: 'operating_income',
+      direction: 'inflow',
+      notes: 'Test note',
+      party_id: 'party-1',
+      payment_method: 'cash',
+      reference_note: 'REF123',
+    };
+
+    const hash = await computeClientIntentHash(input);
+    expect(hash).toBe('f650430e5ff7780b9ae71bdc3759be88911cb6d12be3245496514cc2cedbc716');
+
+    // Altered input produces different hash
+    const hashDiff = await computeClientIntentHash({ ...input, amount_minor: 100001 });
+    expect(hashDiff).not.toBe(hash);
+
+    // Whitespace in optional fields normalizes identically to null/empty
+    const hashEmptyNote = await computeClientIntentHash({ ...input, notes: '   ' });
+    const hashNullNote = await computeClientIntentHash({ ...input, notes: null });
+    expect(hashEmptyNote).toBe(hashNullNote);
+  });
 });
+
