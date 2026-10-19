@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod domain;
+pub mod updates;
 
 use crate::db::worker::DbWorkerHandle;
 use fs2::FileExt;
@@ -90,6 +91,7 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .manage(std::sync::Arc::new(commands::updates::UpdateService::default()))
         .setup(move |app| {
             #[cfg(not(target_os = "android"))]
             {
@@ -136,6 +138,12 @@ pub fn run() {
             commands::settings::update_guide_status,
             commands::system::check_print_support,
 
+            commands::updates::get_update_status,
+            commands::updates::cancel_update,
+            commands::updates::check_android_update,
+            commands::updates::download_android_update,
+            commands::updates::prepare_android_update,
+            commands::updates::resume_after_update,
             commands::system::ping,
             commands::catalog::get_products,
             commands::catalog::create_product,

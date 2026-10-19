@@ -1,0 +1,9 @@
+{
+  "publicKey": "lYlFpQ5eSsFgcivYUpIe5sKl9GKG4syDlGv3n5lz/Vw=",
+  "envelope": {
+    "schemaVersion": 1,
+    "keyId": "billzen-android-v1",
+    "payloadBase64": "eyJrZXlJZCI6ImJpbGx6ZW4tYW5kcm9pZC12MSIsImNoYW5uZWwiOiJzdGFibGUiLCJwYWNrYWdlSWQiOiJjb20uYmlsbHplbi5kZXNrdG9wIiwidmVyc2lvbiI6IjAuMS4xIiwidmVyc2lvbkNvZGUiOjEwMDUsImlzc3VlZEF0IjoiMjAyNi0xMC0xOVQxMDowMDowMFoiLCJub3RlcyI6IlRlc3QgZml4dHVyZSBvbmx5IiwiYXJ0aWZhY3RzIjp7ImFybTY0LXY4YSI6eyJ1cmwiOiJodHRwczovL2dpdGh1Yi5jb20vTW9oYW1tZWRKYWJpcjE4L0JpbGxaZW4vcmVsZWFzZXMvZG93bmxvYWQvdjAuMS4xL2JpbGx6ZW4tYXJtNjQtdjhhLmFwayIsInNpemVCeXRlcyI6MTIzNCwic2hhMjU2IjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsIm1pblNkayI6MjR9fX0=",
+    "signatureBase64": "uXYQaD1GvM9lD2CiVYEI2DVXvf9KUGg8H/C1X9ppUoEaZVwSAmO25mnsW4R77AT3H2aVxAzVLAYnpVyrUZY3Bg=="
+  }
+}

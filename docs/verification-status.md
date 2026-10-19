@@ -57,3 +57,20 @@ Dark-mode inspection reproduced an almost invisible print-diagnostics heading, w
 The theme regression matrix covers 26 screen/dialog states at 1280px and 390px in both dark and light modes (104 checks), including populated cashbooks/catalogs, negative-balance warnings, backup confirmation, all guide slides and setup steps. It checks rendered text/placeholder contrast (4.5:1 normal text, 3:1 large text), selected theme and horizontal page overflow. Disabled controls, icon-only contrast, complex visual effects and full assistive-technology conformance require separate assessment.
 
 Evidence: `test_artifacts/theme_contrast/report.json` and screenshots. Run `npm run test:theme`. Native print-heading/control checks run with `npm run test:native-cashbook` against a rebuilt binary and isolated data directory. Android/iOS and Windows/macOS runtime checks are separate from browser viewport tests.
+
+
+## 2026-10-19 — Android updater source checkpoint
+
+This is not an accepted distributable APK. The owner reports not knowing the original APK keystore password; no production manifest key is provisioned. No live release, signed bootstrap, two-version Android install or desktop updater acceptance was performed.
+
+- Frontend: 43/43 tests passed and TypeScript/Vite build passed; existing bundle-size/dynamic-import warnings remain.
+- Rust: 89 tests passed (67 unit + 14 existing integration + 3 recovery/quiescence + 5 manifest/cache/redirect tests). Signed invalid fixtures include 17 authentic but invalid payload cases. Recovery covers committed WAL content, pre-migration snapshot timing and fail-closed backup failure.
+- Release scripts: 7 Node tests passed, including publisher cryptography/shared fixture, effective version overrides and Rust/Kotlin cache/lifecycle contracts. The source-contract test is not runtime device acceptance.
+- Android: `:app:compileUniversalReleaseKotlin` passed after lifecycle/private-cache/approval fixes. This compiles Kotlin only; it does not prove a newly linked Android Rust library, signed APK or installer roundtrip. Existing AGP legacy API warnings remain.
+- Browser update screen: 4/4 light/dark × 390/1280 scenarios passed for offline/unavailable/no-install controls and overflow, using synthetic isolated browser data.
+- Existing PDF regression: 3/3 A4/80mm/invoice scenarios passed. Rendered theme regression: all 104 dark/light desktop/mobile state checks passed with no detected contrast failure or horizontal overflow.
+- Fresh reviewer identified internal/external cache mismatch, view-local installer return and build override gaps. Corrections were implemented and covered by the checks above; actual activity recreation/installer behavior remains a mandatory native acceptance gate.
+- CI gained release-contract, update screen and cashbook/theme/PDF gates. No release publishing workflow or remote CI success is claimed.
+- Rustfmt is not installed in this local Rust toolchain; formatting tool was unavailable. `git diff --check` passed.
+
+See `docs/android-update-delivery.md` and `docs/antigravity-next-task.md` for the secure signing handoff. C2 remains deferred.

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-prepare-android-update"
+description = "Enables the prepare_android_update command without any pre-configured scope."
+commands.allow = ["prepare_android_update"]
+
+[[permission]]
+identifier = "deny-prepare-android-update"
+description = "Denies the prepare_android_update command without any pre-configured scope."
+commands.deny = ["prepare_android_update"]

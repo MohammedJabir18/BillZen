@@ -1,6 +1,6 @@
 # BillZen — release delivery and in-app updates design
 
-Status: proposed design for owner review; updater code, keys, release workflow and releases are not yet created.
+Status: owner-approved design. The owner subsequently requested that the existing BillZen repository be public and host releases there; this supersedes the separate public artifact-repository proposal. Runtime implementation is underway; live publication remains separate.
 Evidence baseline: local commit `443e7ca`. Business records remain local; release distribution is separate from data synchronization.
 
 ## Intended result
@@ -25,7 +25,7 @@ One bootstrap upgrade is unavoidable: existing builds have no updater code. User
 These are architectural recommendations, not choices already approved by the owner.
 
 1. Start with direct Android APK updates for the existing friends/beta audience and Linux AppImage updates. Prepare Windows NSIS and macOS app-bundle release jobs, but advertise each target only after its build/install/upgrade gate passes.
-2. Keep the confirmed-private source repository private. Proposed hosting is a separate public artifact-only repository (candidate name `BillZen-releases`, subject to owner approval) using GitHub Releases. A public HTTPS endpoint on the owner's website is an alternative. Verify anonymous downloads before enabling the production client; never embed GitHub account/PAT credentials in the app and never change repository visibility implicitly.
+2. Use `MohammedJabir18/BillZen` for source and release artifacts, made public under the owner's explicit instruction. Verify anonymous downloads after the visibility change before enabling the production client; never embed GitHub account/PAT credentials in the app and change visibility only under the owner's explicit instruction (now provided).
 3. `main` pushes run CI. A deliberate version-tag/manual release run builds a draft. Publication/promotion is an explicit owner action after all advertised assets and upgrade gates pass. No unfinished commit becomes a public update simply because it was pushed.
 4. Begin with one stable feed for recipients. CI drafts and debug APKs never appear in that feed. Add a separate beta feed only when its recipients/channel identity are explicitly defined.
 5. New app installs check after startup without blocking the UI, at most once per configured interval (initial recommendation: 24 hours); Settings offers manual checks. Install requires consent and waits for active financial operations to complete. No forced update blocks offline billing.
@@ -81,7 +81,7 @@ A release must:
 4. Upload to a draft release, produce provenance (source revision, clean/dirty status, version, hashes, certificate fingerprints and build targets), verify every advertised asset, then await explicit promotion.
 5. Publish stable manifests and assets as one complete logical release. A failed/partial job must leave the previous stable feed usable. Versioned release assets remain immutable; never replace bytes under an already-published version.
 
-Secret setup requires the owner's configured GitHub access and secure signing material. Do not ask for passwords/keystore files in chat. Verify presence and public fingerprints without printing secret values. This design does not authorize creating secrets, publishing a live release or changing repository visibility.
+Secret setup requires the owner's configured GitHub access and secure signing material. Do not ask for passwords/keystore files in chat. Verify presence and public fingerprints without printing secret values. This design does not authorize creating remote secrets or publishing a live release. The owner separately authorized making the existing repository public.
 
 ## Protect local financial data
 

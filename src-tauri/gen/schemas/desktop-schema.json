@@ -189,6 +189,18 @@
           "markdownDescription": "Enables the archive_product command without any pre-configured scope."
         },
         {
+          "description": "Enables the cancel_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cancel-update",
+          "markdownDescription": "Enables the cancel_update command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the check_android_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-check-android-update",
+          "markdownDescription": "Enables the check_android_update command without any pre-configured scope."
+        },
+        {
           "description": "Enables the check_print_support command without any pre-configured scope.",
           "type": "string",
           "const": "allow-check-print-support",
@@ -235,6 +247,12 @@
           "type": "string",
           "const": "allow-create-product",
           "markdownDescription": "Enables the create_product command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the download_android_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-download-android-update",
+          "markdownDescription": "Enables the download_android_update command without any pre-configured scope."
         },
         {
           "description": "Enables the export_workspace_backup command without any pre-configured scope.",
@@ -291,6 +309,12 @@
           "markdownDescription": "Enables the get_products command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_update_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-update-status",
+          "markdownDescription": "Enables the get_update_status command without any pre-configured scope."
+        },
+        {
           "description": "Enables the ping command without any pre-configured scope.",
           "type": "string",
           "const": "allow-ping",
@@ -301,6 +325,12 @@
           "type": "string",
           "const": "allow-post-cashbook-voucher",
           "markdownDescription": "Enables the post_cashbook_voucher command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the prepare_android_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-prepare-android-update",
+          "markdownDescription": "Enables the prepare_android_update command without any pre-configured scope."
         },
         {
           "description": "Enables the restore_customer command without any pre-configured scope.",
@@ -319,6 +349,12 @@
           "type": "string",
           "const": "allow-restore-workspace-backup",
           "markdownDescription": "Enables the restore_workspace_backup command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the resume_after_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-resume-after-update",
+          "markdownDescription": "Enables the resume_after_update command without any pre-configured scope."
         },
         {
           "description": "Enables the reverse_cashbook_voucher command without any pre-configured scope.",
@@ -381,6 +417,18 @@
           "markdownDescription": "Denies the archive_product command without any pre-configured scope."
         },
         {
+          "description": "Denies the cancel_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cancel-update",
+          "markdownDescription": "Denies the cancel_update command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the check_android_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-check-android-update",
+          "markdownDescription": "Denies the check_android_update command without any pre-configured scope."
+        },
+        {
           "description": "Denies the check_print_support command without any pre-configured scope.",
           "type": "string",
           "const": "deny-check-print-support",
@@ -427,6 +475,12 @@
           "type": "string",
           "const": "deny-create-product",
           "markdownDescription": "Denies the create_product command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the download_android_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-download-android-update",
+          "markdownDescription": "Denies the download_android_update command without any pre-configured scope."
         },
         {
           "description": "Denies the export_workspace_backup command without any pre-configured scope.",
@@ -483,6 +537,12 @@
           "markdownDescription": "Denies the get_products command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_update_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-update-status",
+          "markdownDescription": "Denies the get_update_status command without any pre-configured scope."
+        },
+        {
           "description": "Denies the ping command without any pre-configured scope.",
           "type": "string",
           "const": "deny-ping",
@@ -493,6 +553,12 @@
           "type": "string",
           "const": "deny-post-cashbook-voucher",
           "markdownDescription": "Denies the post_cashbook_voucher command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the prepare_android_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-prepare-android-update",
+          "markdownDescription": "Denies the prepare_android_update command without any pre-configured scope."
         },
         {
           "description": "Denies the restore_customer command without any pre-configured scope.",
@@ -511,6 +577,12 @@
           "type": "string",
           "const": "deny-restore-workspace-backup",
           "markdownDescription": "Denies the restore_workspace_backup command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the resume_after_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-resume-after-update",
+          "markdownDescription": "Denies the resume_after_update command without any pre-configured scope."
         },
         {
           "description": "Denies the reverse_cashbook_voucher command without any pre-configured scope.",

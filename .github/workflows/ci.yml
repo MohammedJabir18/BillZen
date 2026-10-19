@@ -66,6 +66,11 @@ jobs:
       - name: Run Vitest Unit Tests
         run: npm test
 
+      - name: Validate release metadata and publisher contract
+        run: |
+          node scripts/release/version.mjs
+          node --test scripts/release/tests/*.node.mjs
+
       - name: Run Production TypeScript & Vite Build
         run: npm run build
 
@@ -88,6 +93,13 @@ jobs:
 
       - name: Run Playwright Invoice Matrix Verification
         run: npm run test:matrix
+
+      - name: Run update screen, cashbook, theme and PDF regressions
+        run: |
+          node scripts/verify_updates_browser.js
+          npm run test:cashbook
+          node scripts/verify_theme_contrast.js
+          npm run test:cashbook-pdf
 
       - name: Upload browser verification artifacts
         if: always()

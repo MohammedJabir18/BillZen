@@ -1,5 +1,6 @@
 pub mod worker;
 pub mod backup;
+pub mod recovery;
 
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
@@ -409,6 +410,7 @@ pub fn initialize_database(db_path: &Path) -> Result<Connection, DbError> {
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    recovery::before_migrations(db_path)?;
     let mut conn = Connection::open(db_path)?;
     run_migrations(&mut conn)?;
     Ok(conn)

@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability for the main window of BillZen",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "allow-get-business-settings",
@@ -10,8 +12,6 @@
     "allow-update-business-profile",
     "allow-complete-business-setup",
     "allow-update-appearance-preference",
-
-
     "allow-update-guide-status",
     "allow-check-print-support",
     "allow-ping",
@@ -38,6 +38,12 @@
     "allow-reverse-cashbook-voucher",
     "allow-get-cashbook-ledger",
     "allow-export-workspace-backup",
-    "allow-restore-workspace-backup"
+    "allow-restore-workspace-backup",
+    "allow-get-update-status",
+    "allow-cancel-update",
+    "allow-check-android-update",
+    "allow-download-android-update",
+    "allow-prepare-android-update",
+    "allow-resume-after-update"
   ]
 }
