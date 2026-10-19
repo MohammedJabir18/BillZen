@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
+import { execSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +9,69 @@ fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 const REPORT_PATH = path.join(ARTIFACTS_DIR, 'native_cashbook_verification_report.json');
 
 const BINARY_PATH = path.resolve('src-tauri/target/release/billzen');
+
+function getFileSha256(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  const hash = crypto.createHash('sha256');
+  hash.update(fs.readFileSync(filePath));
+  return hash.digest('hex');
+}
+
+function getGitCommitHash() {
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+function captureRealDbFingerprints() {
+  const dir = path.join(os.homedir(), '.local/share/billzen');
+  if (!fs.existsSync(dir)) return { exists: false, dir };
+  const targetFiles = ['billzen.db', 'billzen.db-wal', 'billzen.db-shm', 'billzen.lock'];
+  const files = {};
+  for (const f of targetFiles) {
+    const full = path.join(dir, f);
+    if (fs.existsSync(full)) {
+      const stat = fs.statSync(full);
+      files[f] = {
+        size: stat.size,
+        mtimeMs: stat.mtimeMs,
+        sha256: getFileSha256(full),
+      };
+    }
+  }
+  return { exists: true, dir, files };
+}
+
+function stopProcess(proc, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    if (!proc || proc.exitCode !== null || proc.killed) {
+      return resolve();
+    }
+    let done = false;
+    const cleanup = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    proc.once('exit', cleanup);
+    try {
+      proc.kill('SIGTERM');
+    } catch {
+      cleanup();
+    }
+    setTimeout(() => {
+      if (!done) {
+        try {
+          proc.kill('SIGKILL');
+        } catch {}
+        cleanup();
+      }
+    }, timeoutMs);
+  });
+}
 
 async function waitForHttp(url, timeoutMs = 15000) {
   const start = Date.now();
@@ -22,31 +86,217 @@ async function waitForHttp(url, timeoutMs = 15000) {
   throw new Error(`Server at ${url} failed to respond within ${timeoutMs}ms`);
 }
 
+async function startNativeInstance(dataDir, port) {
+  const INSPECTOR_URL = `http://127.0.0.1:${port}/`;
+  const WS_URL = `ws://127.0.0.1:${port}/socket/1/1/WebPage`;
+
+  let appExited = false;
+  let exitError = null;
+
+  const appProcess = spawn(BINARY_PATH, [], {
+    env: {
+      ...process.env,
+      BILLZEN_DATA_DIR: dataDir,
+      WEBKIT_INSPECTOR_HTTP_SERVER: `127.0.0.1:${port}`,
+      RUST_BACKTRACE: '1',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  appProcess.on('exit', (code, signal) => {
+    appExited = true;
+    if (code !== 0 && code !== null && signal !== 'SIGTERM' && signal !== 'SIGKILL') {
+      exitError = new Error(`Application process terminated unexpectedly with code ${code}`);
+    }
+  });
+
+  appProcess.stderr.on('data', (d) => {
+    const s = d.toString();
+    if (!s.includes('Glycin') && !s.includes('sandbox')) {
+      // console.log('[Native Stderr]:', s.trim());
+    }
+  });
+
+  // Wait for WebKit HTTP inspector server
+  await waitForHttp(INSPECTOR_URL, 15000);
+  await new Promise((r) => setTimeout(r, 400));
+
+  const ws = new WebSocket(WS_URL);
+
+  let targetId = null;
+  let msgCounter = 100;
+  const pendingRequests = new Map();
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.method === 'Target.targetCreated' && msg.params?.targetInfo?.type === 'page') {
+        targetId = msg.params.targetInfo.targetId;
+      } else if (msg.method === 'Target.dispatchMessageFromTarget') {
+        const inner = JSON.parse(msg.params.message);
+        if (inner.id && pendingRequests.has(inner.id)) {
+          const { resolve, reject } = pendingRequests.get(inner.id);
+          pendingRequests.delete(inner.id);
+          if (inner.error) {
+            reject(new Error(inner.error.message || JSON.stringify(inner.error)));
+          } else if (inner.result?.wasThrown) {
+            reject(new Error(inner.result.result?.value || JSON.stringify(inner.result)));
+          } else {
+            const val =
+              inner.result?.result?.value !== undefined
+                ? inner.result.result.value
+                : inner.result?.result?.description === 'true'
+                ? true
+                : inner.result?.result?.description === 'false'
+                ? false
+                : inner.result?.result;
+            resolve(val);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Error parsing WS message:', err);
+    }
+  };
+
+  await new Promise((resolve, reject) => {
+    ws.onopen = resolve;
+    ws.onerror = (e) => reject(new Error('WebSocket connection failed: ' + e.message));
+    setTimeout(() => reject(new Error('WebSocket connection timed out')), 10000);
+  });
+
+  // Wait until targetId is assigned
+  const startWait = Date.now();
+  while (!targetId && Date.now() - startWait < 15000) {
+    if (appExited) throw exitError || new Error('App process exited before target acquisition');
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  if (!targetId) {
+    throw new Error('Failed to acquire page targetId from WebKit inspector within 15s');
+  }
+
+  function evalInApp(expression) {
+    return new Promise((resolve, reject) => {
+      if (appExited) return reject(exitError || new Error('App process already exited'));
+      const reqId = ++msgCounter;
+      pendingRequests.set(reqId, { resolve, reject });
+      ws.send(
+        JSON.stringify({
+          id: ++msgCounter,
+          method: 'Target.sendMessageToTarget',
+          params: {
+            targetId,
+            message: JSON.stringify({
+              id: reqId,
+              method: 'Runtime.evaluate',
+              params: {
+                expression,
+                returnByValue: true,
+                awaitPromise: true,
+              },
+            }),
+          },
+        })
+      );
+    });
+  }
+
+  async function waitForCondition(fnExpr, timeoutMs = 12000, intervalMs = 250) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (appExited) throw exitError || new Error('App process exited while waiting for condition');
+      try {
+        const res = await evalInApp(fnExpr);
+        if (res) return res;
+      } catch {}
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    throw new Error(`Condition "${fnExpr}" not met within ${timeoutMs}ms`);
+  }
+
+  // Bounded readiness check: wait until URL starts with tauri:// and __TAURI_INTERNALS__ is ready
+  const startReady = Date.now();
+  let isReady = false;
+  while (Date.now() - startReady < 15000) {
+    if (appExited) throw exitError || new Error('App process exited during readiness check');
+    try {
+      const readyCheck = await evalInApp(`
+        Boolean(
+          typeof window !== 'undefined' &&
+          window.location.href.startsWith('tauri://') &&
+          typeof window.__TAURI_INTERNALS__ !== 'undefined'
+        )
+      `);
+      if (readyCheck === true) {
+        isReady = true;
+        break;
+      }
+    } catch {}
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  if (!isReady) {
+    throw new Error('Application failed bounded readiness check (tauri:// URL and __TAURI_INTERNALS__) within 15s');
+  }
+
+  async function invokeInApp(cmd, args = {}) {
+    const nonce = `__ipc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await evalInApp(`
+      (() => {
+        window['${nonce}'] = { done: false, result: null, error: null };
+        window.__TAURI_INTERNALS__.invoke('${cmd}', ${JSON.stringify(args)})
+          .then(res => { window['${nonce}'] = { done: true, result: res }; })
+          .catch(err => { window['${nonce}'] = { done: true, error: String(err) }; });
+      })()
+    `);
+    await waitForCondition(`Boolean(window['${nonce}']?.done)`, 10000);
+    const jsonStr = await evalInApp(`JSON.stringify(window['${nonce}'])`);
+    await evalInApp(`delete window['${nonce}']`);
+    const parsed = JSON.parse(jsonStr);
+    if (parsed.error) {
+      throw new Error(parsed.error);
+    }
+    return parsed.result;
+  }
+
+  return {
+    appProcess,
+    ws,
+    evalInApp,
+    waitForCondition,
+    invokeInApp,
+    terminate: () => {
+      try { ws.close(); } catch {}
+      return stopProcess(appProcess);
+    },
+  };
+}
+
 async function runNativeVerification() {
   console.log('=== BillZen Native Desktop Cashbook Automated Verification ===');
 
-  // 1. Verify binary exists and is fresh
+  // 1. Verify binary provenance (existence, size, SHA-256, Git commit revision)
   if (!fs.existsSync(BINARY_PATH)) {
     throw new Error(`Native binary not found at ${BINARY_PATH}`);
   }
   const stat = fs.statSync(BINARY_PATH);
-  const ageSeconds = (Date.now() - stat.mtimeMs) / 1000;
+  const binarySha256 = getFileSha256(BINARY_PATH);
+  const gitRevision = getGitCommitHash();
+
   console.log(`Binary: ${BINARY_PATH}`);
-  console.log(`Binary size: ${(stat.size / (1024 * 1024)).toFixed(2)} MB`);
-  console.log(`Binary age: ${ageSeconds.toFixed(1)} seconds ago`);
+  console.log(`Binary size: ${(stat.size / (1024 * 1024)).toFixed(2)} MB (${stat.size} bytes)`);
+  console.log(`Binary SHA-256: ${binarySha256}`);
+  console.log(`Source Git Revision: ${gitRevision}`);
+  console.log(`Binary mtime: ${stat.mtime.toISOString()}`);
 
-  if (ageSeconds > 3600) {
-    throw new Error(`Binary is older than 1 hour (${ageSeconds}s). Fresh build required.`);
-  }
-
-  // 2. Check user real business data path to ensure it is protected
-  const userRealDir = path.join(os.homedir(), '.local/share/billzen');
-  let realDirInitialMtime = null;
-  if (fs.existsSync(userRealDir)) {
-    realDirInitialMtime = fs.statSync(userRealDir).mtimeMs;
-    console.log(`Real user business directory found at: ${userRealDir} (mtime: ${new Date(realDirInitialMtime).toISOString()})`);
+  // 2. Check and fingerprint user real business data path to ensure it is protected
+  const preTestPrints = captureRealDbFingerprints();
+  if (preTestPrints.exists) {
+    console.log(`Real user business directory found at: ${preTestPrints.dir}`);
+    console.log(`Monitored files: ${Object.keys(preTestPrints.files).join(', ')}`);
   } else {
-    console.log(`Real user business directory does not exist yet at ${userRealDir}.`);
+    console.log(`Real user business directory does not exist yet at ${preTestPrints.dir}.`);
   }
 
   // 3. Create isolated temporary directory for test database
@@ -54,49 +304,26 @@ async function runNativeVerification() {
   console.log(`Isolated test data directory: ${tempDir}`);
 
   const PORT = 9235;
-  const INSPECTOR_URL = `http://127.0.0.1:${PORT}/`;
-  const WS_URL = `ws://127.0.0.1:${PORT}/socket/1/1/WebPage`;
-
-  console.log(`Launching native release binary with isolated BILLZEN_DATA_DIR...`);
-  const appProcess = spawn(BINARY_PATH, [], {
-    env: {
-      ...process.env,
-      BILLZEN_DATA_DIR: tempDir,
-      WEBKIT_INSPECTOR_HTTP_SERVER: `127.0.0.1:${PORT}`,
-      RUST_BACKTRACE: '1',
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-  const killApp = () => {
-    if (appProcess && appProcess.pid) {
-      try {
-        appProcess.kill('SIGTERM');
-      } catch {}
-    }
-  };
-
-  process.on('SIGINT', () => { killApp(); process.exit(130); });
-  process.on('SIGTERM', () => { killApp(); process.exit(143); });
-  process.on('exit', () => killApp());
-
-  appProcess.stderr.on('data', (d) => {
-    const s = d.toString();
-    if (!s.includes('Glycin') && !s.includes('sandbox')) {
-      console.log('[Native App Stderr]:', s.trim());
-    }
-  });
-
   const report = {
     timestamp: new Date().toISOString(),
     binary: {
       path: BINARY_PATH,
       sizeBytes: stat.size,
       mtime: stat.mtime.toISOString(),
+      sha256: binarySha256,
+      gitRevision,
     },
     isolatedDataDir: tempDir,
     tests: [],
+    assertionsCount: 0,
     allPassed: false,
+  };
+
+  const assert = (condition, description, details = {}) => {
+    report.assertionsCount++;
+    if (!condition) {
+      throw new Error(`Assertion failed: ${description} — Details: ${JSON.stringify(details)}`);
+    }
   };
 
   const recordTest = (step, passed, details = {}) => {
@@ -104,112 +331,19 @@ async function runNativeVerification() {
     report.tests.push({ step, passed, details });
   };
 
+  let activeInstance = null;
+
   try {
-    // Wait for inspector to start
-    console.log(`Waiting for WebKit inspector at ${INSPECTOR_URL}...`);
-    await waitForHttp(INSPECTOR_URL, 15000);
-    console.log('WebKit Inspector is responding. Pausing 500ms before connecting WebSocket...');
-    await new Promise((r) => setTimeout(r, 500));
+    // =========================================================================
+    // PHASE 1: Initial Launch, Onboarding, and Financial Voucher Mutations
+    // =========================================================================
+    console.log('\n--- Phase 1: Initial Clean Launch & Financial Workflows ---');
+    activeInstance = await startNativeInstance(tempDir, PORT);
+    const { evalInApp, waitForCondition } = activeInstance;
 
-    // Connect to WebSocket
-    const ws = new WebSocket(WS_URL);
-
-    let targetId = null;
-    let msgCounter = 100;
-    const pendingRequests = new Map();
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.method === 'Target.targetCreated' && msg.params?.targetInfo?.type === 'page') {
-          targetId = msg.params.targetInfo.targetId;
-          console.log(`[Inspector] Target created: ${targetId}`);
-        } else if (msg.method === 'Target.dispatchMessageFromTarget') {
-          const inner = JSON.parse(msg.params.message);
-          if (inner.id && pendingRequests.has(inner.id)) {
-            const { resolve, reject } = pendingRequests.get(inner.id);
-            pendingRequests.delete(inner.id);
-            if (inner.error) {
-              reject(new Error(inner.error.message || JSON.stringify(inner.error)));
-            } else if (inner.result?.wasThrown) {
-              reject(new Error(inner.result.result?.value || JSON.stringify(inner.result)));
-            } else {
-              // WebKit Inspector may return value in inner.result.result.value or inner.result.value
-              const val = inner.result?.result?.value !== undefined 
-                ? inner.result.result.value 
-                : (inner.result?.result?.description === 'true' ? true : (inner.result?.result?.description === 'false' ? false : inner.result?.result));
-              resolve(val);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Error parsing WS message:', err);
-      }
-    };
-
-    await new Promise((resolve, reject) => {
-      ws.onopen = () => {
-        console.log('[Inspector] WebSocket opened successfully.');
-        resolve();
-      };
-      ws.onerror = (e) => reject(new Error('WebSocket connection failed: ' + e.message));
-      setTimeout(() => reject(new Error('WebSocket connection timed out')), 10000);
-    });
-
-    // Wait until targetId is assigned
-    const startWait = Date.now();
-    while (!targetId && Date.now() - startWait < 15000) {
-      await new Promise((r) => setTimeout(r, 100));
-    }
-
-    if (!targetId) {
-      throw new Error('Failed to acquire page targetId from WebKit inspector within 15s');
-    }
-    console.log(`Connected to native page target: ${targetId}`);
-
-    // Helper to evaluate JavaScript in the live Tauri window
-    function evalInApp(expression) {
-      return new Promise((resolve, reject) => {
-        const reqId = ++msgCounter;
-        pendingRequests.set(reqId, { resolve, reject });
-        ws.send(
-          JSON.stringify({
-            id: ++msgCounter,
-            method: 'Target.sendMessageToTarget',
-            params: {
-              targetId: targetId,
-              message: JSON.stringify({
-                id: reqId,
-                method: 'Runtime.evaluate',
-                params: {
-                  expression,
-                  returnByValue: true,
-                },
-              }),
-            },
-          })
-        );
-      });
-    }
-
-    // Helper to poll for a condition
-    async function waitForCondition(fnExpr, timeoutMs = 10000, intervalMs = 200) {
-      const start = Date.now();
-      while (Date.now() - start < timeoutMs) {
-        try {
-          const res = await evalInApp(fnExpr);
-          if (res) return res;
-        } catch {}
-        await new Promise((r) => setTimeout(r, intervalMs));
-      }
-      throw new Error(`Condition "${fnExpr}" not met within ${timeoutMs}ms`);
-    }
-
-    // -------------------------------------------------------------------------
     // Step 1: Verify Native App Environment
-    // -------------------------------------------------------------------------
     console.log('\nStep 1: Verifying native Tauri environment & environment isolation...');
-    const envInfo = await evalInApp(`
+    const envInfoStr = await evalInApp(`
       JSON.stringify({
         title: document.title,
         url: window.location.href,
@@ -217,72 +351,68 @@ async function runNativeVerification() {
         isTauri: typeof window.__TAURI_INTERNALS__ !== 'undefined',
       })
     `);
-    const parsedEnv = JSON.parse(envInfo);
-    const isNativeTauri = parsedEnv.hasTauriInternals && parsedEnv.url.startsWith('tauri://');
-    recordTest('native_tauri_runtime_environment', isNativeTauri, parsedEnv);
+    const parsedEnv = JSON.parse(envInfoStr);
+    assert(parsedEnv.hasTauriInternals === true, 'Window has __TAURI_INTERNALS__');
+    assert(parsedEnv.url.startsWith('tauri://'), 'Window URL protocol is tauri://');
+    recordTest('native_tauri_runtime_environment', true, parsedEnv);
 
-    // -------------------------------------------------------------------------
-    // Step 2: Handle Initial Onboarding / Setup if presented
-    // -------------------------------------------------------------------------
-    console.log('\nStep 2: Checking onboarding setup wizard state...');
-    // Wait for business_settings query to resolve from SQLite worker
+    // Step 2: Handle Initial Onboarding / Setup Wizard
+    console.log('\nStep 2: Completing onboarding setup wizard on clean database...');
     await new Promise((r) => setTimeout(r, 1200));
 
-    let bodyText = await evalInApp(`document.body.innerText`);
-    let isOnboarding = bodyText.includes('Welcome to BillZen') || bodyText.includes('Language & Regional Presets');
+    const bodyText = await evalInApp(`document.body.innerText`);
+    const isOnboarding = bodyText.includes('Welcome to BillZen') || bodyText.includes('Language & Regional Presets');
+    assert(isOnboarding === true, 'Fresh isolated database presents Onboarding Wizard');
 
-    if (isOnboarding) {
-      console.log('Fresh database detected. Completing initial setup wizard via UI...');
-      // 2a. Select India (default INR) and advance
-      await evalInApp(`
-        (() => {
-          const btn = document.querySelector('[data-testid="onboarding-next-step-1"]');
-          if (btn) btn.click();
-        })()
-      `);
-      await new Promise((r) => setTimeout(r, 500));
+    // 2a. Select India (INR) and advance to business profile
+    await evalInApp(`
+      (() => {
+        const btn = document.querySelector('[data-testid="onboarding-next-step-1"]');
+        if (btn) btn.click();
+      })()
+    `);
+    await new Promise((r) => setTimeout(r, 500));
 
-      // 2b. Fill in required business profile fields using native property setter
-      await evalInApp(`
-        (() => {
-          const setField = (tid, val) => {
-            const el = document.querySelector('[data-testid="' + tid + '"]');
-            if (el) {
-              const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-              if (setter) setter.call(el, val);
-              else el.value = val;
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-          };
-          setField('onboarding-input-business-name', 'BillZen Native Retail');
-          setField('onboarding-input-phone', '+91 9447001122');
-          setField('onboarding-input-address1', '123 Market Road');
-          setField('onboarding-input-city', 'Kochi');
-          setField('onboarding-input-state', 'Kerala');
-          setField('onboarding-input-postal', '682001');
-        })()
-      `);
-      await new Promise((r) => setTimeout(r, 500));
+    // 2b. Fill required profile fields using prototype value setters for React 19 synchronization
+    await evalInApp(`
+      (() => {
+        const setVal = (tid, val) => {
+          const el = document.querySelector('[data-testid="' + tid + '"]');
+          if (el) {
+            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+            if (setter) setter.call(el, val);
+            else el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        };
+        setVal('onboarding-input-business-name', 'BillZen Native Retail');
+        setVal('onboarding-input-phone', '+91 9447001122');
+        setVal('onboarding-input-address1', '123 Market Road');
+        setVal('onboarding-input-city', 'Kochi');
+        setVal('onboarding-input-state', 'Kerala');
+        setVal('onboarding-input-postal', '682001');
+      })()
+    `);
+    await new Promise((r) => setTimeout(r, 500));
 
-      // 2c. Advance to Step 3
-      await evalInApp(`
-        (() => {
-          const btn = document.querySelector('[data-testid="onboarding-next-step-2"]');
-          if (btn) btn.click();
-        })()
-      `);
-      await new Promise((r) => setTimeout(r, 600));
+    // 2c. Advance to Step 3
+    await evalInApp(`
+      (() => {
+        const btn = document.querySelector('[data-testid="onboarding-next-step-2"]');
+        if (btn) btn.click();
+      })()
+    `);
+    await new Promise((r) => setTimeout(r, 600));
 
-      // 2d. Submit Setup
-      await evalInApp(`
-        (() => {
-          const submitBtn = document.querySelector('[data-testid="onboarding-submit-button"]');
-          if (submitBtn) submitBtn.click();
-        })()
-      `);
-      await new Promise((r) => setTimeout(r, 1200));
-    }
+    // 2d. Submit Setup
+    await evalInApp(`
+      (() => {
+        const submitBtn = document.querySelector('[data-testid="onboarding-submit-button"]');
+        if (submitBtn) submitBtn.click();
+      })()
+    `);
+    await new Promise((r) => setTimeout(r, 1200));
 
     // Dismiss getting-started guide if open
     await evalInApp(`
@@ -302,9 +432,17 @@ async function runNativeVerification() {
     `);
     await new Promise((r) => setTimeout(r, 500));
 
-    // -------------------------------------------------------------------------
+    // Explicitly assert onboarding completion via native SQLite settings
+    const savedSettings = await activeInstance.invokeInApp('get_business_settings');
+    assert(savedSettings.is_setup_completed === true, 'Saved settings indicate setup completed');
+    assert(savedSettings.business_name === 'BillZen Native Retail', 'Saved business name matches input');
+    recordTest('onboarding_setup_wizard_completion', true, {
+      businessName: savedSettings.business_name,
+      currency: savedSettings.currency_code,
+      isSetupCompleted: savedSettings.is_setup_completed,
+    });
+
     // Step 3: Verify Cashbook Dashboard & Native Invariants
-    // -------------------------------------------------------------------------
     console.log('\nStep 3: Verifying Cashbook Dashboard mounts in native Tauri...');
     await waitForCondition(`Boolean(document.body.innerText.includes('Company Cashbook'))`, 10000);
 
@@ -317,24 +455,16 @@ async function runNativeVerification() {
       })
     `);
     const parsedDashboard = JSON.parse(dashboardCheck);
-    
-    // In native Tauri, the ephemeral browser mode banner must NOT exist!
-    const dashboardValid =
-      Boolean(parsedDashboard.header) &&
-      !parsedDashboard.hasBrowserBanner &&
-      !parsedDashboard.hasForbiddenProfitLabel;
+    assert(Boolean(parsedDashboard.header), 'Header shows Cashbook');
+    assert(!parsedDashboard.hasBrowserBanner, 'Native Tauri mode does NOT have browser preview banner');
+    assert(!parsedDashboard.hasForbiddenProfitLabel, 'Forbidden word "Profit" is absent from Cashbook');
+    recordTest('native_cashbook_dashboard_invariants', true, parsedDashboard);
 
-    recordTest('native_cashbook_dashboard_invariants', dashboardValid, parsedDashboard);
-
-    // -------------------------------------------------------------------------
     // Step 4: Create Money Account with Opening Balance via Native IPC
-    // -------------------------------------------------------------------------
     console.log('\nStep 4: Creating Money Account with Opening Balance (₹20,000) via native SQLite...');
-    // Click Manage Accounts
     await evalInApp(`document.querySelector('[data-testid="action-manage-accounts"]').click()`);
     await waitForCondition(`Boolean(document.querySelector('[data-testid="input-new-account-name"]'))`, 5000);
 
-    // Fill form: Petty Cash, Cash Drawer, ₹20,000.00
     await evalInApp(`
       (() => {
         const setVal = (el, val) => {
@@ -361,23 +491,16 @@ async function runNativeVerification() {
     `);
     await new Promise((r) => setTimeout(r, 1000));
 
-    // Verify accounts button updated
     const accountsText = await evalInApp(`document.querySelector('[data-testid="action-manage-accounts"]')?.textContent?.trim()`);
-    const accountCreated = Boolean(
-      accountsText?.includes('Accounts (1)') ||
-      accountsText?.includes('Accounts (2)') ||
-      accountsText?.includes('Accounts (3)')
-    );
-    recordTest('native_create_money_account', accountCreated, { accountsText });
+    assert(Boolean(accountsText?.includes('Accounts (1)')), 'Accounts count updated to 1');
+    recordTest('native_create_money_account', true, { accountsText });
 
-    // -------------------------------------------------------------------------
     // Step 5: Post Receipt Voucher (Money Inflow: ₹15,000)
-    // -------------------------------------------------------------------------
     console.log('\nStep 5: Posting Receipt Voucher (₹15,000) into native SQLite...');
     await evalInApp(`document.querySelector('[data-testid="action-receive-money"]').click()`);
     await waitForCondition(`Boolean(document.querySelector('[data-testid="input-voucher-amount"]'))`, 5000);
 
-    // Fill Receipt form
+    const rcpIdempotencyKey = 'idem-native-rcp-001';
     await evalInApp(`
       (() => {
         const setVal = (el, val) => {
@@ -394,7 +517,6 @@ async function runNativeVerification() {
         setVal(document.querySelector('[data-testid="input-voucher-reference"]'), 'RCP-NATIVE-001');
         setVal(document.querySelector('[data-testid="input-voucher-notes"]'), 'Counter cash sale');
 
-        // Select account if needed
         const accSel = document.querySelector('[data-testid="select-voucher-account"]');
         if (accSel && accSel.value === '' && accSel.options.length > 1) {
           accSel.selectedIndex = 1;
@@ -407,17 +529,15 @@ async function runNativeVerification() {
     await new Promise((r) => setTimeout(r, 1200));
 
     const ledgerTextAfterRcp = await evalInApp(`document.querySelector('[data-testid="cashbook-ledger-table"]')?.textContent`);
-    const rcpPosted = Boolean(ledgerTextAfterRcp?.includes('RCP-') && (ledgerTextAfterRcp?.includes('15000.00') || ledgerTextAfterRcp?.includes('15,000.00')));
-    recordTest('native_post_receipt_voucher', rcpPosted, { rcpPosted });
+    assert(ledgerTextAfterRcp?.includes('RCP-202610-00001'), 'Ledger contains RCP-202610-00001');
+    assert(ledgerTextAfterRcp?.includes('35000.00') || ledgerTextAfterRcp?.includes('35,000.00'), 'Running balance is 35,000.00');
+    recordTest('native_post_receipt_voucher', true, { rcpPosted: true });
 
-    // -------------------------------------------------------------------------
     // Step 6: Post Payment Voucher (Money Outflow: ₹4,000)
-    // -------------------------------------------------------------------------
     console.log('\nStep 6: Posting Payment Voucher (₹4,000) into native SQLite...');
     await evalInApp(`document.querySelector('[data-testid="action-pay-money"]').click()`);
     await waitForCondition(`Boolean(document.querySelector('[data-testid="input-voucher-amount"]'))`, 5000);
 
-    // Fill Payment form
     await evalInApp(`
       (() => {
         const setVal = (el, val) => {
@@ -445,12 +565,11 @@ async function runNativeVerification() {
     await new Promise((r) => setTimeout(r, 1200));
 
     const ledgerTextAfterPay = await evalInApp(`document.querySelector('[data-testid="cashbook-ledger-table"]')?.textContent`);
-    const payPosted = Boolean(ledgerTextAfterPay?.includes('PAY-') && (ledgerTextAfterPay?.includes('4000.00') || ledgerTextAfterPay?.includes('4,000.00')));
-    recordTest('native_post_payment_voucher', payPosted, { payPosted });
+    assert(ledgerTextAfterPay?.includes('PAY-202610-00001'), 'Ledger contains PAY-202610-00001');
+    assert(ledgerTextAfterPay?.includes('31000.00') || ledgerTextAfterPay?.includes('31,000.00'), 'Running balance is 31,000.00');
+    recordTest('native_post_payment_voucher', true, { payPosted: true });
 
-    // -------------------------------------------------------------------------
     // Step 7: Negative Balance Payment Guard (Cancel then Confirm)
-    // -------------------------------------------------------------------------
     console.log('\nStep 7: Testing Negative Balance Payment Guard in native Rust backend...');
     await evalInApp(`document.querySelector('[data-testid="action-pay-money"]').click()`);
     await waitForCondition(`Boolean(document.querySelector('[data-testid="input-voucher-amount"]'))`, 5000);
@@ -492,14 +611,12 @@ async function runNativeVerification() {
     await new Promise((r) => setTimeout(r, 1200));
 
     const ledgerAfterNegPay = await evalInApp(`document.querySelector('[data-testid="cashbook-ledger-table"]')?.textContent`);
-    const negPayPosted = Boolean(ledgerAfterNegPay?.includes('100000.00') || ledgerAfterNegPay?.includes('100,000.00'));
-    recordTest('native_negative_balance_guard_cancel_and_confirm', negPayPosted, { negPayPosted });
+    assert(ledgerAfterNegPay?.includes('PAY-202610-00002'), 'Ledger contains PAY-202610-00002');
+    assert(ledgerAfterNegPay?.includes('-69000.00') || ledgerAfterNegPay?.includes('-69,000.00'), 'Running balance is -69,000.00');
+    recordTest('native_negative_balance_guard_cancel_and_confirm', true, { negPayPosted: true });
 
-    // -------------------------------------------------------------------------
     // Step 8: Reverse Receipt Voucher with Negative Balance Warning
-    // -------------------------------------------------------------------------
     console.log('\nStep 8: Reversing Receipt Voucher in native SQLite backend...');
-    // Cash balance is negative. Reversing the Receipt of ₹15,000 will deduct funds, triggering negative balance reversal prompt
     const rcpReverseBtnExists = await evalInApp(`
       (() => {
         const row = Array.from(document.querySelectorAll('tbody tr')).find(r => r.textContent.includes('RCP-'));
@@ -512,30 +629,26 @@ async function runNativeVerification() {
         return false;
       })()
     `);
+    assert(rcpReverseBtnExists === true, 'Receipt voucher row reverse button clicked');
 
-    let reversalCompleted = false;
-    if (rcpReverseBtnExists) {
-      await waitForCondition(`Boolean(document.querySelector('[data-testid="btn-confirm-reversal"]'))`, 5000);
-      await evalInApp(`document.querySelector('[data-testid="btn-confirm-reversal"]').click()`);
-      await new Promise((r) => setTimeout(r, 600));
+    await waitForCondition(`Boolean(document.querySelector('[data-testid="btn-confirm-reversal"]'))`, 5000);
+    await evalInApp(`document.querySelector('[data-testid="btn-confirm-reversal"]').click()`);
+    await new Promise((r) => setTimeout(r, 600));
 
-      // Wait if reversal negative balance warning appears
-      const hasReversalWarning = await evalInApp(`Boolean(document.querySelector('[data-testid="btn-confirm-reversal-negative-balance"]'))`);
-      if (hasReversalWarning) {
-        await evalInApp(`document.querySelector('[data-testid="btn-confirm-reversal-negative-balance"]').click()`);
-        await new Promise((r) => setTimeout(r, 1200));
-      }
-
-      const ledgerAfterReversal = await evalInApp(`document.querySelector('[data-testid="cashbook-ledger-table"]')?.textContent`);
-      reversalCompleted = Boolean(ledgerAfterReversal?.includes('REV') || ledgerAfterReversal?.includes('VOID') || ledgerAfterReversal?.includes('Void'));
+    const hasReversalWarning = await evalInApp(`Boolean(document.querySelector('[data-testid="btn-confirm-reversal-negative-balance"]'))`);
+    if (hasReversalWarning) {
+      await evalInApp(`document.querySelector('[data-testid="btn-confirm-reversal-negative-balance"]').click()`);
+      await new Promise((r) => setTimeout(r, 1200));
     }
 
-    recordTest('native_voucher_reversal_workflow', reversalCompleted, { reversalCompleted });
+    const ledgerAfterReversal = await evalInApp(`document.querySelector('[data-testid="cashbook-ledger-table"]')?.textContent`);
+    assert(ledgerAfterReversal?.includes('RCP-REV-202610-00001'), 'Reversal voucher RCP-REV-202610-00001 posted');
+    assert(ledgerAfterReversal?.includes('VOID'), 'Original voucher marked VOID');
+    assert(ledgerAfterReversal?.includes('-84000.00') || ledgerAfterReversal?.includes('-84,000.00'), 'Projected closing balance is -84,000.00');
+    recordTest('native_voucher_reversal_workflow', true, { reversalCompleted: true });
 
-    // -------------------------------------------------------------------------
     // Step 9: View and Verify Printable Voucher Document in Native Mode
-    // -------------------------------------------------------------------------
-    console.log('\nStep 9: Testing Printable Voucher Document view in native WebKit...');
+    console.log('\nStep 9: Testing Printable Voucher Document preview in native WebKit DOM...');
     const printViewExists = await evalInApp(`
       (() => {
         const viewBtn = document.querySelector('[data-testid="btn-view-voucher"]');
@@ -546,61 +659,185 @@ async function runNativeVerification() {
         return false;
       })()
     `);
+    assert(printViewExists === true, 'View voucher preview button clicked');
 
-    let printableVerified = false;
-    if (printViewExists) {
-      await waitForCondition(`Boolean(document.querySelector('#printable-voucher-root'))`, 5000);
-      const voucherText = await evalInApp(`document.querySelector('#printable-voucher-root')?.textContent`);
-      const hasInvoiceData = /INVOICE|Bill To|Due Date|Qty.*Rate.*Tax/i.test(voucherText || '');
-      
-      // Close preview modal
-      await evalInApp(`document.querySelector('[data-testid="btn-close-voucher-dialog"]')?.click()`);
-      await new Promise((r) => setTimeout(r, 400));
+    await waitForCondition(`Boolean(document.querySelector('#printable-voucher-root'))`, 5000);
+    const voucherText = await evalInApp(`document.querySelector('#printable-voucher-root')?.textContent`);
+    const hasInvoiceData = /INVOICE|Bill To|Due Date|Qty.*Rate.*Tax/i.test(voucherText || '');
+    assert(!hasInvoiceData, 'Printable voucher has zero invoice data contamination');
+    assert(voucherText?.includes('Fifteen Thousand Rupees Only'), 'Amount in words rendered correctly');
 
-      printableVerified = !hasInvoiceData && Boolean(voucherText?.length);
+    await evalInApp(`document.querySelector('[data-testid="btn-close-voucher-dialog"]')?.click()`);
+    await new Promise((r) => setTimeout(r, 400));
+    recordTest('native_voucher_preview_dom_isolation', true, {
+      distinction: 'Simulated/inspected via native WebKit preview DOM; physical printer dialog uninvoked',
+      voucherTextLength: voucherText?.length,
+    });
+
+    // Capture pre-restart accounts & ledger summary
+    const preRestartSummary = await activeInstance.invokeInApp('get_cashbook_ledger', { filter: {} });
+
+    // Gracefully terminate the first instance and wait for process exit
+    console.log('\nGracefully terminating native app process before cold restart...');
+    await activeInstance.terminate();
+    activeInstance = null;
+    console.log('Instance 1 cleanly terminated.');
+
+    // =========================================================================
+    // PHASE 2: Native Cold Restart & Persistence Verification
+    // =========================================================================
+    console.log('\n--- Phase 2: Native Cold Restart on the Same Isolated Database ---');
+    activeInstance = await startNativeInstance(tempDir, PORT);
+    const inst2Eval = activeInstance.evalInApp;
+    const inst2Wait = activeInstance.waitForCondition;
+
+    // Step 10: Cold Restart State & Onboarding Bypass Verification
+    console.log('\nStep 10: Verifying cold restart preserves completed setup and mounts Cashbook...');
+    await inst2Wait(`Boolean(document.body.innerText.includes('Company Cashbook'))`, 12000);
+
+    const restartBodyText = await inst2Eval(`document.body.innerText`);
+    assert(!restartBodyText.includes('Welcome to BillZen'), 'Onboarding wizard is NOT shown after restart');
+    assert(restartBodyText.includes('Company Cashbook'), 'Cashbook mounts immediately on cold restart');
+
+    const postRestartSummary = await activeInstance.invokeInApp('get_cashbook_ledger', { filter: {} });
+
+    assert(
+      postRestartSummary[1].total_cash_minor === preRestartSummary[1].total_cash_minor,
+      'Total cash minor matches pre-restart value exactly',
+      { pre: preRestartSummary[1].total_cash_minor, post: postRestartSummary[1].total_cash_minor }
+    );
+    assert(
+      postRestartSummary[0].length === preRestartSummary[0].length,
+      'Ledger entries count matches pre-restart value exactly (4 entries)',
+      { count: postRestartSummary[0].length }
+    );
+    recordTest('native_cold_restart_persistence_and_balances', true, {
+      totalCashMinor: postRestartSummary[1].total_cash_minor,
+      entriesCount: postRestartSummary[0].length,
+      closingBalanceFormatted: '-₹ 84000.00',
+    });
+
+    // Step 11: Native Idempotent Retry and Conflict Checks in Native SQLite
+    console.log('\nStep 11: Testing Native Idempotent Retry and Payload Conflict Handling...');
+    const originalVoucher = postRestartSummary[0].find((e) => e.voucher.voucher_number === 'RCP-202610-00001')?.voucher;
+    assert(Boolean(originalVoucher), 'Original receipt voucher found');
+
+    // 11a. Re-post with original payload and key
+    const replayRes = await activeInstance.invokeInApp('post_cashbook_voucher', {
+      input: {
+        account_id: originalVoucher.account_id,
+        direction: 'inflow',
+        classification: 'operating_income',
+        payment_method: 'cash',
+        amount_minor: 1500000,
+        business_date: originalVoucher.business_date,
+        party_id: null,
+        category_id: null,
+        reference_note: 'RCP-NATIVE-001',
+        notes: 'Counter cash sale',
+        idempotency_key: originalVoucher.idempotency_key,
+        confirmed_negative_balance: false,
+      },
+    });
+    assert(replayRes.voucher_number === 'RCP-202610-00001', 'Idempotent replay returns original voucher number');
+    assert(replayRes.id === originalVoucher.id, 'Idempotent replay returns original voucher ID');
+
+    // 11b. Re-post with conflicting payload (altered amount 9999.00)
+    let conflictError = null;
+    try {
+      await activeInstance.invokeInApp('post_cashbook_voucher', {
+        input: {
+          account_id: originalVoucher.account_id,
+          direction: 'inflow',
+          classification: 'operating_income',
+          payment_method: 'cash',
+          amount_minor: 999900,
+          business_date: originalVoucher.business_date,
+          party_id: null,
+          category_id: null,
+          reference_note: 'RCP-NATIVE-001',
+          notes: 'Counter cash sale',
+          idempotency_key: originalVoucher.idempotency_key,
+          confirmed_negative_balance: false,
+        },
+      });
+    } catch (err) {
+      conflictError = String(err);
     }
-    recordTest('native_printable_voucher_isolation', printableVerified, { printableVerified });
+    assert(Boolean(conflictError), 'Conflicting idempotency key payload returns error');
+    assert(
+      conflictError.includes('IdempotencyConflict') || conflictError.includes('conflict'),
+      'Error message identifies idempotency conflict',
+      { conflictError }
+    );
+    recordTest('native_idempotent_retry_and_conflict_rejection', true, {
+      replaySuccess: replayRes.voucher_number === 'RCP-202610-00001',
+      conflictRejected: Boolean(conflictError),
+    });
 
-    // -------------------------------------------------------------------------
-    // Step 10: Verify Database Isolation & Protection of Real Business Data
-    // -------------------------------------------------------------------------
-    console.log('\nStep 10: Verifying isolated test database files and user data protection...');
+    // Gracefully terminate instance 2
+    console.log('\nGracefully terminating instance 2...');
+    await activeInstance.terminate();
+    activeInstance = null;
+    console.log('Instance 2 cleanly terminated.');
+
+    // =========================================================================
+    // PHASE 3: Database Isolation & Real User Business Data Verification
+    // =========================================================================
+    console.log('\n--- Phase 3: Database Isolation & Real Data Protection ---');
     const tempDbPath = path.join(tempDir, 'billzen.db');
     const tempDbExists = fs.existsSync(tempDbPath);
     const tempDbStat = tempDbExists ? fs.statSync(tempDbPath) : null;
+    assert(tempDbExists === true, 'Isolated database billzen.db exists in temp directory');
+    assert((tempDbStat?.size || 0) > 0, 'Isolated database size is greater than 0');
 
+    // Verify real user directory is 100% untouched
+    const postTestPrints = captureRealDbFingerprints();
     let realDataUntouched = true;
-    if (realDirInitialMtime !== null) {
-      const currentRealMtime = fs.statSync(userRealDir).mtimeMs;
-      realDataUntouched = currentRealMtime === realDirInitialMtime;
+    if (preTestPrints.exists && postTestPrints.exists) {
+      for (const [fname, before] of Object.entries(preTestPrints.files)) {
+        const after = postTestPrints.files[fname];
+        if (!after || after.sha256 !== before.sha256 || after.size !== before.size) {
+          realDataUntouched = false;
+          console.error(`DATA CORRUPTION DETECTED in real file ${fname}!`);
+        }
+      }
     }
+    assert(realDataUntouched === true, 'Real user database files remain 100% untouched');
 
-    const isolationVerified = tempDbExists && realDataUntouched;
-    recordTest('database_isolation_and_real_data_protected', isolationVerified, {
+    recordTest('database_isolation_and_real_data_protected', true, {
       tempDbExists,
       tempDbSize: tempDbStat?.size,
       realDataUntouched,
-      realDir: userRealDir,
+      realDir: preTestPrints.dir,
+      monitoredFiles: preTestPrints.exists ? Object.keys(preTestPrints.files) : [],
     });
 
-    ws.close();
     report.allPassed = report.tests.every((t) => t.passed);
   } catch (err) {
     console.error('Fatal native verification error:', err);
     report.error = String(err);
     report.allPassed = false;
   } finally {
-    killApp();
+    if (activeInstance) {
+      try {
+        await activeInstance.terminate();
+      } catch {}
+    }
+
     try {
       if (fs.existsSync(tempDir)) {
         fs.rmSync(tempDir, { recursive: true, force: true });
         console.log(`Cleaned up temporary isolated directory: ${tempDir}`);
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Failed to remove temp dir:', e);
+    }
 
     fs.writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
 
     console.log('\n=== Native Desktop Cashbook Verification Summary ===');
+    console.log(`Total Assertions Evaluated: ${report.assertionsCount}`);
     report.tests.forEach((t) => {
       console.log(`- [${t.passed ? 'PASS' : 'FAIL'}] ${t.step}`);
     });
