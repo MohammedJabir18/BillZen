@@ -825,7 +825,65 @@
   - `npm test`: 14 passed (14 unit tests), 0 failed.
   - `npm run build`: Production build passed (`tsc && vite build`).
 - **Unfinished Tasks / Immediate Next Steps**:
-  - Milestone C1B: React Cashbook UI (dashboard summary cards, voucher entry modal with receipt/payment toggle, running balance ledger table, filters, responsive layout) and printable voucher PDF engine (`RCP-`, `PAY-`).
+  - [Completed in Session 10] Milestone C1B: React Cashbook UI, voucher entry, running balance ledger, reversal workflow, printable vouchers, and Playwright verification suite.
+  - Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine, and cross-platform acceptance suite.
+
+## 2026-10-19 — Milestone C1B: React Cashbook UI, Running Balance Ledger, Reversal Workflow, Printable Vouchers & Playwright Verification
+- **Goals**: Deliver Milestone C1B of BillZen's offline company Cashbook: Receipt/Payment entry, accurate running balances, ledger filtering/browsing, explicit reversal workflow, printable vouchers (A4 and 80mm thermal), and automated Playwright verification suite.
+- **Completed Tasks**:
+  - **1. Frontend Domain & Contracts**:
+    - Created `src/types/cashbook.ts` defining complete domain interfaces (`MoneyAccount`, `CashbookCategory`, `CashbookParty`, `CashbookVoucher`, `CashbookMovement`, `CashbookLedgerEntry`, `CashbookSummary`, `PostVoucherResult`, DTOs, and filters).
+    - Created `src/domain/number_to_words.ts` providing deterministic currency words for INR, AED, SAR, QAR, KWD, BHD, OMR, USD, EUR, and GBP.
+    - Authored Vitest suite `src/domain/number_to_words.test.ts` (5 unit tests passing).
+  - **2. Native IPC Adapter & Browser Fallback**:
+    - Created `src/adapters/cashbook.ts` providing typed Tauri IPC bindings (`invoke`) with a fully functional in-memory mock fallback store for browser previews and headless test runs.
+    - Implemented `generateIdempotencyKey` using `crypto.randomUUID`.
+    - Handled two-step negative balance confirmation flow and equal-and-opposite reversal creation.
+    - Authored Vitest suite `src/adapters/cashbook.test.ts` (6 unit tests passing).
+  - **3. Interactive Cashbook View (`src/components/CashbookView.tsx`)**:
+    - Built comprehensive 4-card summary bar displaying Total Cash (all accounts), Active Cash (active accounts only), Period Inflows, Period Outflows, and Closing Balance.
+    - Strictly enforced non-accounting terminology: cash movement is never labeled as "Profit".
+    - Implemented Receipt (`RCP-`) and Payment (`PAY-`) voucher creation modal with account selector, classification, category, party, payment method, reference, and notes.
+    - Implemented two-step negative balance confirmation modal with operator audit log.
+    - Implemented voucher reversal modal and equal-and-opposite reversal movement.
+    - Implemented account management modal and inline category/party creation modals.
+    - Implemented separate display matching filters (`search`, `classification`) with matching banner while preserving independent true financial statement balances.
+    - Responsive design: full ledger table on desktop (`md` and above); dense voucher cards on mobile (< `md`) with touch-friendly 48px tap targets.
+  - **4. Dedicated Printable Voucher Engine (`src/components/PrintableVoucherDocument.tsx`)**:
+    - Built dual layout renderer:
+      - **A4 Portrait Voucher**: Professional company header, frozen business snapshots, counterparty particulars, tabular amount breakdown, deterministic amount in words, dual signature lines, and void watermarks for reversed vouchers.
+      - **80mm Thermal Receipt**: Compact thermal format with centered company header, dashed section dividers, monospace typography, amount in words, and receipt signature blocks.
+    - Implemented strict print media isolation under `#printable-voucher-root` (`body * { visibility: hidden !important; }`, `#printable-voucher-root { visibility: visible !important; }`) in `src/styles/globals.css`.
+  - **5. App Shell Navigation & i18n (`src/App.tsx`, `src/i18n/index.ts`)**:
+    - Wired Cashbook as the primary default landing tab with `<Wallet />` icon in desktop top header `<nav>` and mobile bottom `<nav>`.
+    - Added trilingual translations: English (`Cashbook`), Malayalam (`ക്യാഷ്ബുക്ക്`), and Arabic (`دفتر النقدية`).
+  - **6. Automated Playwright Verification Suite (`scripts/verify_cashbook_playwright.js`)**:
+    - Added `npm run test:cashbook` executing headless Chromium end-to-end verification.
+    - Verified all 7 core steps: initial dashboard load, receipt voucher posting, payment voucher posting, printable voucher view & format toggle, negative balance guard prompt, voucher reversal workflow, search filter & statement independence.
+    - Captured 7 high-resolution screenshots in `test_artifacts/cashbook/`.
+- **Files Modified / Added**:
+  - `src/types/cashbook.ts` (Added)
+  - `src/domain/number_to_words.ts` (Added)
+  - `src/domain/number_to_words.test.ts` (Added)
+  - `src/adapters/cashbook.ts` (Added)
+  - `src/adapters/cashbook.test.ts` (Added)
+  - `src/components/PrintableVoucherDocument.tsx` (Added)
+  - `src/components/CashbookView.tsx` (Added)
+  - `scripts/verify_cashbook_playwright.js` (Added)
+  - `src/App.tsx` (Modified)
+  - `src/i18n/index.ts` (Modified)
+  - `src/styles/globals.css` (Modified)
+  - `tailwind.config.js` (Modified)
+  - `package.json` (Modified)
+  - `brain/architecture.md` (Modified)
+  - `brain/sessions.md` (Modified)
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 76 passed (62 unit tests + 14 integration tests), 0 failed.
+  - `npm test`: 25 passed (4 test files), 0 failed.
+  - `npm run build`: Production build passed (`tsc && vite build`).
+  - `npm run test:cashbook`: 7/7 passed (`test_artifacts/cashbook/cashbook_verification_report.json`).
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine (versioned JSON with SHA-256 and pre-validation), and cross-platform acceptance suite.
 
 
 

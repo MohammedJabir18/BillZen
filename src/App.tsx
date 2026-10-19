@@ -5,6 +5,7 @@ import { PrintFeasibilityProbe } from './components/PrintFeasibilityProbe';
 import { PrintableInvoiceDocument } from './components/PrintableInvoiceDocument';
 import { ProductCatalogView } from './components/ProductCatalogView';
 import { CustomerCatalogView } from './components/CustomerCatalogView';
+import { CashbookView } from './components/CashbookView';
 import { OnboardingSetupWizard } from './components/OnboardingSetupWizard';
 import { GettingStartedGuide } from './components/GettingStartedGuide';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -21,6 +22,7 @@ import {
   Package,
   Users,
   Globe,
+  Wallet,
 } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -32,10 +34,10 @@ const queryClient = new QueryClient({
   },
 });
 
-type ActiveTab = 'products' | 'customers' | 'settings' | 'print';
+type ActiveTab = 'cashbook' | 'products' | 'customers' | 'settings' | 'print';
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('products');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('cashbook');
   const [language, setLanguageState] = useState<Language>(() => {
     try {
       const stored = localStorage.getItem('billzen_ui_language');
@@ -69,7 +71,7 @@ const AppContent: React.FC = () => {
   const tabParam = urlParams?.get('tab') as ActiveTab | null;
 
   React.useEffect(() => {
-    if (tabParam && ['products', 'customers', 'settings', 'print'].includes(tabParam)) {
+    if (tabParam && ['cashbook', 'products', 'customers', 'settings', 'print'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -194,6 +196,19 @@ const AppContent: React.FC = () => {
           {/* Desktop Navigation Tabs (hidden on mobile/tablet, shown on lg and above) */}
           <nav className="hidden lg:flex space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-1 rounded-xl">
             <button
+              onClick={() => setActiveTab('cashbook')}
+              data-testid="tab-cashbook"
+              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'cashbook'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
+                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
+              }`}
+            >
+              <Wallet className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
+              {t.tab_cashbook}
+            </button>
+
+            <button
               onClick={() => setActiveTab('products')}
               data-testid="tab-products"
               className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
@@ -279,6 +294,9 @@ const AppContent: React.FC = () => {
           paddingBottom: 'calc(4.5rem + max(0.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)))',
         }}
       >
+        {activeTab === 'cashbook' && (
+          <CashbookView settings={activeSettings} language={language} />
+        )}
         {activeTab === 'products' && (
           <ProductCatalogView settings={activeSettings} language={language} />
         )}
@@ -308,6 +326,19 @@ const AppContent: React.FC = () => {
           paddingTop: '0.25rem',
         }}
       >
+        <button
+          onClick={() => setActiveTab('cashbook')}
+          data-testid="mobile-tab-cashbook"
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-2 rounded-lg text-xs font-medium transition-colors ${
+            activeTab === 'cashbook'
+              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
+              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+          }`}
+        >
+          <Wallet className={`w-5 h-5 mb-0.5 ${activeTab === 'cashbook' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+          <span>{t.tab_cashbook}</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('products')}
           data-testid="mobile-tab-products"
