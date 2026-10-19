@@ -58,8 +58,18 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
       }
     };
 
+    const handleCustomBack = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSkip();
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('billzen-back-button', handleCustomBack);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('billzen-back-button', handleCustomBack);
+    };
   }, [isOpen, currentSlide, isRTL]);
 
   if (!isOpen) return null;

@@ -193,6 +193,23 @@ flowchart TD
      2. ADB shell commands for OS lifecycle simulation (`am start`, `am force-stop`, `svc wifi/data disable/enable`, `input keyevent 4`, and `logcat -d`).
    - Verifies cold launch, setup wizard, product catalog with leading-zero barcode preservation (`0012345678905`), customer directory, light/dark appearance persistence across process termination, in-place upgrade from v1000 to v1001 without data loss, 100% offline database operations, and logcat crash cleanliness.
 
+## 14. Native Mobile UI, Edge-to-Edge Safe Insets & Android Back Navigation
+1. **Edge-to-Edge Safe Area Insets (`--sat`, `--sab`)**:
+   - `index.html` declares `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">`.
+   - `MainActivity.kt` tracks `WindowInsetsCompat.Type.systemBars()` via `ViewCompat.setOnApplyWindowInsetsListener(window.decorView)` and updates WebView CSS root variables `--sat` (top inset) and `--sab` (bottom inset) on creation, window insets change, and `onResume()`.
+   - `src/styles/globals.css` declares `--sat: env(safe-area-inset-top, 0px)` and `--sab: env(safe-area-inset-bottom, 0px)`.
+   - `App.tsx` pads `<header>` with `isAndroid ? max(24px, env(safe-area-inset-top, 0px), var(--sat, 0px)) : ...` and bottom `<nav>` with `isAndroid ? max(1.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)) : ...`, completely eliminating status bar and gesture navigation bar overlaps.
+2. **Native Android Back Navigation & Modal Dismissal**:
+   - `MainActivity.kt` registers `onBackPressedDispatcher.addCallback` which inspects the WebView DOM for open dialogs (`role="dialog"` or `[aria-modal="true"]`) and dispatches a synthetic `billzen-back-button` `CustomEvent`. If handled, system back navigation is cancelled without exiting the application.
+   - Frontend components use the reusable hook `src/hooks/useBackHandler.ts` which binds both keyboard `Escape` and native `billzen-back-button` CustomEvents. Integrated in `CustomerCatalogView.tsx`, `ProductCatalogView.tsx`, and `GettingStartedGuide.tsx`.
+3. **High-Contrast Dark Theme Foundation**:
+   - `index.html` specifies `<body class="bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 ...">` matching `@layer base` rules, ensuring `#09090b` paints behind all views in dark mode with >16:1 contrast against white headers and text.
+4. **Compact Mobile Navigation Localization**:
+   - Added `tab_print_probe_short` to `src/i18n/index.ts` (`'Print Probe'` in EN, `'പ്രിന്റ് ടെസ്റ്റ്'` in ML, `'فحص الطباعة'` in AR) with full `aria-label={t.tab_print_probe}`, preventing mobile bottom nav crowding on narrow screens.
+5. **Authoritative Release Packaging (versionCode 1002)**:
+   - Synchronized across `tauri.conf.json` (`"android": { "versionCode": 1002 }`), `build.gradle.kts`, and `scripts/build_android_apk.sh`. Tested and verified via `apksigner`, `zipalign -P 16 4`, and `readelf -l`.
+
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
+
 

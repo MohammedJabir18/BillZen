@@ -6,6 +6,7 @@ export interface Translations {
   tab_customers: string;
   tab_settings: string;
   tab_print_probe: string;
+  tab_print_probe_short: string;
 
   // Catalog Common
   search_placeholder: string;
@@ -108,6 +109,7 @@ export const translations: Record<Language, Translations> = {
     tab_customers: 'Customers',
     tab_settings: 'Settings',
     tab_print_probe: 'Print Feasibility Probe',
+    tab_print_probe_short: 'Print Probe',
 
     search_placeholder: 'Search name, SKU, barcode (press Enter for scanner)...',
     filter_all: 'All Statuses',
@@ -204,6 +206,7 @@ export const translations: Record<Language, Translations> = {
     tab_customers: 'ഉപഭോക്താക്കൾ',
     tab_settings: 'ക്രമീകരണങ്ങൾ',
     tab_print_probe: 'പ്രിന്റ് പരിശോധന',
+    tab_print_probe_short: 'പ്രിന്റ് ടെസ്റ്റ്',
 
     search_placeholder: 'പേര്, SKU, ബാർകോഡ് തിരയുക (സ്കാനറിന് Enter അമർത്തുക)...',
     filter_all: 'എല്ലാം',
@@ -300,6 +303,7 @@ export const translations: Record<Language, Translations> = {
     tab_customers: 'العملاء',
     tab_settings: 'الإعدادات',
     tab_print_probe: 'فحص الطباعة',
+    tab_print_probe_short: 'فحص الطباعة',
 
     search_placeholder: 'ابحث عن الاسم أو الرمز أو الباركود...',
     filter_all: 'كل الحالات',

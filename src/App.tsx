@@ -161,7 +161,14 @@ const AppContent: React.FC = () => {
   return (
     <div className={`min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 flex flex-col font-sans transition-colors ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Top Application Bar (no-print) */}
-      <header className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-20 no-print shadow-sm">
+      <header
+        className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-20 no-print shadow-sm transition-colors"
+        style={{
+          paddingTop: isAndroid
+            ? 'max(24px, env(safe-area-inset-top, 0px), var(--sat, 0px))'
+            : 'max(0px, env(safe-area-inset-top, 0px), var(--sat, 0px))',
+        }}
+      >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             <img
@@ -266,7 +273,12 @@ const AppContent: React.FC = () => {
       </header>
 
       {/* Main Content Area with bottom padding on mobile for thumb bar */}
-      <main className="flex-1 w-full mx-auto py-4 sm:py-6 px-3 sm:px-6 lg:px-8 pb-24 lg:pb-6">
+      <main
+        className="flex-1 w-full mx-auto py-4 sm:py-6 px-3 sm:px-6 lg:px-8 pb-28 lg:pb-6"
+        style={{
+          paddingBottom: 'calc(4.5rem + max(0.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)))',
+        }}
+      >
         {activeTab === 'products' && (
           <ProductCatalogView settings={activeSettings} language={language} />
         )}
@@ -288,8 +300,13 @@ const AppContent: React.FC = () => {
       {/* Mobile Bottom Navigation Bar (no-print, <lg only) */}
       <nav
         aria-label="Mobile Navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-lg px-2 py-1 flex justify-around items-center no-print"
-        style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-lg px-2 flex justify-around items-center no-print transition-colors"
+        style={{
+          paddingBottom: isAndroid
+            ? 'max(1.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px))'
+            : 'max(0.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px))',
+          paddingTop: '0.25rem',
+        }}
       >
         <button
           onClick={() => setActiveTab('products')}
@@ -333,14 +350,15 @@ const AppContent: React.FC = () => {
         <button
           onClick={() => setActiveTab('print')}
           data-testid="mobile-tab-print"
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
+          aria-label={t.tab_print_probe}
+          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-2 rounded-lg text-xs font-medium transition-colors ${
             activeTab === 'print'
               ? 'text-indigo-600 dark:text-lime-400 font-semibold'
               : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
           <Printer className={`w-5 h-5 mb-0.5 ${activeTab === 'print' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
-          <span>{t.tab_print_probe}</span>
+          <span className="truncate max-w-[76px] text-[11px] leading-tight text-center">{t.tab_print_probe_short}</span>
         </button>
       </nav>
 
