@@ -179,11 +179,19 @@ flowchart TD
    - For databases with `stored_checksum == current_checksum6`, no repair UPDATE is run, guaranteeing that `unseen`, `skipped`, and `completed` guide states persist indefinitely across repeated application restarts.
 5. **Android Standalone Packaging & Toolchain**:
    - Rootless OpenJDK 17 (`~/.android-toolchain/jdk`) + Android SDK (`android-36`, `build-tools/36.0.0`) & NDK 26.1 (`~/.android-toolchain/android-sdk/ndk/26.1.10909125`).
-   - Hardened APK Selection & Assembly: `scripts/build_android_apk.sh` strictly selects release variants (`*universal*release*.apk`, `*arm64*release*.apk`) and immediately aborts if no release variant was produced, rejecting debug fallbacks.
+   - Authoritative Versioning: `build.gradle.kts` resolves `versionCode` through authoritative precedence: `System.getenv("BILLZEN_VERSION_CODE")?.toIntOrNull() ?: (project.findProperty("versionCode") as? String)?.toIntOrNull() ?: tauriProperties.getProperty("tauri.android.versionCode")?.toIntOrNull() ?: 1001`. `tauri.conf.json` specifies `"android": { "versionCode": 1001 }`.
+   - Hardened APK Selection & Assembly: `scripts/build_android_apk.sh` supports both default ARM64 release variant (`dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`) and emulator test variant (`dist-android/billzen-test-v0.1.0-x86_64.apk`), strictly selecting release builds and aborting on missing release artifacts.
    - 16 KB page-size ELF alignment for Android 15+ native libraries (`RUSTFLAGS="-C link-arg=-z -C link-arg=max-page-size=16384"`, verified `0x4000` segment alignment via `llvm-readelf -l`).
-   - Self-contained packaging: SQLite, bundled Noto Sans offline fonts, and Vite assets bundled directly into APK (`dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`, 15M, `versionCode = 1001`).
+   - 16 KB packaging alignment: Enforced via `zipalign -v -f -P 16 4` and verified via `zipalign -c -v -P 16 4` on final signed APKs.
+   - Self-contained packaging: SQLite, bundled Noto Sans offline fonts, and Vite assets bundled directly into APK (`versionCode = 1001`).
    - Signed with BillZen Beta Keystore (`v2` + `v3` APK signature schemes, verified certificate identity `CN=BillZen Beta` and SHA-256 fingerprint matching keystore via `apksigner`).
-   - Automated 4-byte `zipalign -c -v 4` check and embedded resource verification.
+   - Badging assertion: `aapt dump badging` automatically verifies package name (`com.billzen.desktop`), version code (`1001`), version name (`0.1.0`), min SDK (`24`), target SDK (`34`), and ABI.
+6. **Automated Android Runtime Verification Architecture**:
+   - Automated via `scripts/verify_android_runtime.js` (`npm run test:android-runtime`) executing against headless Android 14.0 (API 34) emulator with KVM hardware acceleration.
+   - Dual-channel test architecture:
+     1. Remote Chrome DevTools Protocol (CDP) client over ADB forwarded abstract unix socket (`adb forward tcp:9222 localabstract:webview_devtools_remote_<PID>`) for evaluating DOM state, inspecting React 19 synthetic input events via native prototype property setters, and validating theme classes.
+     2. ADB shell commands for OS lifecycle simulation (`am start`, `am force-stop`, `svc wifi/data disable/enable`, `input keyevent 4`, and `logcat -d`).
+   - Verifies cold launch, setup wizard, product catalog with leading-zero barcode preservation (`0012345678905`), customer directory, light/dark appearance persistence across process termination, in-place upgrade from v1000 to v1001 without data loss, 100% offline database operations, and logcat crash cleanliness.
 
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
