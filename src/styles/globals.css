@@ -101,7 +101,8 @@ html.dark {
   }
 
   #printable-invoice-root,
-  #printable-voucher-root {
+  #printable-voucher-root,
+  #printable-report-root {
     position: static !important;
     width: 100% !important;
     margin: 0 !important;

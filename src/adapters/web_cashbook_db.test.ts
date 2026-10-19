@@ -398,6 +398,11 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
     const mainCash = accounts.find((a) => a.account_type === 'cash')!;
 
     // Post review baseline vouchers
+    const p1 = await createWebCashbookParty({ name: 'Customer Prior', party_type: 'customer' });
+    const p2 = await createWebCashbookParty({ name: 'Customer Today', party_type: 'customer' });
+    const p3 = await createWebCashbookParty({ name: 'Bank Lender', party_type: 'lender' });
+    const p4 = await createWebCashbookParty({ name: 'Customer Future', party_type: 'customer' });
+
     await postWebCashbookVoucher({
       idempotency_key: 'fix-base-1',
       account_id: mainCash.id,
@@ -406,7 +411,7 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
       payment_method: 'cash',
       amount_minor: 10000,
       business_date: '2026-10-19',
-      party_name: 'Customer Prior',
+      party_id: p1.id,
       notes: 'Prior day sales',
     });
 
@@ -418,7 +423,7 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
       payment_method: 'cash',
       amount_minor: 5000,
       business_date: '2026-10-20',
-      party_name: 'Customer Today',
+      party_id: p2.id,
       notes: 'Today operating receipt',
     });
 
@@ -430,7 +435,7 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
       payment_method: 'cash',
       amount_minor: 20000,
       business_date: '2026-10-20',
-      party_name: 'Bank Lender',
+      party_id: p3.id,
       notes: 'Working capital loan',
     });
 
@@ -442,7 +447,7 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
       payment_method: 'cash',
       amount_minor: 30000,
       business_date: '2026-10-21',
-      party_name: 'Customer Future',
+      party_id: p4.id,
       notes: 'Future day sales',
     });
 
@@ -490,6 +495,7 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
       allow_negative_balance: true,
     });
 
+    const pWalkin = await createWebCashbookParty({ name: 'Walk-in Customer', party_type: 'customer' });
     const vchDay1 = await postWebCashbookVoucher({
       idempotency_key: 'fix-rev-1',
       account_id: revCash.id,
@@ -498,7 +504,7 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
       payment_method: 'cash',
       amount_minor: 100000,
       business_date: '2026-10-10',
-      party_name: 'Walk-in Customer',
+      party_id: pWalkin.id,
       notes: 'Day 1 receipt',
     });
     expect(vchDay1.status).toBe('posted');

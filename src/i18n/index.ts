@@ -116,6 +116,55 @@ export interface Translations {
   backup_modal_warning: string;
   backup_modal_cancel: string;
   backup_modal_confirm: string;
+
+  // Dashboard & Reports
+  tab_dashboard: string;
+  tab_reports: string;
+  today_summary: string;
+  this_month_summary: string;
+  this_year_summary: string;
+  custom_period_summary: string;
+  money_received: string;
+  money_paid: string;
+  net_change: string;
+  closing_balance: string;
+  opening_balance: string;
+  simple_view: string;
+  analytics_view: string;
+  recent_transactions: string;
+  view_all: string;
+  cash_breakdown: string;
+  cash_movement_explainer: string;
+  btn_add_receipt: string;
+  btn_add_payment: string;
+  cash_flow_notice: string;
+  period_today: string;
+  period_month: string;
+  period_year: string;
+  period_custom: string;
+  all_accounts: string;
+  no_transactions_period: string;
+  inflows_outflows: string;
+  spending_by_category: string;
+  analytics_helper_notice: string;
+  inflow_legend: string;
+  outflow_legend: string;
+  report_title: string;
+  report_subtitle: string;
+  btn_print_pdf: string;
+  btn_export_csv: string;
+  search_transactions_hint: string;
+  filter_direction_all: string;
+  filter_direction_inflow: string;
+  filter_direction_outflow: string;
+  filter_payment_method_all: string;
+  matching_label: string;
+  th_date: string;
+  th_voucher_name: string;
+  th_category: string;
+  th_account: string;
+  th_inflow: string;
+  th_outflow: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -230,6 +279,55 @@ export const translations: Record<Language, Translations> = {
     backup_modal_warning: 'Warning: Restoring this backup will replace current business data with the backup dataset. An automatic recovery copy of your current database will be saved.',
     backup_modal_cancel: 'Cancel',
     backup_modal_confirm: 'Confirm & Restore',
+
+    // Dashboard & Reports
+    tab_dashboard: 'Dashboard',
+    tab_reports: 'Reports',
+    today_summary: "Today's Summary",
+    this_month_summary: "This Month's Summary",
+    this_year_summary: "This Year's Summary",
+    custom_period_summary: 'Custom Period Summary',
+    money_received: 'Money Received',
+    money_paid: 'Money Paid',
+    net_change: 'Net Cash Change',
+    closing_balance: 'Closing Balance',
+    opening_balance: 'Opening Balance',
+    simple_view: 'Simple View',
+    analytics_view: 'Detailed Analytics',
+    recent_transactions: 'Recent Transactions',
+    view_all: 'View All ↗',
+    cash_breakdown: 'Account Balances',
+    cash_movement_explainer: 'Cash Movement Explanation',
+    btn_add_receipt: '＋ Add Receipt',
+    btn_add_payment: '＋ Add Payment',
+    cash_flow_notice: 'Receipts − Payments = Net cash change. This is not business profit.',
+    period_today: 'Today',
+    period_month: 'This Month',
+    period_year: 'This Year',
+    period_custom: 'Custom Range',
+    all_accounts: 'All Accounts',
+    no_transactions_period: 'No transactions in this period.',
+    inflows_outflows: 'Receipts vs Payments',
+    spending_by_category: 'Spending by Category',
+    analytics_helper_notice: 'Loans and capital injections are classified separately and never treated as sales revenue or business profit.',
+    inflow_legend: 'Receipts',
+    outflow_legend: 'Payments',
+    report_title: 'Transaction Reports',
+    report_subtitle: 'Review by date range, account, and counterparty',
+    btn_print_pdf: 'Print / Save PDF',
+    btn_export_csv: 'Export CSV',
+    search_transactions_hint: 'Search name, voucher #, notes...',
+    filter_direction_all: 'All Transactions',
+    filter_direction_inflow: 'Receipts Only',
+    filter_direction_outflow: 'Payments Only',
+    filter_payment_method_all: 'All Payment Methods',
+    matching_label: 'Filtered',
+    th_date: 'Date',
+    th_voucher_name: 'Voucher / Name',
+    th_category: 'Category',
+    th_account: 'Account',
+    th_inflow: 'Receipt (+)',
+    th_outflow: 'Payment (−)',
   },
   ml: {
     tab_cashbook: 'ക്യാഷ്ബുക്ക്',
@@ -342,6 +440,55 @@ export const translations: Record<Language, Translations> = {
     backup_modal_warning: 'മുന്നറിയിപ്പ്: ബാക്കപ്പ് പുനഃസ്ഥാപിച്ചാൽ നിലവിലെ ഡാറ്റ ബാക്കപ്പിലെ വിവരങ്ങൾ ഉപയോഗിച്ച് മാറ്റിസ്ഥാപിക്കപ്പെടും. എന്നാൽ നിലവിലെ ഡാറ്റയുടെ ഒരു റിക്കവറി കോപ്പി സ്വയമേവ സൂക്ഷിക്കുന്നതാണ്.',
     backup_modal_cancel: 'റദ്ദാക്കുക',
     backup_modal_confirm: 'സ്ഥിരീകരിച്ച് പുനഃസ്ഥാപിക്കുക',
+
+    // Dashboard & Reports
+    tab_dashboard: 'ഡാഷ്‌ബോർഡ്',
+    tab_reports: 'റിപ്പോർട്ടുകൾ',
+    today_summary: 'ഇന്നത്തെ കണക്ക്',
+    this_month_summary: 'ഈ മാസത്തെ കണക്ക്',
+    this_year_summary: 'ഈ വർഷത്തെ കണക്ക്',
+    custom_period_summary: 'തിരഞ്ഞെടുത്ത ദിവസങ്ങളിലെ കണക്ക്',
+    money_received: 'വന്ന പണം',
+    money_paid: 'പോയ പണം',
+    net_change: 'പണത്തിലെ മാറ്റം',
+    closing_balance: 'ബാക്കി പണം',
+    opening_balance: 'ആരംഭത്തിലെ പണം',
+    simple_view: 'ലളിതമായ കാഴ്ച',
+    analytics_view: 'വിശദമായ വിശകലനം',
+    recent_transactions: 'അവസാന ഇടപാടുകൾ',
+    view_all: 'എല്ലാം കാണുക ↗',
+    cash_breakdown: 'അക്കൗണ്ട് വിവരങ്ങൾ',
+    cash_movement_explainer: 'പണത്തിന്റെ കണക്ക്',
+    btn_add_receipt: '＋ വരവ് ചേർക്കുക',
+    btn_add_payment: '＋ ചെലവ് ചേർക്കുക',
+    cash_flow_notice: 'വരവ് − ചെലവ് = പണത്തിലെ മാറ്റം. ഇത് ബിസിനസിന്റെ ലാഭം എന്നർത്ഥമല്ല.',
+    period_today: 'ഇന്ന്',
+    period_month: 'ഈ മാസം',
+    period_year: 'ഈ വർഷം',
+    period_custom: 'മറ്റൊരു തീയതി',
+    all_accounts: 'എല്ലാ അക്കൗണ്ടുകളും',
+    no_transactions_period: 'ഈ കാലയളവിൽ ഇടപാടുകളില്ല.',
+    inflows_outflows: 'വരവും ചെലവും',
+    spending_by_category: 'പണം എവിടെയാണ് ചെലവായത്?',
+    analytics_helper_notice: 'വായ്പയും ഉടമ ചേർത്ത പണവും വരവിൽ ഉൾപ്പെടാം. അവയെ വിൽപ്പനയോ ലാഭമോ ആയി കാണിക്കില്ല.',
+    inflow_legend: 'വരവ്',
+    outflow_legend: 'ചെലവ്',
+    report_title: 'ഇടപാടുകളുടെ റിപ്പോർട്ട്',
+    report_subtitle: 'തീയതി, account, വിശദാംശങ്ങൾ അനുസരിച്ച് പരിശോധിക്കുക',
+    btn_print_pdf: 'Print / Save PDF',
+    btn_export_csv: 'Export CSV',
+    search_transactions_hint: 'പേര് / receipt no. തിരയുക…',
+    filter_direction_all: 'വരവും ചെലവും',
+    filter_direction_inflow: 'വരവ് മാത്രം',
+    filter_direction_outflow: 'ചെലവ് മാത്രം',
+    filter_payment_method_all: 'എല്ലാ payment രീതികളും',
+    matching_label: 'Filter-ൽ ലഭിച്ചത്',
+    th_date: 'തീയതി',
+    th_voucher_name: 'വൗച്ചർ / പേര്',
+    th_category: 'Category',
+    th_account: 'Account',
+    th_inflow: 'വരവ്',
+    th_outflow: 'ചെലവ്',
   },
   ar: {
     tab_cashbook: 'دفتر النقدية',
@@ -454,5 +601,54 @@ export const translations: Record<Language, Translations> = {
     backup_modal_warning: 'تحذير: استعادة هذه النسخة الاحتياطية سيستبدل البيانات الحالية بالكامل. سيتم حفظ نسخة استرداد احتياطية تلقائياً من قاعدة بياناتك الحالية.',
     backup_modal_cancel: 'إلغاء',
     backup_modal_confirm: 'تأكيد والاستعادة',
+
+    // Dashboard & Reports
+    tab_dashboard: 'لوحة التحكم',
+    tab_reports: 'التقارير',
+    today_summary: 'ملخص اليوم',
+    this_month_summary: 'ملخص هذا الشهر',
+    this_year_summary: 'ملخص هذا العام',
+    custom_period_summary: 'ملخص الفترة المحددة',
+    money_received: 'المقبوضات',
+    money_paid: 'المدفوعات',
+    net_change: 'صافي التغير النقدي',
+    closing_balance: 'الرصيد الختامي',
+    opening_balance: 'الرصيد الافتتاحي',
+    simple_view: 'عرض بسيط',
+    analytics_view: 'تحليل مفصل',
+    recent_transactions: 'أحدث المعاملات',
+    view_all: 'عرض الكل ↗',
+    cash_breakdown: 'أرصدة الحسابات',
+    cash_movement_explainer: 'حركة النقد',
+    btn_add_receipt: '＋ إضافة قبض',
+    btn_add_payment: '＋ إضافة صرف',
+    cash_flow_notice: 'المقبوضات - المدفوعات = صافي التدفق النقدي. هذا لا يعبر عن أرباح المنشأة.',
+    period_today: 'اليوم',
+    period_month: 'هذا الشهر',
+    period_year: 'هذا العام',
+    period_custom: 'فترة مخصصة',
+    all_accounts: 'جميع الحسابات',
+    no_transactions_period: 'لا توجد معاملات في هذه الفترة.',
+    inflows_outflows: 'المقبوضات والمدفوعات',
+    spending_by_category: 'المصروفات حسب التصنيف',
+    analytics_helper_notice: 'قد تشمل المقبوضات القروض ورأس المال المودع. ولا تظهر كأرباح أو مبيعات.',
+    inflow_legend: 'المقبوضات',
+    outflow_legend: 'المدفوعات',
+    report_title: 'تقرير المعاملات',
+    report_subtitle: 'مراجعة حسب التاريخ، الحساب، والتفاصيل',
+    btn_print_pdf: 'طباعة / حفظ PDF',
+    btn_export_csv: 'تصدير CSV',
+    search_transactions_hint: 'البحث بالاسم / رقم السند...',
+    filter_direction_all: 'الكل',
+    filter_direction_inflow: 'مقبوضات فقط',
+    filter_direction_outflow: 'مدفوعات فقط',
+    filter_payment_method_all: 'جميع طرق الدفع',
+    matching_label: 'المطابقة في التصفية',
+    th_date: 'التاريخ',
+    th_voucher_name: 'السند / الاسم',
+    th_category: 'التصنيف',
+    th_account: 'الحساب',
+    th_inflow: 'المقبوضات',
+    th_outflow: 'المدفوعات',
   },
 };

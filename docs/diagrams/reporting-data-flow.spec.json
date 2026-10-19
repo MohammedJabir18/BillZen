@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "BillZen Reporting & Analytics Data Flow",
+    "output": "docs/diagrams/reporting-data-flow.html",
+    "viewBox": [1080, 520],
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    { "label": "User Triggers" },
+    { "label": "Adapters" },
+    { "label": "Database Engines" },
+    { "label": "Reporting Core" },
+    { "label": "Outputs" }
+  ],
+  "nodes": [
+    { "id": "dashboard-ui", "type": "frontend", "label": "Dashboard UI", "sublabel": "Today / Month / Year", "stage": 0, "row": 0, "tag": "React 19" },
+    { "id": "reports-ui", "type": "frontend", "label": "Reports UI", "sublabel": "Filters / Search / Date", "stage": 0, "row": 2, "tag": "React 19" },
+    { "id": "tauri-bridge", "type": "backend", "label": "Tauri Bridge", "sublabel": "Desktop / Android", "stage": 1, "row": 0, "tag": "Native" },
+    { "id": "web-adapter", "type": "backend", "label": "Web Adapter", "sublabel": "Browser fallback", "stage": 1, "row": 2, "tag": "Web" },
+    { "id": "sqlite-worker", "type": "database", "label": "SQLite Worker", "sublabel": "WAL + FULL sync", "stage": 2, "row": 0, "tag": "FIFO Thread" },
+    { "id": "indexeddb-calc", "type": "database", "label": "IndexedDB Store", "sublabel": "BillZen_Web_DB", "stage": 2, "row": 2, "tag": "Local IDB" },
+    { "id": "parity-aggregator", "type": "backend", "label": "Parity Aggregator", "sublabel": "Opening & flows", "stage": 3, "row": 0, "tag": "Exact Math" },
+    { "id": "filter-isolator", "type": "backend", "label": "Filter Decoupler", "sublabel": "Decoupled search", "stage": 3, "row": 2, "tag": "Search Safe" },
+    { "id": "dashboard-views", "type": "frontend", "label": "Dashboard & Charts", "sublabel": "Cards & breakdown", "stage": 4, "row": 0, "tag": "DOM" },
+    { "id": "export-engine", "type": "security", "label": "Safe Export Engine", "sublabel": "A4 PDF & CSV", "stage": 4, "row": 2, "tag": "CWE-1236 Guard" }
+  ],
+  "flows": [
+    { "from": "dashboard-ui", "to": "tauri-bridge", "label": "IPC invoke", "classification": "query", "variant": "emphasis", "route": "straight" },
+    { "from": "reports-ui", "to": "web-adapter", "label": "web query", "classification": "query", "variant": "default", "route": "straight" },
+    { "from": "tauri-bridge", "to": "sqlite-worker", "label": "mpsc channel", "classification": "serialized", "variant": "emphasis", "route": "straight" },
+    { "from": "web-adapter", "to": "indexeddb-calc", "label": "IDB cursor", "classification": "indexed", "variant": "default", "route": "straight" },
+    { "from": "sqlite-worker", "to": "parity-aggregator", "label": "ledger rows", "classification": "typed DTO", "variant": "emphasis", "route": "straight" },
+    { "from": "indexeddb-calc", "to": "filter-isolator", "label": "filtered entries", "classification": "typed DTO", "variant": "default", "route": "straight" },
+    { "from": "parity-aggregator", "to": "dashboard-views", "label": "summary metrics", "classification": "state feed", "variant": "emphasis", "route": "straight" },
+    { "from": "filter-isolator", "to": "export-engine", "label": "full dataset", "classification": "complete rows", "variant": "security", "route": "straight" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Strict Parity Contract",
+      "items": [
+        "Rust SQLite worker and TypeScript IndexedDB engine implement identical math",
+        "Opening balance strictly accumulates account openings + movements prior to selected period",
+        "Closing balance is opening balance + period inflows - period outflows",
+        "Operating cash flow is isolated to operating income and operating expense only"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Decoupled Search & Security",
+      "items": [
+        "Search and category filters alter matching display metrics without changing period balances",
+        "CSV export implements CWE-1236 injection prevention by prepending quotes to =, +, -, @, \\t, \\r",
+        "Print container isolates report markup with pure white background and repeated table headers"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "100% Local & Offline",
+      "items": [
+        "Zero telemetry or cloud aggregation; all computations run in-process",
+        "Business timezone determines the default 'Today' boundaries",
+        "Supports variable decimal exponents for INR (2) and GCC currencies (3)"
+      ]
+    }
+  ]
+}
