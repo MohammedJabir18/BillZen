@@ -321,6 +321,64 @@ flowchart TD
 3. **Data Safety Assurance**:
    - Real user business records in `~/.local/share/billzen` are protected by checking their modification timestamp before and after test execution to guarantee zero data alteration.
 
+## 22. Safe Whole-Workspace Backup & Restore Architecture (Milestone C1C)
+1. **Versioned Portable Logical Backup Format (`version = "1.0"`, `scope = "workspace"`)**:
+   - Single-file JSON representation containing all 19 workspace tables: `schema_migrations`, `business_settings`, `categories`, `category_merges`, `products`, `customers`, `invoices`, `invoice_items`, `payments`, `expenses`, `expense_categories`, `stock_movements`, `audit_logs`, `cashbook_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_audit_events`.
+   - Canonical Envelope Structure:
+     ```json
+     {
+       "format_version": "1.0",
+       "scope": "workspace",
+       "created_at": "2026-10-19T21:00:00Z",
+       "app_version": "0.1.0",
+       "database_version": 8,
+       "payload_sha256": "abcdef...",
+       "tables": { ... }
+     }
+     ```
+2. **RFC 8785 JSON Canonicalization Scheme (JCS) Checksum Integrity**:
+   - `payload_sha256` is calculated over the exact UTF-8 bytes of the canonicalized `tables` object according to RFC 8785 (keys sorted lexicographically by UTF-16 code units, IEEE 754 float representation, no whitespace).
+   - Identical byte-for-byte canonical hashing implemented in Rust (`src-tauri/src/db/backup.rs`) and TypeScript (`src/domain/backup_crypto.ts`).
+3. **Four-Tier Pre-Restore Validation & Atomic Staging**:
+   - *Tier 1 (Envelope Verification)*: Validates `format_version == "1.0"`, `scope == "workspace"`, and recomputes the SHA-256 hash over canonical `tables` JSON bytes. If checksum mismatches or payload is corrupted, restore is rejected immediately before touching disk.
+   - *Tier 2 (Schema Compatibility)*: Validates table presence and required system table structure (`schema_migrations`, `business_settings`).
+   - *Tier 3 (Atomic Staging Database)*: Populates a fresh temporary database (`billzen.staging.db`) with foreign keys enabled, executes `PRAGMA foreign_key_check`, runs standard migrations to ensure schema alignment, and executes a WAL truncate checkpoint (`PRAGMA wal_checkpoint(TRUNCATE)`).
+   - *Tier 4 (Atomic File Replacement & Recovery Fallback)*: Prior to database replacement, the live `billzen.db` is copied to `billzen.db.recovery-{timestamp}`. The staging database is then renamed over the live database file, ensuring zero data loss if an OS write failure occurs.
+4. **Accessible Settings UI (`src/components/SettingsView.tsx`)**:
+   - Card 6 "Backup & Restore" provides single-click "Export Backup" saving formatted timestamped files (`billzen-backup-YYYY-MM-DD-HHmm.json`).
+   - "Restore Backup" validates selected files with real-time UI status banners, presents a destructive replacement warning modal displaying backup timestamp, table count, and record count, and requires explicit confirmation.
+
+## 23. Durable IndexedDB Web Storage (`BillZen_Web_DB`)
+1. **Schema & Object Stores**:
+   - Database: `BillZen_Web_DB` (version 1) providing durable offline browser storage.
+   - 7 Object Stores: `cashbook_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_sequences`, `cashbook_audit_events`.
+   - Secondary indices on foreign keys, dates, and unique constraints (`idempotency_key`, `name_nocase`).
+2. **Concurrency & Resilience Protections**:
+   - Multi-tab safety: `versionchange` event listener closes database connection immediately to prevent blocking schema upgrades in other tabs.
+   - Quota error handling: Traps DOMException `QuotaExceededError` and surfaces user-friendly storage exhaustion error without state corruption.
+   - Node.js fallback: Automatically falls back to thread-safe in-memory maps in headless test environments (Vitest/Node.js) where native `indexedDB` is undefined.
+3. **Financial Invariant Parity with Native SQLite Worker**:
+   - Atomic Transactions: Voucher creation, movement generation, sequence incrementing, and audit logging execute within a single atomic IndexedDB `readwrite` transaction.
+   - Client Intent Hash: Browser adapter computes deterministic SHA-256 client intent hash (`computeClientIntentHash`) byte-for-byte identical to Rust `compute_client_intent_hash`.
+   - Running Balance Window Calculation: Window partitioned per account starting from `opening_balance_minor`, matching the SQLite window function formulation.
+   - Negative Balance Guard: Enforces `allow_negative_balance` check; requires `confirmed_negative_balance = true` to post overdrafts.
+   - Reversal Lifecycle: Reversals allocate unique `rev_{id}` idempotency keys and update original voucher status atomically.
+
+## 24. Cross-Platform Automated Acceptance Suite
+1. **Native Desktop Verification Harness (`scripts/verify_native_cashbook.js`)**:
+   - 34 native assertions across 12 end-to-end steps driving standalone release binary (`src-tauri/target/release/billzen`).
+   - Eliminates startup race conditions via bounded URL & `__TAURI_INTERNALS__` polling.
+   - Verifies binary provenance (SHA-256 checksum & source Git commit revision).
+   - Cold Restart Verification: Kills release process, relaunches against identical isolated database, and verifies exact persistent balances (-₹84,000.00), voucher IDs, and duplicate payload rejection.
+   - Strict business data protection: Asserts real user database in `~/.local/share/billzen` is 100% untouched.
+2. **Playwright E2E Acceptance Suite (`scripts/verify_cashbook_playwright.js`)**:
+   - 12 automated steps covering complete browser lifecycle.
+   - Step 11 verifies persistent storage across hard page reload (`page.reload()`).
+   - Step 12 verifies backup export, corrupted checksum rejection in UI, and restore roundtrip via Settings modal.
+3. **Printable Voucher PDF Isolation Suite (`scripts/verify_cashbook_pdf.js`)**:
+   - 3/3 scenarios verified: A4 portrait single-page fit, 80mm thermal receipt geometry, and long-text multi-page flow. Zero invoice DOM contamination.
+
+
 
 
 

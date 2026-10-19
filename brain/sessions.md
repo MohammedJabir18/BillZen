@@ -981,7 +981,70 @@
   - `npm run test:cashbook`: 10/10 passed (`test_artifacts/cashbook/cashbook_verification_report.json`).
   - `npm run test:cashbook-pdf`: 3/3 passed (`test_artifacts/pdf_cashbook/cashbook_pdf_report.json`).
 - **Unfinished Tasks / Immediate Next Steps**:
-  - Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine (versioned JSON with SHA-256 and pre-validation), and cross-platform acceptance suite.
+  - [Completed in Milestone C1C] Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine (versioned JSON with SHA-256 and pre-validation), and cross-platform acceptance suite.
+  - Milestone C2: Transfers, Statements & Workbooks.
+
+## 2026-10-19 — Milestone C1C: Safe Whole-Workspace Backup/Restore & Durable Web Storage
+- **Goals**: Deliver Milestone C1C covering safe whole-workspace backup/restore, durable browser IndexedDB storage for offline cashbook, hardened native desktop harness with provenance and cold restart, expanded 12-step Playwright acceptance suite, rebuilt Linux release binary, and comprehensive cross-platform verification.
+- **Completed Tasks**:
+  - **1. Native Desktop Harness Hardening (`scripts/verify_native_cashbook.js`)**:
+    - Eliminated startup race conditions via bounded polling for `tauri://localhost` and `window.__TAURI_INTERNALS__`.
+    - Added build provenance tracking: records standalone binary SHA-256 (`85f4dac...`) and Git source revision (`599a8c4...`).
+    - Added real user business data integrity check: verifies `~/.local/share/billzen` files exist and are 100% untouched.
+    - Added native cold restart scenario: closes application, relaunches against identical isolated test database, asserts exact persistent balances (-₹84,000.00), voucher IDs/numbers, and idempotent conflict rejection.
+    - Evaluated 34 native assertions across 12 test steps.
+  - **2. Safe Whole-Workspace Backup & Restore Engine**:
+    - Defined versioned portable logical backup format `1.0` with scope `workspace`, capturing all 19 SQLite tables.
+    - Implemented RFC 8785 JSON Canonicalization Scheme (JCS) and SHA-256 envelope hashing in Rust (`src-tauri/src/db/backup.rs`) and TypeScript (`src/domain/backup_crypto.ts`).
+    - Built 4-tier pre-restore validation: Tier 1 envelope/checksum verification, Tier 2 schema table presence, Tier 3 staging database creation with `PRAGMA foreign_key_check` and WAL truncate checkpoint, Tier 4 recovery backup (`billzen.db.recovery-{timestamp}`) and atomic swap.
+    - Exposed native Tauri commands `export_backup` and `restore_backup` with full capability manifest registration.
+    - Added accessible Card 6 "Backup & Restore" in `SettingsView.tsx` with export button, real-time file validation banners, and destructive replacement confirmation modal.
+    - Added English, Malayalam, and Arabic localization for backup/restore UI strings.
+  - **3. Durable Browser IndexedDB Cashbook Storage (`BillZen_Web_DB`)**:
+    - Implemented `src/adapters/web_cashbook_db.ts` with 7 object stores (`cashbook_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_sequences`, `cashbook_audit_events`).
+    - Added multi-tab safety (`versionchange` listener) and `QuotaExceededError` handling.
+    - Maintained exact financial invariant parity with Rust SQLite worker: atomic transactions, SHA-256 client intent hash matching Rust `compute_client_intent_hash` byte-for-byte, windowed running balance per account starting from `opening_balance_minor`, negative balance confirmation guard, and reversal lifecycle with unique `rev_{id}` keys.
+    - Added web fallback for `export_backup` and `restore_backup` in `src/adapters/tauri.ts` operating across IndexedDB stores.
+    - Added comprehensive unit tests in `src/adapters/web_cashbook_db.test.ts` (11/11 passed, including KWD 3-decimal test).
+  - **4. Expanded Playwright Automated Acceptance Suite (`scripts/verify_cashbook_playwright.js`)**:
+    - Expanded test suite from 10 to 12 steps:
+      - Step 11: Durable browser storage persistence across full page reload (`page.reload()`).
+      - Step 12: Whole-workspace backup export, corrupted checksum rejection with real-time UI error banner, and valid restore roundtrip via Settings modal.
+  - **5. Standalone Linux Release Executable Rebuild**:
+    - Rebuilt `src-tauri/target/release/billzen` via `npm run tauri -- build --no-bundle`.
+    - Binary size: 15.70 MB (16,462,976 bytes).
+    - Verified standalone binary SHA-256 and executed `npm run test:native-cashbook` (34 assertions passed).
+    - Re-synced Graphify knowledge graph (`graphify . --obsidian --obsidian-dir ./brain --update --code-only`): 1056 nodes, 2148 edges, 70 communities.
+- **Files Modified / Added**:
+  - `src-tauri/src/db/backup.rs` (Added)
+  - `src-tauri/src/commands/backup.rs` (Added)
+  - `src/domain/backup_crypto.ts` (Added)
+  - `src/domain/backup_crypto.test.ts` (Added)
+  - `src/types/backup.ts` (Added)
+  - `src/adapters/web_cashbook_db.ts` (Added)
+  - `src/adapters/web_cashbook_db.test.ts` (Added)
+  - `src/adapters/cashbook.ts` (Modified)
+  - `src/adapters/tauri.ts` (Modified)
+  - `src/components/SettingsView.tsx` (Modified)
+  - `src/i18n/index.ts` (Modified)
+  - `scripts/verify_native_cashbook.js` (Modified)
+  - `scripts/verify_cashbook_playwright.js` (Modified)
+  - `brain/architecture.md` (Modified)
+  - `brain/sessions.md` (Modified)
+  - `docs/roadmap.md` (Modified)
+  - `docs/verification-status.md` (Modified)
+  - `docs/antigravity-next-task.md` (Modified)
+- **Verification Evidence**:
+  - `npm test`: 41 passed across 6 files, 0 failed.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 81 passed (67 unit tests + 14 integration tests), 0 failed.
+  - `npm run build`: Production build succeeded cleanly.
+  - `npm run test:native-cashbook`: 34 assertions passed across 12 steps (`test_artifacts/native_cashbook/native_cashbook_verification_report.json`).
+  - `npm run test:cashbook`: 12/12 passed (`test_artifacts/cashbook/cashbook_verification_report.json`).
+  - `npm run test:cashbook-pdf`: 3/3 passed (`test_artifacts/pdf_cashbook/cashbook_pdf_report.json`).
+  - Real user business database in `~/.local/share/billzen` confirmed 100% untouched.
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone C2: Transfers, Statements & Workbooks (atomic 2-legged transfers `TRF-YYYYMM-XXXXX`, multi-sheet XLSX workbooks, period date-range PDF statements, and receipt attachment storage).
+
 
 
 
