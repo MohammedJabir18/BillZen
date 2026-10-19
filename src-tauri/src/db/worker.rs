@@ -2470,10 +2470,19 @@ fn reverse_cashbook_voucher(
         });
     }
 
-    let now = chrono::Utc::now().timestamp_millis();
-    let today_str = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let year_month = chrono::Utc::now().format("%Y%m").to_string();
-    let seq_key = format!("{}-{}", reversal_prefix, year_month);
+    let company_timezone: String = tx
+        .query_row(
+            "SELECT timezone FROM business_settings WHERE id = 'default';",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or_else(|_| "Asia/Kolkata".to_string());
+
+    let now = chrono::Utc::now();
+    let now_millis = now.timestamp_millis();
+    let (reversal_business_date, reversal_year_month) =
+        format_business_date_and_year_month(now, &company_timezone);
+    let seq_key = format!("{}-{}", reversal_prefix, reversal_year_month);
 
     let next_seq: i64 = tx
         .query_row(
@@ -2481,12 +2490,12 @@ fn reverse_cashbook_voucher(
              VALUES (?1, 1, ?2)
              ON CONFLICT(sequence_key) DO UPDATE SET current_number = current_number + 1, updated_at = ?2
              RETURNING current_number;",
-            params![seq_key, now],
+            params![seq_key, now_millis],
             |r| r.get(0),
         )
         .map_err(|e| format!("Failed to allocate sequence: {}", e))?;
 
-    let reversal_voucher_number = format_voucher_number(reversal_prefix, &year_month, next_seq);
+    let reversal_voucher_number = format_voucher_number(reversal_prefix, &reversal_year_month, next_seq);
     let reversal_voucher_id = format!("vch_{}", uuid::Uuid::new_v4().simple());
     let reversal_idempotency_key = format!("rev_{}", orig.id);
 
@@ -2522,7 +2531,7 @@ fn reverse_cashbook_voucher(
             orig.classification.as_str(),
             orig.payment_method.as_str(),
             orig.amount_minor,
-            today_str,
+            reversal_business_date,
             orig.id,
             orig.reference_note,
             format!("Reversal of voucher {}", orig.voucher_number),
@@ -2538,7 +2547,7 @@ fn reverse_cashbook_voucher(
             orig.currency_code_snap,
             orig.currency_exponent_snap,
             orig.amount_in_words_snap,
-            now
+            now_millis
         ],
     ).map_err(|e| format!("Failed to insert reversal voucher: {}", e))?;
 
@@ -2560,15 +2569,15 @@ fn reverse_cashbook_voucher(
             reversal_voucher_id,
             orig.account_id,
             reversal_movement_delta,
-            today_str,
+            reversal_business_date,
             next_mov_seq,
-            now
+            now_millis
         ],
     ).map_err(|e| format!("Failed to insert reversal movement: {}", e))?;
 
     tx.execute(
         "UPDATE cashbook_vouchers SET is_reversed = 1, reversed_by_voucher_id = ?1, reversed_at = ?2 WHERE id = ?3;",
-        params![reversal_voucher_id, now, orig.id],
+        params![reversal_voucher_id, now_millis, orig.id],
     ).map_err(|e| format!("Failed to update original voucher reversal status: {}", e))?;
 
     let audit_id = format!("aud_{}", uuid::Uuid::new_v4().simple());
@@ -2577,13 +2586,13 @@ fn reverse_cashbook_voucher(
         "original_voucher_number": orig.voucher_number,
         "reversal_voucher_id": reversal_voucher_id,
         "reversal_voucher_number": reversal_voucher_number,
-        "reversed_at": now,
+        "reversed_at": now_millis,
     }).to_string();
 
     tx.execute(
         "INSERT INTO cashbook_audit_events (id, voucher_id, event_type, details_json, created_at)
          VALUES (?1, ?2, 'voucher_reversed', ?3, ?4);",
-        params![audit_id, orig.id, details, now],
+        params![audit_id, orig.id, details, now_millis],
     ).map_err(|e| format!("Failed to log reversal audit event: {}", e))?;
 
     if projected_balance < 0 && allow_negative_balance == 0 && confirmed_negative_balance {
@@ -2594,13 +2603,13 @@ fn reverse_cashbook_voucher(
             "projected_balance_minor": projected_balance,
             "account_id": orig.account_id,
             "reversal_voucher_id": reversal_voucher_id,
-            "confirmed_at": now,
+            "confirmed_at": now_millis,
         }).to_string();
 
         tx.execute(
             "INSERT INTO cashbook_audit_events (id, voucher_id, event_type, details_json, created_at)
              VALUES (?1, ?2, 'negative_balance_confirmed', ?3, ?4);",
-            params![aud_neg_id, reversal_voucher_id, neg_details, now],
+            params![aud_neg_id, reversal_voucher_id, neg_details, now_millis],
         ).map_err(|e| format!("Failed to log negative balance audit event: {}", e))?;
     }
 
@@ -2704,27 +2713,67 @@ fn fetch_cashbook_ledger(
     }).map_err(|e| format!("Query execution error: {}", e))?;
 
     let mut entries = Vec::new();
-    let mut period_inflows: i64 = 0;
-    let mut period_outflows: i64 = 0;
-    let mut net_operating: i64 = 0;
+    let mut matching_inflows: i64 = 0;
+    let mut matching_outflows: i64 = 0;
 
     for item in rows {
         let entry = item.map_err(|e| format!("Row mapping error: {}", e))?;
         let m_amt = entry.movement.amount_minor;
         if m_amt > 0 {
-            period_inflows = period_inflows.saturating_add(m_amt);
+            matching_inflows = matching_inflows
+                .checked_add(m_amt)
+                .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
         } else {
-            period_outflows = period_outflows.saturating_add(m_amt.unsigned_abs() as i64);
+            matching_outflows = matching_outflows
+                .checked_add(m_amt.unsigned_abs() as i64)
+                .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
         }
-
-        if entry.voucher.classification == CashbookClassification::OperatingIncome
-            || entry.voucher.classification == CashbookClassification::OperatingExpense
-        {
-            net_operating = net_operating.saturating_add(m_amt);
-        }
-
         entries.push(entry);
     }
+
+    let is_display_filtered = filter.search.is_some() || filter.classification.is_some();
+    let (matching_inflows_minor, matching_outflows_minor, matching_count) = if is_display_filtered {
+        (Some(matching_inflows), Some(matching_outflows), Some(entries.len()))
+    } else {
+        (None, None, None)
+    };
+
+    let (period_inflows, period_outflows, net_operating): (i64, i64, i64) = {
+        let mut period_sql = "SELECT 
+            COALESCE(SUM(CASE WHEN m.amount_minor > 0 THEN m.amount_minor ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN m.amount_minor < 0 THEN -m.amount_minor ELSE 0 END), 0),
+            COALESCE(SUM(CASE 
+                WHEN v.classification IN ('operating_income', 'operating_expense') THEN m.amount_minor 
+                ELSE 0 
+            END), 0)
+        FROM cashbook_movements m
+        JOIN cashbook_vouchers v ON m.voucher_id = v.id
+        JOIN money_accounts a ON m.account_id = a.id
+        WHERE 1=1".to_string();
+
+        let mut period_params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if let Some(ref acc_id) = filter.account_id {
+            period_sql.push_str(" AND m.account_id = ?");
+            period_params.push(Box::new(acc_id.clone()));
+        } else if !filter.include_archived.unwrap_or(false) {
+            period_sql.push_str(" AND a.is_archived = 0");
+        }
+
+        if let Some(ref start) = filter.start_date {
+            period_sql.push_str(" AND m.business_date >= ?");
+            period_params.push(Box::new(start.clone()));
+        }
+        if let Some(ref end) = filter.end_date {
+            period_sql.push_str(" AND m.business_date <= ?");
+            period_params.push(Box::new(end.clone()));
+        }
+
+        let slice: Vec<&dyn rusqlite::ToSql> = period_params.iter().map(|b| b.as_ref()).collect();
+        conn.query_row(&period_sql, slice.as_slice(), |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        }).map_err(|e| format!("Failed to compute period totals: {}", e))?
+    };
 
     let (total_cash_minor, active_cash_minor): (i64, i64) = if let Some(ref acc_id) = filter.account_id {
         let (opening, is_archived): (i64, i64) = conn.query_row(
@@ -2838,6 +2887,9 @@ fn fetch_cashbook_ledger(
         net_operating_cash_flow_minor: net_operating,
         opening_balance_minor: period_opening_balance,
         closing_balance_minor: period_closing_balance,
+        matching_inflows_minor,
+        matching_outflows_minor,
+        matching_count,
     };
 
     Ok((entries, summary))

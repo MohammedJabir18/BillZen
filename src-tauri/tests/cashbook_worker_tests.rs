@@ -1071,9 +1071,9 @@ async fn test_cashbook_date_range_and_period_balances() {
 }
 
 #[tokio::test]
-async fn test_cashbook_failure_injection_rollback() {
+async fn test_cashbook_pre_write_negative_balance_abort_leaves_no_traces() {
     let dir = tempdir().expect("tempdir failed");
-    let db_path = dir.path().join("rollback_test.db");
+    let db_path = dir.path().join("pre_write_abort_test.db");
     let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should spawn");
 
     let account = worker
@@ -1126,4 +1126,468 @@ async fn test_cashbook_failure_injection_rollback() {
     let aud_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_audit_events;", [], |r| r.get(0)).unwrap();
     assert_eq!(aud_count, 0, "No audit events must be committed on unconfirmed negative balance");
 }
+
+#[tokio::test]
+async fn test_cashbook_mid_transaction_write_failure_rollback() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("mid_tx_fail.db");
+    let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should spawn");
+
+    let account = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Fault Injection Account".to_string(),
+            account_type: "cash".to_string(),
+            opening_balance_minor: 50_000,
+            allow_negative_balance: false,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .expect("create account failed");
+
+    // In raw SQLite, attach a trigger that aborts audit event insertion
+    {
+        let conn = Connection::open(&db_path).expect("open raw sqlite failed");
+        conn.execute(
+            "CREATE TRIGGER trg_test_fail_audit BEFORE INSERT ON cashbook_audit_events
+             WHEN NEW.event_type = 'voucher_posted'
+             BEGIN
+                 SELECT RAISE(ABORT, 'Simulated mid-transaction audit insert failure');
+             END;",
+            [],
+        )
+        .expect("create trigger failed");
+    }
+
+    // Now attempt to post a voucher.
+    // The worker writes the voucher, movement, sequence, and then tries to insert the audit event,
+    // which triggers the abort and MUST roll back the entire transaction!
+    let res = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 10_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-mid-fail-1".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await;
+
+    assert!(res.is_err(), "Posting must fail when mid-transaction audit insert aborts");
+    assert!(res.unwrap_err().contains("Simulated mid-transaction audit insert failure"));
+
+    // Verify complete rollback in SQLite: zero vouchers, zero movements, zero sequences, zero audit events
+    let conn = Connection::open(&db_path).expect("open raw sqlite failed");
+    let vch_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_vouchers;", [], |r| r.get(0)).unwrap();
+    assert_eq!(vch_count, 0, "Vouchers must be rolled back on mid-transaction write failure");
+
+    let mov_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_movements;", [], |r| r.get(0)).unwrap();
+    assert_eq!(mov_count, 0, "Movements must be rolled back on mid-transaction write failure");
+
+    let seq_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_sequences;", [], |r| r.get(0)).unwrap();
+    assert_eq!(seq_count, 0, "Sequences must be rolled back on mid-transaction write failure");
+
+    let aud_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_audit_events;", [], |r| r.get(0)).unwrap();
+    assert_eq!(aud_count, 0, "Audit events must be rolled back on mid-transaction write failure");
+}
+
+#[tokio::test]
+async fn test_cashbook_reversal_mid_transaction_failure_atomicity() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("reversal_atomicity.db");
+    let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should spawn");
+
+    let account = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Reversal Atomicity Account".to_string(),
+            account_type: "bank".to_string(),
+            opening_balance_minor: 100_000,
+            allow_negative_balance: false,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .expect("create account failed");
+
+    // Post a voucher cleanly
+    let post_res = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Outflow,
+            classification: CashbookClassification::OperatingExpense,
+            payment_method: PaymentMethod::BankTransfer,
+            amount_minor: 25_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-rev-atom-1".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .expect("post should succeed");
+
+    let voucher = match post_res {
+        PostVoucherResult::Posted(v) => v,
+        _ => panic!("Expected Posted"),
+    };
+
+    // Inject trigger to abort specifically on voucher_reversed audit event
+    {
+        let conn = Connection::open(&db_path).expect("open raw sqlite failed");
+        conn.execute(
+            "CREATE TRIGGER trg_test_fail_reversal_audit BEFORE INSERT ON cashbook_audit_events
+             WHEN NEW.event_type = 'voucher_reversed'
+             BEGIN
+                 SELECT RAISE(ABORT, 'Simulated reversal failure after movement/voucher writes');
+             END;",
+            [],
+        )
+        .expect("create trigger failed");
+    }
+
+    // Attempt reversal
+    let rev_res = worker.reverse_cashbook_voucher(voucher.id.clone(), false).await;
+    assert!(rev_res.is_err(), "Reversal must fail when audit event triggers abort");
+    assert!(rev_res.unwrap_err().contains("Simulated reversal failure"));
+
+    // Verify atomicity in SQLite:
+    // Original voucher must NOT be marked reversed
+    let conn = Connection::open(&db_path).expect("open raw sqlite failed");
+    let (is_reversed, reversed_by): (i64, Option<String>) = conn
+        .query_row(
+            "SELECT is_reversed, reversed_by_voucher_id FROM cashbook_vouchers WHERE id = ?1;",
+            rusqlite::params![voucher.id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(is_reversed, 0, "Original voucher must remain NOT reversed on rollback");
+    assert!(reversed_by.is_none(), "reversed_by_voucher_id must remain NULL on rollback");
+
+    // No reversal voucher should exist
+    let rev_vch_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM cashbook_vouchers WHERE is_reversal = 1;", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(rev_vch_count, 0, "No reversal voucher should exist after rollback");
+
+    // Exactly 1 movement should exist (the original one)
+    let mov_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_movements;", [], |r| r.get(0)).unwrap();
+    assert_eq!(mov_count, 1, "Only the original movement must exist after rollback");
+}
+
+#[tokio::test]
+async fn test_cashbook_persistence_and_idempotent_retry_across_worker_restart() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("restart_persistence.db");
+
+    let voucher_id: String;
+    let account_id: String;
+
+    // Phase 1: Start Worker 1, create account, post voucher
+    {
+        let worker1 = DbWorkerHandle::new(db_path.clone()).expect("worker1 spawn");
+        let account = worker1
+            .create_money_account(CreateMoneyAccountDto {
+                account_name: "Restart Account".to_string(),
+                account_type: "cash".to_string(),
+                opening_balance_minor: 10_000,
+                allow_negative_balance: false,
+                currency_code: Some("INR".to_string()),
+                currency_exponent: Some(2),
+                bank_name: None,
+                account_number: None,
+                ifsc_or_routing: None,
+            })
+            .await
+            .expect("create account failed");
+
+        account_id = account.id.clone();
+
+        let post_res = worker1
+            .post_cashbook_voucher(CreateVoucherInput {
+                account_id: account_id.clone(),
+                direction: MovementDirection::Inflow,
+                classification: CashbookClassification::OperatingIncome,
+                payment_method: PaymentMethod::Cash,
+                amount_minor: 50_000,
+                business_date: "2026-10-19".to_string(),
+                party_id: None,
+                category_id: None,
+                reference_note: Some("REF-PERSIST".to_string()),
+                notes: Some("Persistent Voucher".to_string()),
+                idempotency_key: "idem-persist-key-1".to_string(),
+                confirmed_negative_balance: false,
+            })
+            .await
+            .expect("post voucher failed");
+
+        match post_res {
+            PostVoucherResult::Posted(v) => {
+                voucher_id = v.id;
+            }
+            _ => panic!("Expected Posted"),
+        }
+        // Worker 1 dropped here
+    }
+
+    // Phase 2: Start Worker 2 on identical file path
+    {
+        let worker2 = DbWorkerHandle::new(db_path.clone()).expect("worker2 spawn");
+
+        // Query ledger and verify persisted state
+        let (entries, summary) = worker2
+            .get_cashbook_ledger(CashbookLedgerFilter {
+                account_id: Some(account_id.clone()),
+                ..Default::default()
+            })
+            .await
+            .expect("get ledger failed");
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].voucher.id, voucher_id);
+        assert_eq!(entries[0].voucher.amount_minor, 50_000);
+        assert_eq!(summary.total_cash_minor, 60_000); // 10,000 opening + 50,000 inflow
+
+        // Idempotent retry with IDENTICAL payload on Worker 2
+        let retry_res = worker2
+            .post_cashbook_voucher(CreateVoucherInput {
+                account_id: account_id.clone(),
+                direction: MovementDirection::Inflow,
+                classification: CashbookClassification::OperatingIncome,
+                payment_method: PaymentMethod::Cash,
+                amount_minor: 50_000,
+                business_date: "2026-10-19".to_string(),
+                party_id: None,
+                category_id: None,
+                reference_note: Some("REF-PERSIST".to_string()),
+                notes: Some("Persistent Voucher".to_string()),
+                idempotency_key: "idem-persist-key-1".to_string(),
+                confirmed_negative_balance: false,
+            })
+            .await
+            .expect("idempotent retry failed");
+
+        match retry_res {
+            PostVoucherResult::Posted(retried_v) => {
+                assert_eq!(retried_v.id, voucher_id, "Idempotent replay must return original voucher");
+            }
+            _ => panic!("Expected Posted on idempotent replay"),
+        }
+
+        // Retry with ALTERED amount on Worker 2 -> Conflict!
+        let conflict_res = worker2
+            .post_cashbook_voucher(CreateVoucherInput {
+                account_id: account_id.clone(),
+                direction: MovementDirection::Inflow,
+                classification: CashbookClassification::OperatingIncome,
+                payment_method: PaymentMethod::Cash,
+                amount_minor: 999_999,
+                business_date: "2026-10-19".to_string(),
+                party_id: None,
+                category_id: None,
+                reference_note: Some("REF-PERSIST".to_string()),
+                notes: Some("Persistent Voucher".to_string()),
+                idempotency_key: "idem-persist-key-1".to_string(),
+                confirmed_negative_balance: false,
+            })
+            .await;
+
+        assert!(conflict_res.is_err(), "Altered payload with reused key must conflict");
+        assert!(conflict_res.unwrap_err().contains("Idempotency key conflict"));
+    }
+}
+
+#[tokio::test]
+async fn test_cashbook_display_filters_and_financial_balance_separation() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("filter_balance_separation.db");
+    let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should spawn");
+
+    let account = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Operating Account".to_string(),
+            account_type: "bank".to_string(),
+            opening_balance_minor: 10_000, // 10,000 minor units
+            allow_negative_balance: false,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .expect("create account failed");
+
+    // Receipt: 10,000
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::BankTransfer,
+            amount_minor: 10_000,
+            business_date: "2026-10-10".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: Some("Customer payment from Alice".to_string()),
+            notes: Some("Alice Consulting".to_string()),
+            idempotency_key: "idem-sep-1".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Payment: 2,500
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Outflow,
+            classification: CashbookClassification::OperatingExpense,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 2_500,
+            business_date: "2026-10-12".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: Some("Office stationery for Bob".to_string()),
+            notes: Some("Bob Supplies".to_string()),
+            idempotency_key: "idem-sep-2".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // 1. Unfiltered Statement
+    let (all_entries, all_summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            account_id: Some(account.id.clone()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(all_entries.len(), 2);
+    assert_eq!(all_summary.opening_balance_minor, 10_000);
+    assert_eq!(all_summary.period_inflows_minor, 10_000);
+    assert_eq!(all_summary.period_outflows_minor, 2_500);
+    assert_eq!(all_summary.closing_balance_minor, 17_500);
+    assert_eq!(all_summary.total_cash_minor, 17_500);
+    assert_eq!(all_summary.active_cash_minor, 17_500);
+    assert!(all_summary.matching_inflows_minor.is_none());
+
+    // 2. Search for "Alice" (matches only receipt)
+    // CRITICAL INVARIANT: Searching for receipt must NOT change the statement's true closing balance (17,500)
+    let (search_entries, search_summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            account_id: Some(account.id.clone()),
+            search: Some("Alice".to_string()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(search_entries.len(), 1, "Only Alice entry matches search");
+    assert_eq!(search_entries[0].running_balance_minor, 20_000, "Running balance at receipt was 20,000");
+
+    // True financial balances of the period MUST remain 17,500, NOT 20,000!
+    assert_eq!(search_summary.opening_balance_minor, 10_000);
+    assert_eq!(search_summary.period_inflows_minor, 10_000);
+    assert_eq!(search_summary.period_outflows_minor, 2_500);
+    assert_eq!(search_summary.closing_balance_minor, 17_500);
+    assert_eq!(search_summary.total_cash_minor, 17_500);
+
+    // Matching-result totals explicitly separate the search hits:
+    assert_eq!(search_summary.matching_inflows_minor, Some(10_000));
+    assert_eq!(search_summary.matching_outflows_minor, Some(0));
+    assert_eq!(search_summary.matching_count, Some(1));
+
+    // 3. Filter by classification = OperatingExpense (matches only payment)
+    let (expense_entries, expense_summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            account_id: Some(account.id.clone()),
+            classification: Some("operating_expense".to_string()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(expense_entries.len(), 1, "Only expense entry matches classification");
+    assert_eq!(expense_entries[0].running_balance_minor, 17_500, "Running balance at payment includes preceding receipt");
+
+    // Statement balances remain intact:
+    assert_eq!(expense_summary.opening_balance_minor, 10_000);
+    assert_eq!(expense_summary.closing_balance_minor, 17_500);
+    assert_eq!(expense_summary.matching_inflows_minor, Some(0));
+    assert_eq!(expense_summary.matching_outflows_minor, Some(2_500));
+    assert_eq!(expense_summary.matching_count, Some(1));
+
+    // 4. Backdated entry verification
+    // Insert backdated voucher on 2026-10-05 (before the 2026-10-10 receipt)
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::Capital,
+            payment_method: PaymentMethod::BankTransfer,
+            amount_minor: 5_000,
+            business_date: "2026-10-05".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: Some("Backdated capital infusion".to_string()),
+            notes: None,
+            idempotency_key: "idem-sep-3-backdated".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Query chronological ledger:
+    let (chrono_entries, chrono_summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            account_id: Some(account.id.clone()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(chrono_entries.len(), 3);
+    // Chronological order: 2026-10-05 (+5,000), 2026-10-10 (+10,000), 2026-10-12 (-2,500)
+    assert_eq!(chrono_entries[0].movement.business_date, "2026-10-05");
+    assert_eq!(chrono_entries[0].running_balance_minor, 15_000); // 10,000 + 5,000
+
+    assert_eq!(chrono_entries[1].movement.business_date, "2026-10-10");
+    assert_eq!(chrono_entries[1].running_balance_minor, 25_000); // 15,000 + 10,000
+
+    assert_eq!(chrono_entries[2].movement.business_date, "2026-10-12");
+    assert_eq!(chrono_entries[2].running_balance_minor, 22_500); // 25,000 - 2,500
+
+    assert_eq!(chrono_summary.closing_balance_minor, 22_500);
+
+    // Query date range: 2026-10-08 onwards.
+    // Opening balance at 2026-10-08 must include the 2026-10-05 backdated entry!
+    let (_, window_summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            account_id: Some(account.id.clone()),
+            start_date: Some("2026-10-08".to_string()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(window_summary.opening_balance_minor, 15_000, "Period opening balance at 2026-10-08 includes backdated 2026-10-05 movement");
+    assert_eq!(window_summary.closing_balance_minor, 22_500);
+}
+
 
