@@ -20,7 +20,6 @@ export function useUpdateStartupCheck(){
   };
   check();reconcile();window.addEventListener('online',check);
   window.addEventListener('billzen-update-returned',reconcile);
-  const timer=window.setInterval(reconcile,1000);
-  return()=>{clearInterval(timer);window.removeEventListener('online',check);window.removeEventListener('billzen-update-returned',reconcile);};
+  return()=>{window.removeEventListener('online',check);window.removeEventListener('billzen-update-returned',reconcile);};
  },[]);
 }

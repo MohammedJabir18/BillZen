@@ -74,3 +74,42 @@ This is not an accepted distributable APK. The owner reports not knowing the ori
 - Rustfmt is not installed in this local Rust toolchain; formatting tool was unavailable. `git diff --check` passed.
 
 See `docs/android-update-delivery.md` and `docs/antigravity-next-task.md` for the secure signing handoff. C2 remains deferred.
+
+## 2026-10-19 / 2026-10-20 — Android In-App Update Verification & Bootstrap Release Delivery
+
+Empirical runtime verification and production packaging completed for BillZen Beta v0.1.1 (versionCode 1005):
+
+- **Automated Native Android Update Gate (`npm run test:android-update`)**: 27/27 assertions passed across 9 stages on headless Android 14 (API 34) emulator (`emulator-5554`):
+  1. *Stage 1 (Clean Baseline & Cert Identity)*: Installed baseline v1005; verified signing certificate SHA-256 (`becf5a076bb17161c01f992a0d4561ede07394fd413407084e83e7f0325d25e4`).
+  2. *Stage 2 (Cold Launch & Onboarding)*: NativeBridge exposed, device info verified (`versionCode: 1005`, `abi: x86_64`, `sdk: 34`), setup wizard completed.
+  3. *Stage 3 (Business Records Seeding)*: Seeded leading-zero barcode product (`0012345678905`), customer, cashbook account ("Main Drawer" with ₹65,000.00 balance across 2 vouchers), and dark appearance preference.
+  4. *Stage 4 (Tampering & Security Defenses)*: Rejection of corrupt APK hash, corrupt size, mismatched certificate signature, expired authorization timestamp, and version downgrade verified.
+  5. *Stage 5 (Permission Flow & Cancellation)*: `REQUEST_INSTALL_PACKAGES` permission prompt, launcher activation, back-key cancellation, and database worker resumption verified.
+  6. *Stage 6 (Real In-Place OS Upgrade)*: Executed genuine Android OS `PackageInstaller` upgrade from v1005 to v1006 via isolated `UpdateFileProvider` and granted `ClipData` URI permissions.
+  7. *Stage 7 (Cold Launch Upgraded App)*: Relaunched upgraded application, verified NativeBridge device info confirms `versionCode: 1006`.
+  8. *Stage 8 (Zero Data Loss Verification)*: Complete business profile intact, leading-zero barcode product intact, customer intact, cashbook ledger and closing balance intact (₹65,000.00), and dark theme persisted.
+  9. *Stage 9 (Pre-Migration Recovery Snapshots)*: Verified standalone SQLite snapshot created in `/data/user/0/com.billzen.desktop/recovery/before-app-update-*.db`.
+  Evidence: `test_artifacts/android_update/android_update_verification_report.json` and 4 native screenshots.
+
+- **Signed ARM64 Bootstrap Distribution Release APK**:
+  - Location: `dist-android/billzen-beta-v0.1.1-arm64-v8a.apk`
+  - Exact Size: 20,544,136 bytes (20M)
+  - SHA-256: `495f086218303099edece69c2435106e36bf9072b2821085ea6f9f7897ab5d99`
+  - Package ID: `com.billzen.desktop`
+  - Version Name: `0.1.1`, Version Code: `1005`, Min SDK: `24`, Target SDK: `34`
+  - 16 KB Packaging Alignment: Verified via `zipalign -c -v -P 16 4`
+  - 16 KB Page-Size ELF LOAD Alignment: Verified across all LOAD segments via `llvm-readelf -l` (`0x4000`)
+  - Signature: Verified v2 + v3 schemes with production certificate `CN=BillZen Beta`, SHA-256: `becf5a076bb17161c01f992a0d4561ede07394fd413407084e83e7f0325d25e4`
+
+- **Signed Production Update Manifest**:
+  - Location: `dist-android/android-update.json`
+  - Pinned Public Key: `pNYmOtwIbds59TbdaplsW2JVTXoYl/piCQSu/crdg60=`
+  - Key ID: `billzen-android-v1`, Channel: `stable`
+  - Signature verified against pinned Ed25519 public key.
+
+- **Automated Regression Suites**:
+  - `npm test`: 43 passed across 7 files.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 89 passed (67 unit + 14 cashbook + 3 recovery + 5 update manifest tests).
+  - `node --test scripts/release/tests/*.mjs`: 7/7 passed.
+  - `npm run test:cashbook-pdf`: 3/3 passed.
+  - `npm run test:theme`: 104/104 passed.
