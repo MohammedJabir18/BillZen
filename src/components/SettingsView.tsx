@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getBusinessSettings, updateBusinessProfile } from '../adapters/tauri';
+import {
+  getBusinessSettings,
+  updateBusinessProfile,
+  exportWorkspaceBackup,
+  restoreWorkspaceBackup,
+} from '../adapters/tauri';
 import type { BusinessSettings, BusinessProfileDto } from '../types';
+import type { WorkspaceBackupEnvelope } from '../types/backup';
+import { verifyBackupEnvelope } from '../domain/backup_crypto';
 import { useTheme, type AppearanceMode } from '../contexts/ThemeContext';
 import { translations, type Language } from '../i18n';
 import {
@@ -15,6 +22,12 @@ import {
   Laptop,
   HelpCircle,
   BookOpen,
+  Database,
+  Download,
+  Upload,
+  ShieldCheck,
+  FileJson,
+  X,
 } from 'lucide-react';
 
 interface CurrencyPreset {
@@ -72,6 +85,98 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setTimeout(() => setSaveSuccess(false), 3000);
     },
   });
+
+  // Backup & Restore State
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restorePayload, setRestorePayload] = useState<WorkspaceBackupEnvelope | null>(null);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    recoveryPath?: string;
+  } | null>(null);
+
+  const handleExportBackup = async () => {
+    setIsExporting(true);
+    setRestoreStatus(null);
+    try {
+      const backupEnvelope = await exportWorkspaceBackup();
+      const jsonStr = JSON.stringify(backupEnvelope, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = `billzen-workspace-backup-${timestamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setRestoreStatus({
+        type: 'success',
+        message: 'Workspace backup exported successfully with SHA-256 integrity envelope.',
+      });
+    } catch (err: any) {
+      setRestoreStatus({
+        type: 'error',
+        message: `Failed to export backup: ${err.message || String(err)}`,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setRestoreStatus(null);
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const check = await verifyBackupEnvelope(parsed);
+      if (!check.valid) {
+        setRestoreStatus({
+          type: 'error',
+          message: `Backup integrity check failed: ${check.error}`,
+        });
+        return;
+      }
+      setRestorePayload(parsed as WorkspaceBackupEnvelope);
+      setIsRestoreModalOpen(true);
+    } catch (err: any) {
+      setRestoreStatus({
+        type: 'error',
+        message: `Failed to read backup file: ${err.message || String(err)}`,
+      });
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restorePayload) return;
+    setIsRestoring(true);
+    try {
+      const result = await restoreWorkspaceBackup(restorePayload);
+      setIsRestoreModalOpen(false);
+      setRestoreStatus({
+        type: 'success',
+        message: result.message,
+        recoveryPath: result.recovery_path,
+      });
+      queryClient.invalidateQueries();
+      refetch();
+    } catch (err: any) {
+      setRestoreStatus({
+        type: 'error',
+        message: `Restore failed: ${err.message || String(err)}`,
+      });
+    } finally {
+      setIsRestoring(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -471,6 +576,174 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
           </div>
         </div>
+
+        {/* 6. BACKUP & RESTORE SECTION */}
+        <div className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
+                <Database className="w-5 h-5 text-lime-600 dark:text-lime-400" />
+                {t.backup_restore_title}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
+                {t.backup_restore_desc}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              {/* Export Button */}
+              <button
+                type="button"
+                data-testid="btn-export-backup"
+                disabled={isExporting}
+                onClick={handleExportBackup}
+                className="flex-1 sm:flex-none px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-lg font-medium text-sm flex items-center justify-center gap-2 min-h-[44px] transition-colors disabled:opacity-50"
+              >
+                {isExporting ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {isExporting ? t.backup_exporting : t.backup_export_btn}
+              </button>
+
+              {/* Restore Button (Hidden file input) */}
+              <label
+                data-testid="btn-restore-backup"
+                className="flex-1 sm:flex-none px-4 py-2 border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200 rounded-lg font-medium text-sm flex items-center justify-center gap-2 min-h-[44px] cursor-pointer transition-colors"
+              >
+                <Upload className="w-4 h-4 text-lime-600 dark:text-lime-400" />
+                {t.backup_restore_btn}
+                <input
+                  type="file"
+                  data-testid="input-restore-file"
+                  accept=".json,application/json"
+                  onChange={handleFileSelected}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Backup Status Alert */}
+          {restoreStatus && (
+            <div
+              className={`p-4 rounded-lg text-sm flex items-start gap-2 ${
+                restoreStatus.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                  : 'bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-800'
+              }`}
+            >
+              {restoreStatus.type === 'success' ? (
+                <CheckCircle className="w-5 h-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
+              )}
+              <div className="space-y-1">
+                <p className="font-medium">{restoreStatus.message}</p>
+                {restoreStatus.recoveryPath && (
+                  <p className="text-xs font-mono opacity-80 break-all">
+                    Recovery copy: {restoreStatus.recoveryPath}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* RESTORE CONFIRMATION MODAL */}
+        {isRestoreModalOpen && restorePayload && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            data-testid="modal-restore-confirm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in duration-150">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-800">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
+                  <FileJson className="w-5 h-5 text-lime-600 dark:text-lime-400" />
+                  {t.backup_modal_title}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsRestoreModalOpen(false)}
+                  className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {/* Checksum Badge */}
+                <div className="flex items-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  <span>SHA-256 Checksum Verified (Format 1.0)</span>
+                </div>
+
+                {/* Dataset Details Table */}
+                <div className="p-3 bg-gray-50 dark:bg-zinc-800/50 rounded-xl text-xs space-y-1.5 border border-gray-100 dark:border-zinc-800 font-mono">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-zinc-400">Business:</span>
+                    <span className="font-semibold text-gray-900 dark:text-zinc-100 font-sans">
+                      {restorePayload.business_settings?.business_name || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-zinc-400">Currency:</span>
+                    <span className="text-gray-900 dark:text-zinc-100">
+                      {restorePayload.business_settings?.currency_code || 'INR'} ({restorePayload.business_settings?.currency_symbol || '₹'})
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-zinc-400">Created At:</span>
+                    <span className="text-gray-700 dark:text-zinc-300">
+                      {new Date(restorePayload.generated_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="pt-1.5 border-t border-gray-200 dark:border-zinc-700 grid grid-cols-2 gap-2 text-gray-700 dark:text-zinc-300">
+                    <div>Accounts: <strong className="text-gray-900 dark:text-zinc-100">{restorePayload.money_accounts?.length || 0}</strong></div>
+                    <div>Vouchers: <strong className="text-gray-900 dark:text-zinc-100">{restorePayload.cashbook_vouchers?.length || 0}</strong></div>
+                    <div>Products: <strong className="text-gray-900 dark:text-zinc-100">{restorePayload.products?.length || 0}</strong></div>
+                    <div>Customers: <strong className="text-gray-900 dark:text-zinc-100">{restorePayload.customers?.length || 0}</strong></div>
+                  </div>
+                </div>
+
+                {/* Warning Notice */}
+                <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p>{t.backup_modal_warning}</p>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+                <button
+                  type="button"
+                  data-testid="btn-cancel-restore"
+                  disabled={isRestoring}
+                  onClick={() => setIsRestoreModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-sm font-semibold min-h-[44px]"
+                >
+                  {t.backup_modal_cancel}
+                </button>
+                <button
+                  type="button"
+                  data-testid="btn-confirm-restore"
+                  disabled={isRestoring}
+                  onClick={handleConfirmRestore}
+                  className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 min-h-[44px] shadow-sm disabled:opacity-50"
+                >
+                  {isRestoring ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Database className="w-4 h-4" />
+                  )}
+                  {isRestoring ? t.backup_restoring : t.backup_modal_confirm}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Form Actions */}
         <div className="flex justify-end pt-2">

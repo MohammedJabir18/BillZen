@@ -102,6 +102,20 @@ export interface Translations {
   settings_help_title: string;
   settings_help_desc: string;
   settings_view_guide: string;
+
+  // Backup & Restore
+  backup_restore_title: string;
+  backup_restore_desc: string;
+  backup_export_btn: string;
+  backup_export_desc: string;
+  backup_restore_btn: string;
+  backup_restore_btn_desc: string;
+  backup_restoring: string;
+  backup_exporting: string;
+  backup_modal_title: string;
+  backup_modal_warning: string;
+  backup_modal_cancel: string;
+  backup_modal_confirm: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -202,6 +216,20 @@ export const translations: Record<Language, Translations> = {
     settings_help_title: 'Help & Getting Started',
     settings_help_desc: 'Review features, shortcuts, and documentation.',
     settings_view_guide: 'View Getting-Started Guide',
+
+    // Backup & Restore
+    backup_restore_title: 'Backup & Restore',
+    backup_restore_desc: 'Export complete workspace archives or safely restore previous backups with cryptographic verification.',
+    backup_export_btn: 'Export Workspace Backup',
+    backup_export_desc: 'Generates a versioned 1.0 JSON backup with SHA-256 integrity envelope covering settings, catalog, and cashbook.',
+    backup_restore_btn: 'Restore from Backup',
+    backup_restore_btn_desc: 'Select a valid BillZen backup JSON archive to replace current workspace data. An automatic recovery copy is preserved.',
+    backup_restoring: 'Restoring Workspace...',
+    backup_exporting: 'Exporting...',
+    backup_modal_title: 'Confirm Workspace Restore',
+    backup_modal_warning: 'Warning: Restoring this backup will replace current business data with the backup dataset. An automatic recovery copy of your current database will be saved.',
+    backup_modal_cancel: 'Cancel',
+    backup_modal_confirm: 'Confirm & Restore',
   },
   ml: {
     tab_cashbook: 'ക്യാഷ്ബുക്ക്',
@@ -300,6 +328,20 @@ export const translations: Record<Language, Translations> = {
     settings_help_title: 'സഹായവും മാർഗ്ഗനിർദ്ദേശങ്ങളും',
     settings_help_desc: 'സവിശേഷതകളും ഉപയോഗ ക്രമങ്ങളും മനസ്സിലാക്കാം.',
     settings_view_guide: 'മാർഗ്ഗനിർദ്ദേശം കാണുക',
+
+    // Backup & Restore
+    backup_restore_title: 'ബാക്കപ്പും പുനഃസ്ഥാപനവും',
+    backup_restore_desc: 'മുഴുവൻ വർക്ക്‌സ്‌പേസ് ഡാറ്റയും സുരക്ഷിതമായി ഫയലിലേക്ക് ബാക്കപ്പ് ചെയ്യുകയോ പുനഃസ്ഥാപിക്കുകയോ ചെയ്യുക.',
+    backup_export_btn: 'ബാക്കപ്പ് ഡൗൺലോഡ് ചെയ്യുക',
+    backup_export_desc: 'ക്രമീകരണങ്ങൾ, കാറ്റലോഗ്, ക്യാഷ്ബുക്ക് എന്നിവ ഉൾക്കൊള്ളുന്ന സുരക്ഷിതമായ SHA-256 JSON ഫയൽ നിർമ്മിക്കുന്നു.',
+    backup_restore_btn: 'ഫയലിൽ നിന്ന് പുനഃസ്ഥാപിക്കുക',
+    backup_restore_btn_desc: 'മുൻപ് എടുത്ത BillZen ബാക്കപ്പ് ഫയൽ തിരഞ്ഞെടുക്കുക. നിലവിലെ ഡാറ്റയുടെ റിക്കവറി കോപ്പി സ്വയമേവ സൂക്ഷിക്കുന്നതാണ്.',
+    backup_restoring: 'ഡാറ്റ പുനഃസ്ഥാപിക്കുന്നു...',
+    backup_exporting: 'ബാക്കപ്പ് തയ്യാറാക്കുന്നു...',
+    backup_modal_title: 'വർക്ക്‌സ്‌പേസ് പുനഃസ്ഥാപനം സ്ഥിരീകരിക്കുക',
+    backup_modal_warning: 'മുന്നറിയിപ്പ്: ബാക്കപ്പ് പുനഃസ്ഥാപിച്ചാൽ നിലവിലെ ഡാറ്റ ബാക്കപ്പിലെ വിവരങ്ങൾ ഉപയോഗിച്ച് മാറ്റിസ്ഥാപിക്കപ്പെടും. എന്നാൽ നിലവിലെ ഡാറ്റയുടെ ഒരു റിക്കവറി കോപ്പി സ്വയമേവ സൂക്ഷിക്കുന്നതാണ്.',
+    backup_modal_cancel: 'റദ്ദാക്കുക',
+    backup_modal_confirm: 'സ്ഥിരീകരിച്ച് പുനഃസ്ഥാപിക്കുക',
   },
   ar: {
     tab_cashbook: 'دفتر النقدية',
@@ -398,5 +440,19 @@ export const translations: Record<Language, Translations> = {
     settings_help_title: 'المساعدة ودليل البدء',
     settings_help_desc: 'مراجعة الميزات والاختصارات والدليل الإرشادي.',
     settings_view_guide: 'عرض دليل البدء',
+
+    // Backup & Restore
+    backup_restore_title: 'النسخ الاحتياطي والاستعادة',
+    backup_restore_desc: 'تصدير أرشيف مساحة العمل بالكامل أو استعادة نسخ احتياطية سابقة بأمان مع التحقق المشفر.',
+    backup_export_btn: 'تصدير نسخة احتياطية',
+    backup_export_desc: 'ينشئ نسخة احتياطية بصيغة JSON 1.0 مع تجزئة تكامل SHA-256 تغطي كافة البيانات.',
+    backup_restore_btn: 'استعادة من ملف',
+    backup_restore_btn_desc: 'حدد ملف نسخة احتياطية لاستبدال البيانات الحالية. يتم حفظ نسخة استرداد احتياطية تلقائياً.',
+    backup_restoring: 'جاري استعادة البيانات...',
+    backup_exporting: 'جاري التصدير...',
+    backup_modal_title: 'تأكيد استعادة مساحة العمل',
+    backup_modal_warning: 'تحذير: استعادة هذه النسخة الاحتياطية سيستبدل البيانات الحالية بالكامل. سيتم حفظ نسخة استرداد احتياطية تلقائياً من قاعدة بياناتك الحالية.',
+    backup_modal_cancel: 'إلغاء',
+    backup_modal_confirm: 'تأكيد والاستعادة',
   },
 };

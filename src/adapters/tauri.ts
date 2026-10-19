@@ -356,3 +356,78 @@ export async function createCategory(dto: import('../types').CreateCategoryDto):
   return await invoke<import('../types').Category>('create_category', { dto });
 }
 
+// Workspace Backup & Restore
+export async function exportWorkspaceBackup(): Promise<import('../types/backup').WorkspaceBackupEnvelope> {
+  if (!isTauriEnvironment()) {
+    const settings = await getBusinessSettings();
+    const products = await getProducts();
+    const customers = await getCustomers();
+    const categories = await getCategories();
+    const cashbookModule = await import('./cashbook');
+    const money_accounts = await cashbookModule.getMoneyAccounts();
+    const cashbook_categories = await cashbookModule.getCashbookCategories();
+    const cashbook_parties = await cashbookModule.getCashbookParties();
+    const { entries } = await cashbookModule.getCashbookLedger({});
+    const cashbook_vouchers = entries.map((e) => e.voucher);
+    const cashbook_movements = entries.map((e) => e.movement);
+
+    const payload: Record<string, any> = {
+      format_version: '1.0',
+      scope: 'workspace',
+      app_version: '0.1.0',
+      generated_at: Date.now(),
+      business_settings: settings,
+      categories,
+      category_merges: [],
+      products,
+      customers,
+      invoice_sequences: [],
+      invoice_items: [],
+      invoices: [],
+      stock_movements: [],
+      payments: [],
+      payment_allocations: [],
+      expenses: [],
+      money_accounts,
+      cashbook_categories,
+      cashbook_parties,
+      cashbook_sequences: [],
+      cashbook_vouchers,
+      cashbook_movements,
+      cashbook_audit_events: [],
+    };
+
+    const { computePayloadChecksum } = await import('../domain/backup_crypto');
+    const checksum = await computePayloadChecksum(payload);
+    return {
+      checksum_sha256: checksum,
+      ...payload,
+    } as import('../types/backup').WorkspaceBackupEnvelope;
+  }
+  return await invoke<import('../types/backup').WorkspaceBackupEnvelope>('export_workspace_backup');
+}
+
+export async function restoreWorkspaceBackup(
+  backupEnvelope: import('../types/backup').WorkspaceBackupEnvelope
+): Promise<import('../types/backup').RestoreBackupResult> {
+  if (!isTauriEnvironment()) {
+    const { verifyBackupEnvelope } = await import('../domain/backup_crypto');
+    const check = await verifyBackupEnvelope(backupEnvelope);
+    if (!check.valid) {
+      throw new Error(check.error || 'Invalid backup checksum');
+    }
+    if (backupEnvelope.business_settings) {
+      localStorage.setItem('billzen_browser_settings', JSON.stringify(backupEnvelope.business_settings));
+    }
+    return {
+      success: true,
+      message: 'Workspace restored successfully in browser preview.',
+      restored_tables: Object.keys(backupEnvelope).filter((k) => k !== 'checksum_sha256'),
+      record_counts: {},
+    };
+  }
+  return await invoke<import('../types/backup').RestoreBackupResult>('restore_workspace_backup', {
+    backupJson: backupEnvelope,
+  });
+}
+

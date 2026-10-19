@@ -1,4 +1,5 @@
 pub mod worker;
+pub mod backup;
 
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
