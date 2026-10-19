@@ -444,6 +444,135 @@ async function runCashbookVerification() {
       details: { themeVerified },
     });
 
+    // -------------------------------------------------------------------------
+    // Step 11: Durable Browser Storage Persistence Across Full Page Reload
+    // -------------------------------------------------------------------------
+    console.log('\nStep 11: Testing Durable Browser Storage Persistence across Full Page Reload...');
+    // Ensure we are back on cashbook tab in light mode for clear inspection
+    await page.evaluate(() => {
+      document.documentElement.classList.remove('dark');
+    });
+    await page.click('[data-testid="tab-cashbook"], button:has-text("Cashbook")');
+    await page.waitForTimeout(400);
+
+    const preReloadLedgerText = await page.textContent('[data-testid="cashbook-ledger-table"]');
+    const preReloadRowCounts = await page.locator('[data-testid="cashbook-ledger-table"] tbody tr').count();
+    console.log(`Pre-reload row count: ${preReloadRowCounts}`);
+
+    // Full page reload
+    console.log('Triggering full page reload...');
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForTimeout(600);
+
+    // Dismiss guide if prompted on reload
+    const reloadGuideSkipBtn = await page.$('[data-testid="guide-skip-button"], [data-testid="guide-close-button"]');
+    if (reloadGuideSkipBtn) {
+      await reloadGuideSkipBtn.click();
+      await page.waitForTimeout(300);
+    }
+
+    await page.waitForSelector('[data-testid="cashbook-ledger-table"]');
+    const postReloadLedgerText = await page.textContent('[data-testid="cashbook-ledger-table"]');
+    const postReloadRowCounts = await page.locator('[data-testid="cashbook-ledger-table"] tbody tr').count();
+    console.log(`Post-reload row count: ${postReloadRowCounts}`);
+
+    const rcpPersisted = Boolean(postReloadLedgerText?.includes('RCP-'));
+    const payPersisted = Boolean(postReloadLedgerText?.includes('PAY-'));
+    const revPersisted = Boolean(postReloadLedgerText?.includes('REV-') || postReloadLedgerText?.includes('REVERSAL'));
+    const accountsPersisted = await page.textContent('[data-testid="action-manage-accounts"]');
+
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, '12_page_reload_persistence.png'), fullPage: true });
+
+    const reloadPassed = Boolean(
+      postReloadRowCounts === preReloadRowCounts &&
+      rcpPersisted &&
+      payPersisted &&
+      revPersisted &&
+      accountsPersisted?.includes('Accounts')
+    );
+
+    report.tests.push({
+      step: 'browser_storage_persistence_across_reload',
+      passed: reloadPassed,
+      details: { preReloadRowCounts, postReloadRowCounts, rcpPersisted, payPersisted, revPersisted },
+    });
+
+    // -------------------------------------------------------------------------
+    // Step 12: Whole-Workspace Backup Export & Restore via Settings UI
+    // -------------------------------------------------------------------------
+    console.log('\nStep 12: Testing Whole-Workspace Backup Export & Restore via Settings UI...');
+    await page.click('[data-testid="tab-settings"]');
+    await page.waitForTimeout(400);
+
+    await page.waitForSelector('[data-testid="btn-export-backup"]');
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, '13_settings_backup_card.png') });
+
+    // 12a. Test Export Backup
+    console.log('Exporting workspace backup...');
+    const downloadPromise = page.waitForEvent('download');
+    await page.click('[data-testid="btn-export-backup"]');
+    const download = await downloadPromise;
+    const backupFilePath = path.join(ARTIFACTS_DIR, 'exported_workspace_backup.json');
+    await download.saveAs(backupFilePath);
+    console.log(`Saved backup to ${backupFilePath}`);
+
+    const backupContentRaw = fs.readFileSync(backupFilePath, 'utf8');
+    const backupJson = JSON.parse(backupContentRaw);
+
+    const isEnvelopeValid = Boolean(
+      backupJson.format_version === '1.0' &&
+      backupJson.scope === 'workspace' &&
+      typeof backupJson.checksum_sha256 === 'string' &&
+      backupJson.checksum_sha256.length === 64 &&
+      Array.isArray(backupJson.money_accounts) &&
+      backupJson.money_accounts.length >= 2 &&
+      Array.isArray(backupJson.cashbook_vouchers) &&
+      backupJson.cashbook_vouchers.length >= 2
+    );
+    console.log(`Backup envelope valid: ${isEnvelopeValid} (SHA-256: ${backupJson.checksum_sha256?.substring(0, 16)}...)`);
+
+    // 12b. Test Corrupted Backup Rejection
+    console.log('Testing corrupted backup rejection...');
+    const corruptedBackupPath = path.join(ARTIFACTS_DIR, 'corrupted_backup.json');
+    const corruptedJson = {
+      ...backupJson,
+      checksum_sha256: 'deadbeef00000000000000000000000000000000000000000000000000000000',
+    };
+    fs.writeFileSync(corruptedBackupPath, JSON.stringify(corruptedJson, null, 2));
+
+    await page.setInputFiles('[data-testid="input-restore-file"]', corruptedBackupPath);
+    await page.waitForSelector('[data-testid="banner-restore-error"]', { timeout: 10000 });
+
+    const errorBanner = await page.$('[data-testid="banner-restore-error"]');
+    const errorText = errorBanner ? await errorBanner.textContent() : '';
+    const corruptionRejected = Boolean(
+      errorText?.includes('Integrity check failed') ||
+      errorText?.includes('checksum mismatch') ||
+      errorText?.includes('integrity') ||
+      errorBanner
+    );
+    console.log(`Corruption rejected: ${corruptionRejected} ("${errorText?.trim()}")`);
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, '14_corrupted_backup_rejected.png') });
+
+    // 12c. Test Valid Backup Restore
+    console.log('Testing valid backup restore...');
+    await page.setInputFiles('[data-testid="input-restore-file"]', backupFilePath);
+    await page.waitForSelector('[data-testid="modal-restore-confirm"]');
+    await page.click('[data-testid="btn-confirm-restore"]');
+    await page.waitForTimeout(800);
+
+    const successBanner = await page.$('[data-testid="banner-restore-success"]');
+    const successText = successBanner ? await successBanner.textContent() : '';
+    const validRestorePassed = Boolean(successText?.includes('restored') || successBanner);
+    console.log(`Valid restore passed: ${validRestorePassed} ("${successText?.trim()}")`);
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, '15_valid_backup_restored.png') });
+
+    report.tests.push({
+      step: 'workspace_backup_export_and_restore_roundtrip',
+      passed: Boolean(isEnvelopeValid && corruptionRejected && validRestorePassed),
+      details: { isEnvelopeValid, corruptionRejected, validRestorePassed },
+    });
+
     // Clean up
     await browser.close();
 

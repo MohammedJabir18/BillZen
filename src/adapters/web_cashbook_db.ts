@@ -130,7 +130,13 @@ function getCompanySettings(): {
   timezone: string;
 } {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('billzen_browser_settings') : null;
+    const storage: Storage | undefined =
+      typeof localStorage !== 'undefined'
+        ? localStorage
+        : typeof globalThis !== 'undefined' && (globalThis as any).localStorage
+        ? (globalThis as any).localStorage
+        : undefined;
+    const raw = storage ? storage.getItem('billzen_browser_settings') : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
@@ -1237,12 +1243,36 @@ export async function getWebCashbookLedger(
     return a.created_at - b.created_at;
   });
 
-  // Calculate Running Balance along entries
-  let running = 0;
+  // Calculate Running Balance partitioned by account_id: opening_balance_minor + sum(movements up to this one)
+  const accountRunningTotals = new Map<string, number>();
+  for (const acc of allAccounts) {
+    accountRunningTotals.set(acc.id, acc.opening_balance_minor);
+  }
+
+  const sortedMovements = [...allMovements].sort((a, b) => {
+    if (a.business_date !== b.business_date) {
+      return a.business_date.localeCompare(b.business_date);
+    }
+    if (a.sequence_number !== b.sequence_number) {
+      return a.sequence_number - b.sequence_number;
+    }
+    return a.created_at - b.created_at;
+  });
+
+  const movementRunningBalances = new Map<string, number>();
+  for (const mov of sortedMovements) {
+    const prev = accountRunningTotals.get(mov.account_id) ?? 0;
+    const next = prev + mov.amount_minor;
+    accountRunningTotals.set(mov.account_id, next);
+    movementRunningBalances.set(mov.id, next);
+  }
+
   const entries: CashbookLedgerEntry[] = filtered.map((v) => {
     const mov = allMovements.find((m) => m.voucher_id === v.id);
     const movAmount = mov ? mov.amount_minor : (v.direction === 'inflow' ? v.amount_minor : -v.amount_minor);
-    running += movAmount;
+    const runningBal = mov
+      ? movementRunningBalances.get(mov.id) ?? 0
+      : (allAccounts.find((a) => a.id === v.account_id)?.opening_balance_minor || 0) + movAmount;
 
     return {
       voucher: v,
@@ -1255,7 +1285,7 @@ export async function getWebCashbookLedger(
         sequence_number: 1,
         created_at: v.created_at,
       },
-      running_balance_minor: running,
+      running_balance_minor: runningBal,
     };
   });
 
