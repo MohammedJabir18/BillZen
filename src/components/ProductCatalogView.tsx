@@ -684,13 +684,14 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
 
       {/* Modal Drawer for Create / Edit Product */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div role="dialog" aria-modal="true" data-testid="product-modal-dialog" className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-gray-200 dark:border-zinc-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between sticky top-0 bg-white dark:bg-zinc-900 z-10">
               <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">
                 {editingProduct ? t.action_edit : t.action_add_new} {t.tab_products}
               </h2>
               <button
+                data-testid="close-product-modal"
                 onClick={() => setIsModalOpen(false)}
                 className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
               >

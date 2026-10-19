@@ -31,7 +31,22 @@ async function runCatalogVerification() {
   const server = spawn('npx', ['vite', 'preview', '--port', String(PORT)], {
     stdio: 'inherit',
     env: { ...process.env, PORT: String(PORT) },
+    detached: true,
   });
+
+  const killServerGroup = () => {
+    if (server && server.pid) {
+      try {
+        process.kill(-server.pid, 'SIGTERM');
+      } catch {
+        // Already dead
+      }
+    }
+  };
+
+  process.on('SIGINT', () => { killServerGroup(); process.exit(130); });
+  process.on('SIGTERM', () => { killServerGroup(); process.exit(143); });
+  process.on('exit', () => killServerGroup());
 
   const report = {
     timestamp: new Date().toISOString(),
@@ -220,7 +235,7 @@ async function runCatalogVerification() {
       throw new Error('One or more catalog tests failed. See report.');
     }
   } finally {
-    server.kill();
+    killServerGroup();
   }
 }
 

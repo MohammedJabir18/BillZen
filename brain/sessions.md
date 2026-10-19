@@ -394,6 +394,52 @@
   - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
   - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 16 KB page alignment confirmed, zipalign confirmed, apksigner verified.
 - **Unfinished Tasks / Immediate Next Steps**:
+  - [Completed in Session 2026-10-19] Theme configuration fix, migration repair scoping, automated contrast checks, CI workflow updates, preview server hardening, and hardened release APK packaging.
+  - Milestone 4: Invoice draft/finalize transactions, stock decrement allocations, payment allocation, thermal/A4 receipt printing.
+
+## 2026-10-19 — Android Beta Release-Correction & Quality Hardening
+- **Goals**: Resolve uncommitted theme configuration, fix repeated migration repair scoping in `db/mod.rs`, strengthen automated test suite with computed-style dark mode contrast verification, add responsive and onboarding tests to GitHub CI, harden preview-server process lifecycle to prevent orphaned processes, harden APK release variant selection and verification, and rebuild signed release APK.
+- **Completed Tasks**:
+  - **1. Theme Configuration Fix**:
+    - Confirmed `darkMode: 'class'` in `tailwind.config.js`. Verified class-driven `.dark` rule generation supporting explicit Dark/Light overrides and dynamic System following.
+  - **2. Migration v6 Repair Scoping & Idempotency**:
+    - Scoped the repair UPDATE in `src-tauri/src/db/mod.rs` strictly to `stored_checksum == INITIAL_V6_CHECKSUM && is_setup_completed = 0`.
+    - Advanced `schema_migrations` checksum to `current_checksum6`.
+    - Preserved `unseen`, `skipped`, and `completed` guide states across repeated app restarts.
+    - Added 5 regression tests in `src-tauri/src/db/mod.rs`. All 53 Cargo tests passing cleanly (`cargo test --manifest-path src-tauri/Cargo.toml`).
+  - **3. Strengthened Automated Checks & CI Integration**:
+    - Added computed-style dark mode contrast checking in `scripts/verify_onboarding_appearance.js` covering Products, Customers, Settings, modal drawers, and guide dialogs (ratios 6.91:1 - 16.12:1, far above WCAG AA 4.5:1).
+    - Added `role="dialog"`, `aria-modal="true"`, and test IDs to `ProductCatalogView.tsx` and `CustomerCatalogView.tsx`.
+    - Hardened preview server process lifecycle using detached process groups (`detached: true`) and signal hooks (`SIGINT`, `SIGTERM`, `exit`) across all Playwright test scripts, eliminating orphaned processes.
+    - Added `npm run test:responsive` and `npm run test:onboarding` to GitHub Actions workflow (`.github/workflows/ci.yml`).
+  - **4. Hardened APK Packaging & Toolchain**:
+    - Updated `scripts/build_android_apk.sh` to strictly select release APK variants and reject debug fallbacks.
+    - Verified certificate identity against BillZen Beta Keystore (`CN=BillZen Beta`, SHA-256 fingerprint: `BE:CF:5A:07:...`).
+    - Verified 16 KB ELF segment page-size alignment (`0x4000`) for Android 15+.
+    - Verified 4-byte `zipalign`.
+    - Verified embedded offline web assets, local fonts, and native library.
+    - Incremented `versionCode` to `1001` in `build.gradle.kts` and `tauri.properties`.
+    - Rebuilt signed release APK: `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk` (15M, SHA-256: `406f0027172b2af1cf69a7fbe219d50c2d7e6965f6bac1f18ea6adb213c75a72`).
+  - **5. Native Android Runtime Verification**:
+    - Inspected `adb devices -l` (0 attached) and `avdmanager list avd` (0 emulators).
+    - Explicitly documented native device runtime verification as pending hardware/AVD provisioning.
+- **Files Modified / Added**:
+  - `src-tauri/src/db/mod.rs`, `src-tauri/gen/android/app/build.gradle.kts`, `src-tauri/gen/android/app/tauri.properties`
+  - `tailwind.config.js`, `src/components/ProductCatalogView.tsx`, `src/components/CustomerCatalogView.tsx`
+  - `scripts/verify_onboarding_appearance.js`, `scripts/verify_responsive_playwright.js`, `scripts/verify_catalog_playwright.js`, `scripts/verify_matrix_playwright.js`, `scripts/build_android_apk.sh`
+  - `.github/workflows/ci.yml`, `docs/verification-status.md`, `brain/sessions.md`
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 53/53 passed.
+  - `npm test`: 14/14 passed across 2 test suites.
+  - `npm run build`: Passed cleanly (`tsc && vite build`).
+  - `npm run test:responsive`: 6/6 viewports passed (zero document overflow).
+  - `npm run test:onboarding`: 32/32 tests passed across all 6 verification sections.
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 print scenarios passed.
+  - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
+  - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 16 KB page alignment confirmed, zipalign confirmed, apksigner verified, versionCode 1001 confirmed.
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Provision physical Android device or AVD to complete native runtime verification.
   - Milestone 4: Invoice draft/finalize transactions, stock decrement allocations, payment allocation, thermal/A4 receipt printing.
 
 

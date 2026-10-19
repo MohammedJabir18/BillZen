@@ -16,7 +16,22 @@ async function main() {
   const previewProcess = spawn('npx', ['vite', 'preview', '--port', '4178', '--strictPort'], {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
   });
+
+  const killPreviewGroup = () => {
+    if (previewProcess && previewProcess.pid) {
+      try {
+        process.kill(-previewProcess.pid, 'SIGTERM');
+      } catch {
+        // Process or group may already be terminated
+      }
+    }
+  };
+
+  process.on('SIGINT', () => { killPreviewGroup(); process.exit(130); });
+  process.on('SIGTERM', () => { killPreviewGroup(); process.exit(143); });
+  process.on('exit', () => killPreviewGroup());
 
   let serverReady = false;
   previewProcess.stdout.on('data', (d) => {
@@ -277,31 +292,145 @@ async function main() {
     recordTest('header_hidden_in_print_media', headerHiddenInPrint);
 
     // -------------------------------------------------------------------------
-    // TEST 5: Dark Mode Appearance Across Products & Customers Tabs
+    // TEST 5: Computed-Style Dark Mode Contrast Audit Across Products, Customers, Forms & Dialogs
     // -------------------------------------------------------------------------
-    console.log('\n--- Section 6: Dark Mode Audit across Products & Customers ---');
+    console.log('\n--- Section 6: Computed-Style Dark Mode Contrast Audit ---');
     await page1.emulateMedia({ media: 'screen' });
 
-    // Visit Products tab in Dark Mode
+    const checkElementContrast = async (page, selector, minRatio = 4.5) => {
+      return await page.evaluate(({ sel, reqRatio }) => {
+        function parseRgb(str) {
+          if (!str) return [0, 0, 0];
+          const m = str.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          return m ? [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)] : [0, 0, 0];
+        }
+        function lum([r, g, b]) {
+          const a = [r, g, b].map(v => {
+            v /= 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+          });
+          return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+        }
+        function contrast(rgb1, rgb2) {
+          const l1 = lum(rgb1);
+          const l2 = lum(rgb2);
+          const max = Math.max(l1, l2);
+          const min = Math.min(l1, l2);
+          return (max + 0.05) / (min + 0.05);
+        }
+        function getBg(el) {
+          let cur = el;
+          while (cur && cur !== document) {
+            const bg = window.getComputedStyle(cur).backgroundColor;
+            const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+            if (m && (m[4] === undefined || parseFloat(m[4]) > 0.05)) {
+              return parseRgb(bg);
+            }
+            cur = cur.parentElement;
+          }
+          return [9, 9, 11]; // zinc-950 fallback
+        }
+
+        const el = document.querySelector(sel);
+        if (!el) return { found: false, passed: false, ratio: 0, error: 'Element not found' };
+        const cs = window.getComputedStyle(el);
+        const textRgb = parseRgb(cs.color);
+        const bgRgb = getBg(el);
+        const ratio = contrast(textRgb, bgRgb);
+        return {
+          found: true,
+          color: cs.color,
+          bg: `rgb(${bgRgb.join(',')})`,
+          ratio: Math.round(ratio * 100) / 100,
+          passed: ratio >= reqRatio,
+        };
+      }, { sel: selector, reqRatio: minRatio });
+    };
+
+    // 6.1 Products View Dark Mode & Contrast
     await page1.click('[data-testid="tab-products"]');
     await page1.waitForTimeout(300);
     const productsDarkThemeOk = await page1.evaluate(() => {
       const main = document.querySelector('main');
-      const table = document.querySelector('table');
       return document.documentElement.classList.contains('dark') && !!main;
     });
-    await page1.screenshot({ path: path.join(ARTIFACTS_DIR, 'products_dark_mode.png') });
     recordTest('products_catalog_renders_in_dark_mode', productsDarkThemeOk);
 
-    // Visit Customers tab in Dark Mode
+    const productSearchContrast = await checkElementContrast(page1, '[data-testid="product-search-input"]', 4.5);
+    recordTest('products_search_input_dark_contrast_ratio', productSearchContrast.passed, productSearchContrast);
+
+    const productTableThContrast = await checkElementContrast(page1, 'th', 4.5);
+    recordTest('products_table_header_dark_contrast_ratio', productTableThContrast.passed, productTableThContrast);
+
+    // 6.2 Products Create Modal Dialog Contrast
+    await page1.click('[data-testid="add-product-button"]');
+    await page1.waitForSelector('[data-testid="product-modal-dialog"]');
+    await page1.waitForTimeout(200);
+
+    const productModalTitleContrast = await checkElementContrast(page1, '[data-testid="product-modal-dialog"] h2', 4.5);
+    recordTest('product_modal_dialog_title_contrast', productModalTitleContrast.passed, productModalTitleContrast);
+
+    const productModalInputContrast = await checkElementContrast(page1, '[data-testid="input-product-name"]', 4.5);
+    recordTest('product_modal_dialog_input_contrast', productModalInputContrast.passed, productModalInputContrast);
+
+    await page1.screenshot({ path: path.join(ARTIFACTS_DIR, 'products_modal_dark_mode.png') });
+    await page1.click('[data-testid="close-product-modal"]');
+    await page1.waitForTimeout(200);
+
+    // 6.3 Customers View Dark Mode & Contrast
     await page1.click('[data-testid="tab-customers"]');
     await page1.waitForTimeout(300);
     const customersDarkThemeOk = await page1.evaluate(() => {
       const main = document.querySelector('main');
       return document.documentElement.classList.contains('dark') && !!main;
     });
-    await page1.screenshot({ path: path.join(ARTIFACTS_DIR, 'customers_dark_mode.png') });
     recordTest('customers_catalog_renders_in_dark_mode', customersDarkThemeOk);
+
+    const customerSearchContrast = await checkElementContrast(page1, '[data-testid="customer-search-input"]', 4.5);
+    recordTest('customers_search_input_dark_contrast_ratio', customerSearchContrast.passed, customerSearchContrast);
+
+    const customerTableThContrast = await checkElementContrast(page1, 'th', 4.5);
+    recordTest('customers_table_header_dark_contrast_ratio', customerTableThContrast.passed, customerTableThContrast);
+
+    // 6.4 Customers Create Modal Dialog Contrast
+    await page1.click('[data-testid="add-customer-button"]');
+    await page1.waitForSelector('[data-testid="customer-modal-dialog"]');
+    await page1.waitForTimeout(200);
+
+    const customerModalTitleContrast = await checkElementContrast(page1, '[data-testid="customer-modal-dialog"] h2', 4.5);
+    recordTest('customer_modal_dialog_title_contrast', customerModalTitleContrast.passed, customerModalTitleContrast);
+
+    const customerModalInputContrast = await checkElementContrast(page1, '[data-testid="input-customer-name"]', 4.5);
+    recordTest('customer_modal_dialog_input_contrast', customerModalInputContrast.passed, customerModalInputContrast);
+
+    await page1.screenshot({ path: path.join(ARTIFACTS_DIR, 'customers_modal_dark_mode.png') });
+    await page1.click('[data-testid="close-customer-modal"]');
+    await page1.waitForTimeout(200);
+
+    // 6.5 Settings View & Getting-Started Guide Dialog Contrast
+    await page1.click('[data-testid="tab-settings"]');
+    await page1.waitForTimeout(300);
+
+    const settingsTitleContrast = await checkElementContrast(page1, 'h2', 4.5);
+    recordTest('settings_heading_dark_contrast_ratio', settingsTitleContrast.passed, settingsTitleContrast);
+
+    const settingsInputContrast = await checkElementContrast(page1, 'input[type="text"]', 4.5);
+    recordTest('settings_input_dark_contrast_ratio', settingsInputContrast.passed, settingsInputContrast);
+
+    // Open Getting Started Guide dialog
+    await page1.click('[data-testid="button-view-guide"]');
+    await page1.waitForSelector('[role="dialog"]');
+    await page1.waitForTimeout(200);
+
+    const guideTitleContrast = await checkElementContrast(page1, '[role="dialog"] h2', 4.5);
+    recordTest('guide_dialog_title_contrast', guideTitleContrast.passed, guideTitleContrast);
+
+    const guideTextContrast = await checkElementContrast(page1, '[role="dialog"] p', 4.5);
+    recordTest('guide_dialog_text_contrast', guideTextContrast.passed, guideTextContrast);
+
+    await page1.screenshot({ path: path.join(ARTIFACTS_DIR, 'guide_dark_mode_contrast.png') });
+    await page1.click('[data-testid="guide-close-button"]');
+    await page1.waitForTimeout(200);
 
     await context1.close();
 
@@ -315,7 +444,7 @@ async function main() {
     if (browser) {
       await browser.close();
     }
-    previewProcess.kill('SIGTERM');
+    killPreviewGroup();
   }
 
   if (!results.allPassed) {
