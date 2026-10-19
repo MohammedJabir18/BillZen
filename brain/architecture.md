@@ -254,7 +254,31 @@ flowchart TD
   - C3: Cash counter, budgets, local reminders, app lock.
   - C4: Invoicing integration (resuming deferred M4A/M4B).
 
+## 18. Cashbook Financial Integrity Hardening & V8 Architecture (Milestone C1A+)
+1. **Migration V8 & Invariant Trigger Suite (`v8_cashbook_integrity_hardening.sql`)**:
+   - `trg_prevent_posted_voucher_update`: Replaced v7 trigger to strictly block status downgrades (e.g. `posted` -> `draft`), prevent mutations on already-reversed vouchers, and mandate that `reversed_by_voucher_id` links to an existing reversal voucher (`is_reversal = 1`).
+   - `trg_prevent_cashbook_audit_event_update` & `trg_prevent_cashbook_audit_event_delete`: Immutable audit history; records cannot be updated or deleted under any circumstance.
+   - `trg_validate_cashbook_movement_insert`: Enforces exactly 1 movement per C1 voucher, validates account match, business date match, amount magnitude match (`ABS(amount_minor) == voucher.amount_minor`), and sign direction (`> 0` for inflow, `< 0` for outflow).
+   - `trg_cashbook_prevent_opening_balance_update_when_movements_exist` & `trg_business_settings_prevent_currency_change_when_cashbook_records_exist`: Prevents modifying account opening balance or currency when movements exist, and protects base currency settings.
+2. **Authoritative Transaction Execution Model**:
+   - All balance verifications, account status checks (`is_archived = 0`), base currency compatibility checks, category compatibility checks, and idempotency checks are conducted **atomically** inside `rusqlite::TransactionBehavior::Immediate`.
+   - Sequence generation and ledger movement inserts occur only after authoritative balance and policy checks pass.
+   - Unconfirmed negative balances abort cleanly without sequence allocation or table writes.
+   - Transactional audit events: `voucher_posted`, `voucher_reversed`, and `negative_balance_confirmed` are committed synchronously with the respective financial movements.
+3. **Account Lifecycle & Base Currency Synchronization**:
+   - Accounts must strictly match company base currency code and exponent.
+   - Postings and reversals to archived accounts are rejected (`AccountArchived`).
+   - Reversals on archived accounts require the operator to explicitly unarchive the account first.
+   - When base currency is legitimately changed in settings (zero products, invoices, posted vouchers, non-zero accounts, or movements), empty accounts (`opening_balance_minor = 0 AND NOT EXISTS (movements)`) are atomically updated to match the new company currency code and exponent.
+4. **Summary & Date-Windowed Ledger Formulations**:
+   - `total_cash_minor`: Sum of all accounts (opening balance + movements).
+   - `active_cash_minor`: Sum of active accounts only (`is_archived = 0` applied to both opening balances and movements).
+   - `opening_balance_minor`: Initial opening balance + sum of movements strictly prior to start date (`m.business_date < start_date`).
+   - `closing_balance_minor`: `opening_balance_minor + period_inflows - period_outflows`.
+   - `net_operating_cash_flow_minor`: Excludes capital injections, loans, advances, and transfers from operating cash flow.
+
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
+
 
 

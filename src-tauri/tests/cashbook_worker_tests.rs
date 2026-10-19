@@ -527,7 +527,7 @@ async fn test_cashbook_trigger_immutability_and_currency_protection() {
     assert!(acc_update.is_err());
     assert!(acc_update.unwrap_err().to_string().contains("Cannot alter opening balance or currency of account with existing movements"));
 
-    // 6. Updating business_settings currency when posted cashbook vouchers exist must be ABORTED by trigger
+    // 6. Updating business_settings currency when posted cashbook vouchers exist must be ABORTED
     let mut settings = worker.get_business_settings().await.expect("settings failed");
     settings.currency_code = "KWD".to_string();
     settings.currency_exponent = 3;
@@ -535,10 +535,18 @@ async fn test_cashbook_trigger_immutability_and_currency_protection() {
     assert!(curr_update.is_err());
     let curr_err = curr_update.unwrap_err();
     assert!(
-        curr_err.contains("Cannot change business base currency after cashbook vouchers or non-zero accounts exist"),
+        curr_err.contains("Cannot change base currency after catalog products, invoices, payments, or expenses exist, or posted cashbook vouchers"),
         "Error must explain currency change block: {}",
         curr_err
     );
+
+    // Also verify raw SQL update is aborted directly by trigger
+    let raw_curr = conn.execute(
+        "UPDATE business_settings SET currency_code = 'KWD', currency_exponent = 3 WHERE id = 'default';",
+        [],
+    );
+    assert!(raw_curr.is_err(), "Raw SQL currency update must fail via trigger");
+    assert!(raw_curr.unwrap_err().to_string().contains("Cannot change business base currency after cashbook vouchers or non-zero accounts exist"));
 }
 
 #[tokio::test]
@@ -637,3 +645,485 @@ async fn test_cashbook_summary_net_operating_cash_flow() {
     // Net operating cash flow = 500,000 (income) - 200,000 (expense) = 300,000 minor (Capital excluded!)
     assert_eq!(summary.net_operating_cash_flow_minor, 300_000);
 }
+
+#[tokio::test]
+async fn test_cashbook_integrity_hardening_defects() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("integrity_hardening.db");
+    let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should spawn");
+
+    // 1. Account currency mismatch (AED account in INR company) must be rejected
+    let aed_acc_res = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "AED Account".to_string(),
+            account_type: "bank".to_string(),
+            opening_balance_minor: 0,
+            allow_negative_balance: false,
+            currency_code: Some("AED".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await;
+    assert!(aed_acc_res.is_err());
+    let err_msg = aed_acc_res.unwrap_err();
+    assert!(err_msg.contains("Currency code 'AED' does not match company base currency 'INR'"));
+
+    // 2. Account currency exponent mismatch (KWD with exponent 2 instead of 3) must be rejected
+    let kwd_acc_res = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "KWD Account".to_string(),
+            account_type: "bank".to_string(),
+            opening_balance_minor: 0,
+            allow_negative_balance: false,
+            currency_code: Some("KWD".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await;
+    assert!(kwd_acc_res.is_err());
+    assert!(kwd_acc_res.unwrap_err().contains("Invalid exponent 2 for currency 'KWD'"));
+
+    // Create Account A (opening 500,000)
+    let acc_a = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Account A".to_string(),
+            account_type: "cash".to_string(),
+            opening_balance_minor: 500_000,
+            allow_negative_balance: false,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .expect("create acc_a failed");
+
+    // Create Account B (opening 200,000)
+    let acc_b = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Account B".to_string(),
+            account_type: "bank".to_string(),
+            opening_balance_minor: 200_000,
+            allow_negative_balance: false,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .expect("create acc_b failed");
+
+    // 3. Direction and Classification Incompatibilities
+    // Inflow with OperatingExpense -> rejected
+    let bad_inflow = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: acc_a.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingExpense,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 100_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-bad-inflow".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await;
+    assert!(bad_inflow.is_err());
+    assert!(bad_inflow.unwrap_err().contains("Incompatible direction Inflow with classification OperatingExpense"));
+
+    // Outflow with OperatingIncome -> rejected
+    let bad_outflow = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: acc_a.id.clone(),
+            direction: MovementDirection::Outflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 100_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-bad-outflow".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await;
+    assert!(bad_outflow.is_err());
+    assert!(bad_outflow.unwrap_err().contains("Incompatible direction Outflow with classification OperatingIncome"));
+
+    // 4. Direction and Category Incompatibilities
+    // Inflow with expense category ('cat-rent') -> rejected
+    let bad_cat = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: acc_a.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 100_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: Some("cat-rent".to_string()),
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-bad-cat".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await;
+    assert!(bad_cat.is_err());
+    assert!(bad_cat.unwrap_err().contains("Incompatible direction Inflow with category type Expense"));
+
+    // Post valid vouchers:
+    // Voucher 1 on Account A: Inflow 100,000 (OperatingIncome)
+    let vch1 = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: acc_a.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 100_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: Some("cat-sales".to_string()),
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-vch1".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .expect("vch1 post failed");
+    let vch1 = match vch1 { PostVoucherResult::Posted(v) => v, _ => panic!("Expected Posted") };
+
+    // Voucher 2 on Account B: Inflow 50,000 (OperatingIncome)
+    let vch2 = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: acc_b.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::BankTransfer,
+            amount_minor: 50_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: Some("cat-sales".to_string()),
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-vch2".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .expect("vch2 post failed");
+    let vch2 = match vch2 { PostVoucherResult::Posted(v) => v, _ => panic!("Expected Posted") };
+
+    // 5. Verify Summary before archiving Account B:
+    // Total cash: A(500,000 + 100,000) + B(200,000 + 50,000) = 850,000
+    // Active cash: 850,000
+    let (_, sum_before) = worker.get_cashbook_ledger(CashbookLedgerFilter::default()).await.unwrap();
+    assert_eq!(sum_before.total_cash_minor, 850_000);
+    assert_eq!(sum_before.active_cash_minor, 850_000);
+
+    // Archive Account B
+    worker
+        .update_money_account(UpdateMoneyAccountDto {
+            id: acc_b.id.clone(),
+            account_name: acc_b.account_name.clone(),
+            allow_negative_balance: false,
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+            is_archived: true,
+        })
+        .await
+        .expect("archive acc_b failed");
+
+    // 6. Verify Summary after archiving Account B:
+    // Total cash remains 850,000 (all accounts preserved)
+    // Active cash is strictly 600,000 (Account A: 500,000 opening + 100,000 movement)
+    let (_, sum_after) = worker.get_cashbook_ledger(CashbookLedgerFilter::default()).await.unwrap();
+    assert_eq!(sum_after.total_cash_minor, 850_000);
+    assert_eq!(sum_after.active_cash_minor, 600_000);
+
+    // 7. Posting new voucher to archived account must be rejected
+    let post_archived = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: acc_b.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 10_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-post-archived".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await;
+    assert!(post_archived.is_err());
+    assert!(post_archived.unwrap_err().contains("Cannot post to or modify archived account"));
+
+    // 8. Reversing voucher on archived account must be rejected (operator must consciously unarchive first)
+    let rev_archived = worker
+        .reverse_cashbook_voucher(vch2.id.clone(), false)
+        .await;
+    assert!(rev_archived.is_err());
+    assert!(rev_archived.unwrap_err().contains("Cannot post to or modify archived account"));
+
+    // Unarchive Account B and verify reversal now succeeds
+    worker
+        .update_money_account(UpdateMoneyAccountDto {
+            id: acc_b.id.clone(),
+            account_name: acc_b.account_name.clone(),
+            allow_negative_balance: false,
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+            is_archived: false,
+        })
+        .await
+        .expect("unarchive acc_b failed");
+
+    let rev_success = worker
+        .reverse_cashbook_voucher(vch2.id.clone(), false)
+        .await
+        .expect("reversal after unarchiving must succeed");
+    assert!(matches!(rev_success, PostVoucherResult::Posted(_)));
+
+    // 9. SQL Trigger Invariant Protections via raw connection
+    let conn = Connection::open(&db_path).expect("open raw sqlite failed");
+
+    // Status downgrade of posted voucher to draft must be aborted by trigger
+    let downgrade_res = conn.execute(
+        "UPDATE cashbook_vouchers SET status = 'draft' WHERE id = ?1;",
+        rusqlite::params![vch1.id],
+    );
+    assert!(downgrade_res.is_err());
+    assert!(downgrade_res.unwrap_err().to_string().contains("Cannot change status of a posted voucher"));
+
+    // Multiple movements for single C1 voucher must be aborted by trigger
+    let extra_mov_res = conn.execute(
+        "INSERT INTO cashbook_movements (id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at)
+         VALUES ('mov_extra_bogus', ?1, ?2, 100000, '2026-10-19', 99, 1729337400000);",
+        rusqlite::params![vch1.id, acc_a.id],
+    );
+    assert!(extra_mov_res.is_err());
+    assert!(extra_mov_res.unwrap_err().to_string().contains("Multiple movements for a single C1 voucher are prohibited"));
+
+    // Movement sign disagreement must be aborted by trigger
+    let disagree_mov_res = conn.execute(
+        "INSERT INTO cashbook_movements (id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at)
+         VALUES ('mov_sign_err', ?1, ?2, -100000, '2026-10-19', 99, 1729337400000);",
+        rusqlite::params![vch1.id, acc_a.id],
+    );
+    assert!(disagree_mov_res.is_err());
+    assert!(disagree_mov_res.unwrap_err().to_string().contains("Movement details (account, date, amount, sign) must agree with voucher"));
+
+    // Audit events must be immutable
+    let audit_update_res = conn.execute(
+        "UPDATE cashbook_audit_events SET event_type = 'tampered' WHERE voucher_id = ?1;",
+        rusqlite::params![vch1.id],
+    );
+    assert!(audit_update_res.is_err());
+    assert!(audit_update_res.unwrap_err().to_string().contains("Cannot update cashbook audit events"));
+
+    let audit_delete_res = conn.execute(
+        "DELETE FROM cashbook_audit_events WHERE voucher_id = ?1;",
+        rusqlite::params![vch1.id],
+    );
+    assert!(audit_delete_res.is_err());
+    assert!(audit_delete_res.unwrap_err().to_string().contains("Cannot delete cashbook audit events"));
+
+    // Verify transactional audit events exist for voucher_posted and voucher_reversed
+    let post_audit_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM cashbook_audit_events WHERE event_type = 'voucher_posted';",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(post_audit_count >= 2, "Transactional voucher_posted audit events must be recorded");
+
+    let rev_audit_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM cashbook_audit_events WHERE event_type = 'voucher_reversed';",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(rev_audit_count, 1, "Transactional voucher_reversed audit event must be recorded");
+}
+
+#[tokio::test]
+async fn test_cashbook_date_range_and_period_balances() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("date_range.db");
+    let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should spawn");
+
+    let account = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Timeline Account".to_string(),
+            account_type: "bank".to_string(),
+            opening_balance_minor: 100_000, // 1,000 opening
+            allow_negative_balance: false,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .expect("create account failed");
+
+    // Post Voucher 1: 2026-10-05, Inflow 50,000
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 50_000,
+            business_date: "2026-10-05".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-range-1".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Post Voucher 2: 2026-10-15, Outflow 20,000 (OperatingExpense)
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Outflow,
+            classification: CashbookClassification::OperatingExpense,
+            payment_method: PaymentMethod::BankTransfer,
+            amount_minor: 20_000,
+            business_date: "2026-10-15".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-range-2".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Post Voucher 3: 2026-10-25, Inflow 40,000
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 40_000,
+            business_date: "2026-10-25".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-range-3".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Query ledger with date filter: 2026-10-10 to 2026-10-20
+    let (entries, summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            account_id: Some(account.id),
+            start_date: Some("2026-10-10".to_string()),
+            end_date: Some("2026-10-20".to_string()),
+            ..Default::default()
+        })
+        .await
+        .expect("filtered ledger query failed");
+
+    // Only Voucher 2 falls in the date range
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].movement.business_date, "2026-10-15");
+    assert_eq!(entries[0].movement.amount_minor, -20_000);
+
+    // Period metrics:
+    assert_eq!(summary.period_inflows_minor, 0);
+    assert_eq!(summary.period_outflows_minor, 20_000);
+    assert_eq!(summary.net_operating_cash_flow_minor, -20_000);
+
+    // Period opening balance = account opening (100,000) + voucher 1 prior inflow (50,000) = 150,000
+    assert_eq!(summary.opening_balance_minor, 150_000);
+
+    // Period closing balance = opening (150,000) - outflow (20,000) = 130,000
+    assert_eq!(summary.closing_balance_minor, 130_000);
+
+    // All-time total cash = 100,000 + 50,000 - 20,000 + 40,000 = 170,000
+    assert_eq!(summary.total_cash_minor, 170_000);
+}
+
+#[tokio::test]
+async fn test_cashbook_failure_injection_rollback() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("rollback_test.db");
+    let worker = DbWorkerHandle::new(db_path.clone()).expect("worker should spawn");
+
+    let account = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Rollback Account".to_string(),
+            account_type: "cash".to_string(),
+            opening_balance_minor: 10_000,
+            allow_negative_balance: false,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .expect("create account failed");
+
+    // Attempt payment of 500,000 without negative balance confirmation
+    let res = worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Outflow,
+            classification: CashbookClassification::OperatingExpense,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 500_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: None,
+            idempotency_key: "idem-rollback-1".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .expect("operation should complete with confirmation requirement");
+
+    assert!(matches!(res, PostVoucherResult::RequiresConfirmation { .. }));
+
+    // Verify raw SQLite database has ZERO vouchers, ZERO movements, ZERO sequences, ZERO audit events
+    let conn = Connection::open(&db_path).expect("open raw sqlite failed");
+    let vch_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_vouchers;", [], |r| r.get(0)).unwrap();
+    assert_eq!(vch_count, 0, "No vouchers must be committed on unconfirmed negative balance");
+
+    let mov_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_movements;", [], |r| r.get(0)).unwrap();
+    assert_eq!(mov_count, 0, "No movements must be committed on unconfirmed negative balance");
+
+    let seq_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_sequences;", [], |r| r.get(0)).unwrap();
+    assert_eq!(seq_count, 0, "No sequence increments must be committed on unconfirmed negative balance");
+
+    let aud_count: i64 = conn.query_row("SELECT COUNT(*) FROM cashbook_audit_events;", [], |r| r.get(0)).unwrap();
+    assert_eq!(aud_count, 0, "No audit events must be committed on unconfirmed negative balance");
+}
+

@@ -762,8 +762,32 @@ fn save_business_profile(
             )
             .map_err(|e| format!("Failed to check expenses: {}", e))?;
 
-        if has_products || has_invoices || has_payments || has_expenses {
-            return Err("Cannot change base currency after catalog products, invoices, payments, or expenses exist in the system. Changing currency would silently corrupt historical ledger values.".to_string());
+        let has_posted_vouchers: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM cashbook_vouchers WHERE status = 'posted' LIMIT 1);",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("Failed to check cashbook vouchers: {}", e))?;
+
+        let has_nonzero_accounts: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM money_accounts WHERE opening_balance_minor != 0 LIMIT 1);",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("Failed to check non-zero money accounts: {}", e))?;
+
+        let has_movements: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM cashbook_movements LIMIT 1);",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("Failed to check cashbook movements: {}", e))?;
+
+        if has_products || has_invoices || has_payments || has_expenses || has_posted_vouchers || has_nonzero_accounts || has_movements {
+            return Err("Cannot change base currency after catalog products, invoices, payments, or expenses exist, or posted cashbook vouchers, non-zero accounts, or movements exist in the system. Changing currency would silently corrupt historical ledger values.".to_string());
         }
     }
 
@@ -815,6 +839,16 @@ fn save_business_profile(
         ],
     )
     .map_err(|e| format!("Failed to update business profile: {}", e))?;
+
+    // Synchronize empty money accounts (0 opening balance and no movements) to match new currency
+    conn.execute(
+        "UPDATE money_accounts
+         SET currency_code = ?1, currency_exponent = ?2, updated_at = ?3
+         WHERE opening_balance_minor = 0
+           AND NOT EXISTS (SELECT 1 FROM cashbook_movements WHERE account_id = money_accounts.id);",
+        params![profile.currency_code, profile.currency_exponent, updated_at],
+    )
+    .map_err(|e| format!("Failed to sync currency to empty money accounts: {}", e))?;
 
     fetch_business_settings(conn)
 }
@@ -873,6 +907,16 @@ fn complete_business_setup(
         ],
     )
     .map_err(|e| format!("Failed to complete business setup: {}", e))?;
+
+    // Synchronize empty money accounts (0 opening balance and no movements) to match setup currency
+    conn.execute(
+        "UPDATE money_accounts
+         SET currency_code = ?1, currency_exponent = ?2, updated_at = ?3
+         WHERE opening_balance_minor = 0
+           AND NOT EXISTS (SELECT 1 FROM cashbook_movements WHERE account_id = money_accounts.id);",
+        params![profile.currency_code, profile.currency_exponent, updated_at],
+    )
+    .map_err(|e| format!("Failed to sync currency to empty money accounts: {}", e))?;
 
     fetch_business_settings(conn)
 }
@@ -1722,18 +1766,50 @@ fn create_money_account(conn: &Connection, dto: CreateMoneyAccountDto) -> Result
     if name.is_empty() {
         return Err("Account name cannot be empty".to_string());
     }
-    if dto.opening_balance_minor.abs() > MAX_MONEY_MINOR {
+    if dto.opening_balance_minor < -MAX_MONEY_MINOR || dto.opening_balance_minor > MAX_MONEY_MINOR {
         return Err(format!("Opening balance exceeds limit: {}", MAX_MONEY_MINOR));
     }
     let act_type = AccountType::from_str(&dto.account_type)
         .ok_or_else(|| format!("Invalid account type: {}", dto.account_type))?;
 
+    let settings = fetch_business_settings(conn)?;
     let (currency_code, currency_exponent) = match (dto.currency_code, dto.currency_exponent) {
-        (Some(c), Some(e)) => (c, e),
-        _ => {
-            let settings = fetch_business_settings(conn)?;
-            (settings.currency_code, settings.currency_exponent)
+        (Some(c), Some(e)) => {
+            crate::domain::currency::validate_currency(&c, e)
+                .map_err(|e| e.to_string())?;
+            if c != settings.currency_code {
+                return Err(CashbookError::CurrencyMismatch {
+                    expected: settings.currency_code,
+                    actual: c,
+                }.to_string());
+            }
+            if e != settings.currency_exponent {
+                return Err(CashbookError::CurrencyExponentMismatch {
+                    expected: settings.currency_exponent,
+                    actual: e,
+                }.to_string());
+            }
+            (c, e)
         }
+        (Some(c), None) => {
+            if c != settings.currency_code {
+                return Err(CashbookError::CurrencyMismatch {
+                    expected: settings.currency_code,
+                    actual: c,
+                }.to_string());
+            }
+            (c, settings.currency_exponent)
+        }
+        (None, Some(e)) => {
+            if e != settings.currency_exponent {
+                return Err(CashbookError::CurrencyExponentMismatch {
+                    expected: settings.currency_exponent,
+                    actual: e,
+                }.to_string());
+            }
+            (settings.currency_code, e)
+        }
+        (None, None) => (settings.currency_code, settings.currency_exponent),
     };
 
     let id = format!("acc_{}", uuid::Uuid::new_v4().simple());
@@ -2019,10 +2095,17 @@ fn post_cashbook_voucher(
         return Err("Idempotency key cannot be empty".to_string());
     }
 
+    validate_direction_and_classification(input.direction, input.classification)
+        .map_err(|e| e.to_string())?;
+
     let payload_hash = compute_client_intent_hash(&input);
 
-    // 1. Idempotency Check
-    let existing: Option<(String, String)> = conn
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| format!("Transaction begin error: {}", e))?;
+
+    // 1. Idempotency Check inside transaction
+    let existing: Option<(String, String)> = tx
         .query_row(
             "SELECT id, payload_hash FROM cashbook_vouchers WHERE idempotency_key = ?1;",
             params![input.idempotency_key],
@@ -2033,40 +2116,113 @@ fn post_cashbook_voucher(
 
     if let Some((existing_id, existing_hash)) = existing {
         if existing_hash == payload_hash {
-            let v = fetch_voucher_by_id(conn, &existing_id)?;
+            let v = fetch_voucher_by_id(&tx, &existing_id)?;
             return Ok(PostVoucherResult::Posted(v));
         } else {
             return Err(CashbookError::IdempotencyKeyConflict.to_string());
         }
     }
 
-    // 2. Fetch Account Info
-    let (account_name, opening_balance_minor, allow_negative_balance, currency_code, currency_exponent): (String, i64, i64, String, i32) = conn
+    // 2. Fetch Account Info inside transaction
+    let acc_opt = tx
         .query_row(
-            "SELECT account_name, opening_balance_minor, allow_negative_balance, currency_code, currency_exponent FROM money_accounts WHERE id = ?1;",
+            "SELECT account_name, opening_balance_minor, allow_negative_balance, currency_code, currency_exponent, is_archived
+             FROM money_accounts WHERE id = ?1;",
             params![input.account_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            |r| Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, i32>(4)?,
+                r.get::<_, i64>(5)?,
+            )),
         )
-        .map_err(|_| CashbookError::AccountNotFound(input.account_id.clone()).to_string())?;
+        .optional()
+        .map_err(|e| format!("Failed to fetch money account: {}", e))?;
 
-    let sum_movs: i64 = conn
+    let (account_name, opening_balance_minor, allow_negative_balance, account_currency, account_exponent, is_archived) = match acc_opt {
+        Some(vals) => vals,
+        None => return Err(CashbookError::AccountNotFound(input.account_id.clone()).to_string()),
+    };
+
+    if is_archived != 0 {
+        return Err(CashbookError::AccountArchived(input.account_id.clone()).to_string());
+    }
+
+    // 3. Currency Match check inside transaction
+    let (company_currency, company_exponent): (String, i32) = tx
+        .query_row(
+            "SELECT currency_code, currency_exponent FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to fetch business settings currency: {}", e))?;
+
+    if account_currency != company_currency {
+        return Err(CashbookError::CurrencyMismatch {
+            expected: company_currency,
+            actual: account_currency,
+        }.to_string());
+    }
+    if account_exponent != company_exponent {
+        return Err(CashbookError::CurrencyExponentMismatch {
+            expected: company_exponent,
+            actual: account_exponent,
+        }.to_string());
+    }
+
+    // 4. Category Validation inside transaction
+    if let Some(ref cat_id) = input.category_id {
+        let cat_type_str: Option<String> = tx
+            .query_row(
+                "SELECT category_type FROM cashbook_categories WHERE id = ?1;",
+                params![cat_id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| format!("Failed to fetch category: {}", e))?;
+
+        match cat_type_str {
+            Some(s) => {
+                let cat_type = CategoryType::from_str(&s)
+                    .ok_or_else(|| format!("Invalid category type in database: {}", s))?;
+                validate_direction_and_category(input.direction, cat_type)
+                    .map_err(|e| e.to_string())?;
+            }
+            None => {
+                return Err(CashbookError::CategoryNotFound(cat_id.clone()).to_string());
+            }
+        }
+    }
+
+    // 5. Authoritative Current Balance with checked arithmetic inside transaction
+    let sum_movs: i64 = tx
         .query_row(
             "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements WHERE account_id = ?1;",
             params![input.account_id],
             |r| r.get(0),
         )
-        .unwrap_or(0);
+        .map_err(|e| format!("Failed to compute sum of movements: {}", e))?;
 
-    let current_balance = opening_balance_minor + sum_movs;
+    let current_balance = opening_balance_minor
+        .checked_add(sum_movs)
+        .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
 
     let movement_delta = match input.direction {
         MovementDirection::Inflow => input.amount_minor,
         MovementDirection::Outflow => -input.amount_minor,
     };
 
-    let projected_balance = current_balance + movement_delta;
+    let projected_balance = current_balance
+        .checked_add(movement_delta)
+        .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
 
-    // 3. Negative Balance Guard (Pre-transaction check)
+    if projected_balance < -MAX_TOTAL_MINOR || projected_balance > MAX_TOTAL_MINOR {
+        return Err(CashbookError::BalanceExceedsMaximum(projected_balance, MAX_TOTAL_MINOR).to_string());
+    }
+
+    // 6. Negative Balance Guard inside transaction
     if projected_balance < 0 && allow_negative_balance == 0 && !input.confirmed_negative_balance {
         return Ok(PostVoucherResult::RequiresConfirmation {
             current_balance_minor: current_balance,
@@ -2078,11 +2234,6 @@ fn post_cashbook_voucher(
             ),
         });
     }
-
-    // 4. Begin Immediate Transaction
-    let tx = conn
-        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-        .map_err(|e| format!("Transaction begin error: {}", e))?;
 
     let now = chrono::Utc::now().timestamp_millis();
     let year_month = parsed_date.format("%Y%m").to_string();
@@ -2171,8 +2322,8 @@ fn post_cashbook_voucher(
             party_tax_id,
             party_addr,
             account_name,
-            currency_code,
-            currency_exponent,
+            account_currency,
+            account_exponent,
             now
         ],
     ).map_err(|e| format!("Failed to insert voucher: {}", e))?;
@@ -2184,7 +2335,7 @@ fn post_cashbook_voucher(
             params![input.account_id],
             |r| r.get(0),
         )
-        .unwrap_or(1);
+        .map_err(|e| format!("Failed to allocate movement sequence: {}", e))?;
 
     tx.execute(
         "INSERT INTO cashbook_movements (
@@ -2200,6 +2351,23 @@ fn post_cashbook_voucher(
             now
         ],
     ).map_err(|e| format!("Failed to insert movement: {}", e))?;
+
+    // Transactional audit events
+    let aud_post_id = format!("aud_{}", uuid::Uuid::new_v4().simple());
+    let post_details = serde_json::json!({
+        "voucher_id": voucher_id,
+        "voucher_number": voucher_number,
+        "amount_minor": input.amount_minor,
+        "account_id": input.account_id,
+        "direction": input.direction.as_str(),
+        "classification": input.classification.as_str(),
+        "posted_at": now,
+    }).to_string();
+    tx.execute(
+        "INSERT INTO cashbook_audit_events (id, voucher_id, event_type, details_json, created_at)
+         VALUES (?1, ?2, 'voucher_posted', ?3, ?4);",
+        params![aud_post_id, voucher_id, post_details, now],
+    ).map_err(|e| format!("Failed to log voucher_posted audit event: {}", e))?;
 
     if projected_balance < 0 && allow_negative_balance == 0 && input.confirmed_negative_balance {
         let audit_id = format!("aud_{}", uuid::Uuid::new_v4().simple());
@@ -2230,7 +2398,11 @@ fn reverse_cashbook_voucher(
     voucher_id: String,
     confirmed_negative_balance: bool,
 ) -> Result<PostVoucherResult, String> {
-    let orig = fetch_voucher_by_id(conn, &voucher_id)
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| format!("Transaction begin error: {}", e))?;
+
+    let orig = fetch_voucher_by_id(&tx, &voucher_id)
         .map_err(|_| CashbookError::VoucherNotFound(voucher_id.clone()).to_string())?;
 
     if orig.status != VoucherStatus::Posted {
@@ -2243,30 +2415,48 @@ fn reverse_cashbook_voucher(
         return Err(CashbookError::CannotReverseReversal(voucher_id).to_string());
     }
 
-    let (allow_negative_balance, opening_balance_minor): (i64, i64) = conn
+    let acc_opt = tx
         .query_row(
-            "SELECT allow_negative_balance, opening_balance_minor FROM money_accounts WHERE id = ?1;",
+            "SELECT allow_negative_balance, opening_balance_minor, is_archived FROM money_accounts WHERE id = ?1;",
             params![orig.account_id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?)),
         )
+        .optional()
         .map_err(|e| format!("Failed to read money account: {}", e))?;
 
-    let sum_movs: i64 = conn
+    let (allow_negative_balance, opening_balance_minor, is_archived) = match acc_opt {
+        Some(vals) => vals,
+        None => return Err(CashbookError::AccountNotFound(orig.account_id.clone()).to_string()),
+    };
+
+    if is_archived != 0 {
+        return Err(CashbookError::AccountArchived(orig.account_id.clone()).to_string());
+    }
+
+    let sum_movs: i64 = tx
         .query_row(
             "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements WHERE account_id = ?1;",
             params![orig.account_id],
             |r| r.get(0),
         )
-        .unwrap_or(0);
+        .map_err(|e| format!("Failed to compute sum of movements: {}", e))?;
 
-    let current_balance = opening_balance_minor + sum_movs;
+    let current_balance = opening_balance_minor
+        .checked_add(sum_movs)
+        .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
 
     let (reversal_movement_delta, reversal_direction, reversal_prefix) = match orig.direction {
         MovementDirection::Inflow => (-orig.amount_minor, MovementDirection::Outflow, "RCP-REV"),
         MovementDirection::Outflow => (orig.amount_minor, MovementDirection::Inflow, "PAY-REV"),
     };
 
-    let projected_balance = current_balance + reversal_movement_delta;
+    let projected_balance = current_balance
+        .checked_add(reversal_movement_delta)
+        .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
+
+    if projected_balance < -MAX_TOTAL_MINOR || projected_balance > MAX_TOTAL_MINOR {
+        return Err(CashbookError::BalanceExceedsMaximum(projected_balance, MAX_TOTAL_MINOR).to_string());
+    }
 
     if projected_balance < 0 && allow_negative_balance == 0 && !confirmed_negative_balance {
         return Ok(PostVoucherResult::RequiresConfirmation {
@@ -2279,10 +2469,6 @@ fn reverse_cashbook_voucher(
             ),
         });
     }
-
-    let tx = conn
-        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-        .map_err(|e| format!("Transaction begin error: {}", e))?;
 
     let now = chrono::Utc::now().timestamp_millis();
     let today_str = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -2304,6 +2490,7 @@ fn reverse_cashbook_voucher(
     let reversal_voucher_id = format!("vch_{}", uuid::Uuid::new_v4().simple());
     let reversal_idempotency_key = format!("rev_{}", orig.id);
 
+    // Insert reversal voucher before updating original voucher reversal linkage
     tx.execute(
         "INSERT INTO cashbook_vouchers (
             id, voucher_number, idempotency_key, payload_hash, account_id,
@@ -2362,7 +2549,7 @@ fn reverse_cashbook_voucher(
             params![orig.account_id],
             |r| r.get(0),
         )
-        .unwrap_or(1);
+        .map_err(|e| format!("Failed to allocate reversal movement sequence: {}", e))?;
 
     tx.execute(
         "INSERT INTO cashbook_movements (
@@ -2441,7 +2628,8 @@ fn fetch_cashbook_ledger(
             (a.opening_balance_minor + SUM(m.amount_minor) OVER (
                 PARTITION BY m.account_id 
                 ORDER BY m.business_date ASC, m.sequence_number ASC, m.id ASC
-            )) AS running_balance_minor
+            )) AS running_balance_minor,
+            a.is_archived AS a_is_archived
         FROM cashbook_movements m
         JOIN cashbook_vouchers v ON m.voucher_id = v.id
         JOIN money_accounts a ON m.account_id = a.id
@@ -2466,7 +2654,10 @@ fn fetch_cashbook_ledger(
     if let Some(ref acc_id) = filter.account_id {
         sql.push_str(" AND m_account_id = ?");
         params_vec.push(Box::new(acc_id.clone()));
+    } else if !filter.include_archived.unwrap_or(false) {
+        sql.push_str(" AND a_is_archived = 0");
     }
+
     if let Some(ref start) = filter.start_date {
         sql.push_str(" AND m_business_date >= ?");
         params_vec.push(Box::new(start.clone()));
@@ -2523,7 +2714,7 @@ fn fetch_cashbook_ledger(
         if m_amt > 0 {
             period_inflows = period_inflows.saturating_add(m_amt);
         } else {
-            period_outflows = period_outflows.saturating_add(m_amt.abs());
+            period_outflows = period_outflows.saturating_add(m_amt.unsigned_abs() as i64);
         }
 
         if entry.voucher.classification == CashbookClassification::OperatingIncome
@@ -2535,27 +2726,118 @@ fn fetch_cashbook_ledger(
         entries.push(entry);
     }
 
-    let total_cash_minor: i64 = if let Some(ref acc_id) = filter.account_id {
-        conn.query_row(
-            "SELECT (opening_balance_minor + COALESCE((SELECT SUM(amount_minor) FROM cashbook_movements WHERE account_id = ?1), 0))
-             FROM money_accounts WHERE id = ?1;",
+    let (total_cash_minor, active_cash_minor): (i64, i64) = if let Some(ref acc_id) = filter.account_id {
+        let (opening, is_archived): (i64, i64) = conn.query_row(
+            "SELECT opening_balance_minor, is_archived FROM money_accounts WHERE id = ?1;",
+            params![acc_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).map_err(|e| format!("Failed to query account balance: {}", e))?;
+
+        let mov_sum: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements WHERE account_id = ?1;",
             params![acc_id],
             |r| r.get(0),
-        ).unwrap_or(0)
+        ).map_err(|e| format!("Failed to sum movements: {}", e))?;
+
+        let bal = opening.checked_add(mov_sum).ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
+        let act_bal = if is_archived == 0 { bal } else { 0 };
+        (bal, act_bal)
     } else {
-        conn.query_row(
-            "SELECT (COALESCE(SUM(opening_balance_minor), 0) + COALESCE((SELECT SUM(amount_minor) FROM cashbook_movements), 0))
-             FROM money_accounts WHERE is_archived = 0;",
+        let all_openings: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(opening_balance_minor), 0) FROM money_accounts;",
             [],
             |r| r.get(0),
-        ).unwrap_or(0)
+        ).map_err(|e| format!("Failed to query all opening balances: {}", e))?;
+
+        let all_movements: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements;",
+            [],
+            |r| r.get(0),
+        ).map_err(|e| format!("Failed to query all movements: {}", e))?;
+
+        let active_openings: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(opening_balance_minor), 0) FROM money_accounts WHERE is_archived = 0;",
+            [],
+            |r| r.get(0),
+        ).map_err(|e| format!("Failed to query active opening balances: {}", e))?;
+
+        let active_movements: i64 = conn.query_row(
+            "SELECT COALESCE(SUM(m.amount_minor), 0) FROM cashbook_movements m JOIN money_accounts a ON m.account_id = a.id WHERE a.is_archived = 0;",
+            [],
+            |r| r.get(0),
+        ).map_err(|e| format!("Failed to query active movements: {}", e))?;
+
+        let total = all_openings.checked_add(all_movements).ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
+        let active = active_openings.checked_add(active_movements).ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
+        (total, active)
     };
+
+    let period_opening_balance: i64 = if let Some(ref acc_id) = filter.account_id {
+        let base_opening: i64 = conn.query_row(
+            "SELECT opening_balance_minor FROM money_accounts WHERE id = ?1;",
+            params![acc_id],
+            |r| r.get(0),
+        ).map_err(|e| format!("Failed to query account opening balance: {}", e))?;
+
+        if let Some(ref start) = filter.start_date {
+            let prior_movs: i64 = conn.query_row(
+                "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements WHERE account_id = ?1 AND business_date < ?2;",
+                params![acc_id, start],
+                |r| r.get(0),
+            ).map_err(|e| format!("Failed to sum prior movements: {}", e))?;
+            base_opening.checked_add(prior_movs).ok_or_else(|| CashbookError::BalanceOverflow.to_string())?
+        } else {
+            base_opening
+        }
+    } else {
+        let include_arch = filter.include_archived.unwrap_or(false);
+        let base_opening: i64 = if include_arch {
+            conn.query_row(
+                "SELECT COALESCE(SUM(opening_balance_minor), 0) FROM money_accounts;",
+                [],
+                |r| r.get(0),
+            ).map_err(|e| format!("Failed to query opening balance: {}", e))?
+        } else {
+            conn.query_row(
+                "SELECT COALESCE(SUM(opening_balance_minor), 0) FROM money_accounts WHERE is_archived = 0;",
+                [],
+                |r| r.get(0),
+            ).map_err(|e| format!("Failed to query active opening balance: {}", e))?
+        };
+
+        if let Some(ref start) = filter.start_date {
+            let prior_movs: i64 = if include_arch {
+                conn.query_row(
+                    "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements WHERE business_date < ?1;",
+                    params![start],
+                    |r| r.get(0),
+                ).map_err(|e| format!("Failed to sum prior movements: {}", e))?
+            } else {
+                conn.query_row(
+                    "SELECT COALESCE(SUM(m.amount_minor), 0) FROM cashbook_movements m JOIN money_accounts a ON m.account_id = a.id WHERE a.is_archived = 0 AND m.business_date < ?1;",
+                    params![start],
+                    |r| r.get(0),
+                ).map_err(|e| format!("Failed to sum prior active movements: {}", e))?
+            };
+            base_opening.checked_add(prior_movs).ok_or_else(|| CashbookError::BalanceOverflow.to_string())?
+        } else {
+            base_opening
+        }
+    };
+
+    let period_closing_balance = period_opening_balance
+        .checked_add(period_inflows)
+        .and_then(|b| b.checked_sub(period_outflows))
+        .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
 
     let summary = CashbookSummary {
         total_cash_minor,
+        active_cash_minor,
         period_inflows_minor: period_inflows,
         period_outflows_minor: period_outflows,
         net_operating_cash_flow_minor: net_operating,
+        opening_balance_minor: period_opening_balance,
+        closing_balance_minor: period_closing_balance,
     };
 
     Ok((entries, summary))

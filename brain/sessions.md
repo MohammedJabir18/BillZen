@@ -779,7 +779,54 @@
   - `npm test`: 14 passed (14 unit tests), 0 failed.
   - `npm run build`: Production build passed (`tsc && vite build`).
 - **Unfinished Tasks / Immediate Next Steps**:
+  - [Completed in Session 9] Milestone C1A Integrity Hardening & Authoritative Posting Engine.
   - Milestone C1B: React Cashbook UI (dashboard summary, entry modal with receipt/payment toggle, running balance ledger, filters) and printable voucher PDF engine (`RCP-`, `PAY-`).
+
+## 2026-10-19 — Milestone C1A: Integrity Hardening, V8 Migration & Authoritative Posting Engine
+- **Goals**: Resolve financial integrity and lifecycle edge cases in Milestone C1A before proceeding to C1B UI development: prevent status downgrade of posted vouchers, enforce 1:1 voucher-to-movement correspondence and exact field agreement, protect `cashbook_audit_events` against updates/deletions, emit transactional posting/reversal audit events, enforce currency match against base currency, atomically synchronize empty accounts on currency change, reject postings/reversals on archived accounts, compute date-range opening/closing balances and dual `total_cash_minor` / `active_cash_minor`, enforce direction/classification and direction/category compatibility, use checked arithmetic throughout without `i64::MIN` panic risk, and enclose all validation and balance checks inside `rusqlite::TransactionBehavior::Immediate`.
+- **Completed Tasks**:
+  - **1. Forward Migration `v8_cashbook_integrity_hardening.sql` & Trigger Invariants**:
+    - Replaced `trg_prevent_posted_voucher_update` with hardened version: strictly forbids modifying status away from `posted`, blocks updates to already-reversed vouchers, and enforces that `reversed_by_voucher_id` must point to an existing reversal voucher with `is_reversal = 1`.
+    - Added `trg_prevent_cashbook_audit_event_update` and `trg_prevent_cashbook_audit_event_delete`: strictly preserves complete immutability of audit logs.
+    - Added `trg_validate_cashbook_movement_insert`: guarantees exactly one movement per C1 voucher, and validates exact agreement of `account_id`, `business_date`, magnitude (`ABS(amount_minor) == amount_minor`), and sign direction (`> 0` for inflow, `< 0` for outflow).
+    - Hardened `trg_cashbook_prevent_opening_balance_update_when_movements_exist` and `trg_business_settings_prevent_currency_change_when_cashbook_records_exist`.
+    - Registered `V8_MIGRATION_SQL` with forward migration runner and SHA-256 verification in `src-tauri/src/db/mod.rs`.
+    - Added forward upgrade regression test `test_upgrade_v7_database_to_v8_cashbook_integrity_hardening` testing populated V7 database upgrade and trigger protections.
+  - **2. Domain Validation & Overflow-Safe Arithmetic (`src-tauri/src/domain/cashbook.rs`)**:
+    - Added error variants: `AccountArchived`, `IncompatibleDirectionClassification`, `IncompatibleDirectionCategory`, `CurrencyMismatch`, `CurrencyExponentMismatch`, `CategoryNotFound`, `UnsupportedOperation`.
+    - Hardened `calculate_running_balance` using non-panicking range bounds (`opening < -MAX_MONEY_MINOR || opening > MAX_MONEY_MINOR`), eliminating any panic possibility on `i64::MIN`.
+    - Implemented `validate_direction_and_classification` (e.g. Inflow cannot be OperatingExpense; Outflow cannot be OperatingIncome; transfer/opening balance routes rejected for C1 vouchers).
+    - Implemented `validate_direction_and_category` (validating category classification matches voucher direction).
+    - Implemented canonical `compute_client_intent_hash` using typed `CanonicalClientIntent` with trimmed strings and normalized `None` serialized via `serde_json::to_vec`.
+    - Extended `CashbookSummary` with `active_cash_minor`, `opening_balance_minor`, and `closing_balance_minor`.
+    - Extended `CashbookLedgerFilter` with `include_archived: Option<bool>`.
+  - **3. Authoritative Immediate Transactions & Lifecycle Rules (`src-tauri/src/db/worker.rs`)**:
+    - `post_cashbook_voucher`: Encloses all validations, idempotency check, account existence, archived account check, base currency check, category check, current balance calculation, and negative balance confirmation inside `rusqlite::TransactionBehavior::Immediate`.
+    - Unconfirmed negative balance drops transaction cleanly without sequence allocation or movement insertion.
+    - Emits transactional `voucher_posted` and `negative_balance_confirmed` audit events.
+    - `reverse_cashbook_voucher`: Validates account is active (`is_archived == 0`), runs inside `Immediate` transaction, inserts reversal voucher prior to linking, and emits transactional `voucher_reversed` audit event.
+    - `create_money_account`: Enforces currency code and exponent match `business_settings`.
+    - `save_business_profile` & `complete_business_setup`: When currency is legitimately updated, atomically synchronizes empty accounts (`opening_balance_minor = 0 AND NOT EXISTS (movements)`) to the new company currency code and exponent.
+    - `fetch_cashbook_ledger`: Calculates `total_cash_minor` (all accounts), `active_cash_minor` (active accounts only), `opening_balance_minor` (prior movements before `start_date` + base opening), and `closing_balance_minor` (`opening + inflows - outflows`). Eliminates `.unwrap_or(0)` fallbacks.
+  - **4. Integration Regression Tests (`src-tauri/tests/cashbook_worker_tests.rs`)**:
+    - Added `test_cashbook_integrity_hardening_defects`: tests posted status downgrade rejection, movement mismatch rejection, audit table delete/update rejection, currency mismatch rejection, archived account posting/reversal rejection, empty account currency sync, and transactional audit logging.
+    - Added `test_cashbook_date_range_and_period_balances`: tests date-windowed opening balance, closing balance, active vs total cash, and archived accounts.
+    - Added `test_cashbook_failure_injection_rollback`: tests database rollback on deliberate injection failure.
+- **Files Modified / Added**:
+  - `src-tauri/src/db/migrations/v8_cashbook_integrity_hardening.sql` (Added)
+  - `src-tauri/src/db/mod.rs` (Modified)
+  - `src-tauri/src/domain/cashbook.rs` (Modified)
+  - `src-tauri/src/db/worker.rs` (Modified)
+  - `src-tauri/tests/cashbook_worker_tests.rs` (Modified)
+  - `brain/sessions.md` (Modified)
+  - `brain/architecture.md` (Modified)
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 71 passed (61 unit tests + 10 integration tests), 0 failed.
+  - `npm test`: 14 passed (14 unit tests), 0 failed.
+  - `npm run build`: Production build passed (`tsc && vite build`).
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone C1B: React Cashbook UI (dashboard summary cards, voucher entry modal with receipt/payment toggle, running balance ledger table, filters, responsive layout) and printable voucher PDF engine (`RCP-`, `PAY-`).
+
 
 
 

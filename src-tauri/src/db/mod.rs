@@ -28,6 +28,7 @@ pub const V4_MIGRATION_SQL: &str = include_str!("migrations/v4_catalog.sql");
 pub const V5_MIGRATION_SQL: &str = include_str!("migrations/v5_category_nocase.sql");
 pub const V6_MIGRATION_SQL: &str = include_str!("migrations/v6_setup_and_onboarding.sql");
 pub const V7_MIGRATION_SQL: &str = include_str!("migrations/v7_cashbook_foundation.sql");
+pub const V8_MIGRATION_SQL: &str = include_str!("migrations/v8_cashbook_integrity_hardening.sql");
 pub const INITIAL_V5_CHECKSUM: &str = "04d82447f839b02a0cc09c20534fa5f6d5688a1a79fb96e17b6a4bbe4d544a46";
 pub const INTERMEDIATE_V5_CHECKSUM: &str = "0d748aafb38054e1e01f260dd3bbc486e6e378a7bd97db6545d4ab4f9e166d36";
 pub const INITIAL_V6_CHECKSUM: &str = "c454f1673814b4ad7cd05f766f71f1bea165b3924fbb1d62c1fdf1292f34b944";
@@ -360,6 +361,41 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
             tx.execute(
                 "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
                 params![7, "v7_cashbook_foundation", now, current_checksum7],
+            )?;
+            tx.commit()?;
+        }
+    }
+
+    // Migration 8: Cashbook Integrity Hardening & Authoritative Protection
+    let mut hasher8 = Sha256::new();
+    hasher8.update(V8_MIGRATION_SQL.as_bytes());
+    let current_checksum8 = format!("{:x}", hasher8.finalize());
+
+    let existing_checksum8: Option<String> = conn
+        .query_row(
+            "SELECT checksum FROM schema_migrations WHERE version = 8;",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match existing_checksum8 {
+        Some(stored_checksum) => {
+            if stored_checksum != current_checksum8 {
+                return Err(DbError::ChecksumMismatch {
+                    version: 8,
+                    expected: stored_checksum,
+                    found: current_checksum8,
+                });
+            }
+        }
+        None => {
+            let tx = conn.transaction()?;
+            tx.execute_batch(V8_MIGRATION_SQL)?;
+            let now = chrono::Utc::now().timestamp_millis();
+            tx.execute(
+                "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
+                params![8, "v8_cashbook_integrity_hardening", now, current_checksum8],
             )?;
             tx.commit()?;
         }
@@ -1891,6 +1927,137 @@ mod tests {
         // Attempting to alter financial fields of posted voucher must be rejected
         let update_amount = conn.execute("UPDATE cashbook_vouchers SET amount_minor = 999 WHERE id = 'vch-1';", []);
         assert!(update_amount.is_err(), "Altering financial fields of posted voucher must fail");
+    }
+
+    #[test]
+    fn test_upgrade_v7_database_to_v8_cashbook_integrity_hardening() {
+        let mut conn = Connection::open_in_memory().expect("In-memory db failed");
+        configure_connection(&conn).expect("Config failed");
+
+        // Set up schema migrations table and apply V1 to V7 manually
+        conn.execute_batch(
+            "CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                checksum TEXT NOT NULL
+            );",
+        ).unwrap();
+
+        let sha256_of = |sql: &str| -> String {
+            let mut h = Sha256::new();
+            h.update(sql.as_bytes());
+            format!("{:x}", h.finalize())
+        };
+
+        let now = chrono::Utc::now().timestamp_millis();
+        conn.execute_batch(V1_MIGRATION_SQL).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (1, 'v1', ?1, ?2);", params![now, sha256_of(V1_MIGRATION_SQL)]).unwrap();
+        conn.execute_batch(V2_MIGRATION_SQL).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (2, 'v2', ?1, ?2);", params![now, sha256_of(V2_MIGRATION_SQL)]).unwrap();
+        conn.execute_batch(V3_MIGRATION_SQL).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (3, 'v3', ?1, ?2);", params![now, sha256_of(V3_MIGRATION_SQL)]).unwrap();
+        conn.execute_batch(V4_MIGRATION_SQL).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (4, 'v4', ?1, ?2);", params![now, sha256_of(V4_MIGRATION_SQL)]).unwrap();
+        conn.execute_batch(V5_MIGRATION_SQL).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (5, 'v5', ?1, ?2);", params![now, sha256_of(V5_MIGRATION_SQL)]).unwrap();
+        conn.execute_batch(V6_MIGRATION_SQL).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (6, 'v6', ?1, ?2);", params![now, sha256_of(V6_MIGRATION_SQL)]).unwrap();
+        conn.execute_batch(V7_MIGRATION_SQL).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (7, 'v7_cashbook_foundation', ?1, ?2);", params![now, sha256_of(V7_MIGRATION_SQL)]).unwrap();
+
+        // Populate business settings and cashbook account in V7
+        conn.execute(
+            "INSERT INTO business_settings (id, business_name, phone, address_line1, city, state, postal_code, currency_code, currency_exponent, created_at, updated_at)
+             VALUES ('default', 'Test Store', '9999999999', 'Road 1', 'City', 'State', '123456', 'INR', 2, ?1, ?1);",
+            params![now],
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO money_accounts (id, account_name, account_type, opening_balance_minor, allow_negative_balance, currency_code, currency_exponent, created_at, updated_at)
+             VALUES ('acc-1', 'Main Cash Drawer', 'cash', 500000, 0, 'INR', 2, 1000, 1000);",
+            [],
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO cashbook_vouchers (
+                id, voucher_number, idempotency_key, payload_hash, account_id, direction,
+                classification, payment_method, amount_minor, business_date, status,
+                created_at, posted_at
+            ) VALUES (
+                'vch-1', 'RCP-202610-00001', 'key-1', 'hash-1', 'acc-1', 'inflow',
+                'operating_income', 'cash', 100000, '2026-10-19', 'posted', 1000, 1000
+            );",
+            [],
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO cashbook_movements (id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at)
+             VALUES ('mov-1', 'vch-1', 'acc-1', 100000, '2026-10-19', 1, 1000);",
+            [],
+        ).unwrap();
+
+        // In V7 without V8, a status downgrade to draft would succeed.
+        // Now run migration runner which will forward-migrate to V8!
+        run_migrations(&mut conn).expect("Forward migration to V8 must succeed");
+
+        // Verify V8 recorded in schema_migrations
+        let v8_applied: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 8);",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert!(v8_applied, "Migration 8 must be applied");
+
+        // 1. Verify status downgrade to draft is blocked by hardened trigger
+        let downgrade_res = conn.execute("UPDATE cashbook_vouchers SET status = 'draft' WHERE id = 'vch-1';", []);
+        assert!(downgrade_res.is_err(), "Downgrading posted voucher to draft must be rejected");
+        assert!(downgrade_res.unwrap_err().to_string().contains("Cannot change status of a posted voucher"));
+
+        // 2. Verify second movement insertion for C1 voucher is blocked
+        let second_mov_res = conn.execute(
+            "INSERT INTO cashbook_movements (id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at)
+             VALUES ('mov-2', 'vch-1', 'acc-1', 100000, '2026-10-19', 2, 1000);",
+            [],
+        );
+        assert!(second_mov_res.is_err(), "Multiple movements for C1 voucher must be rejected");
+        assert!(second_mov_res.unwrap_err().to_string().contains("Multiple movements for a single C1 voucher are prohibited"));
+
+        // 3. Verify movement agreement (sign mismatch) is blocked
+        conn.execute(
+            "INSERT INTO cashbook_vouchers (
+                id, voucher_number, idempotency_key, payload_hash, account_id, direction,
+                classification, payment_method, amount_minor, business_date, status,
+                created_at, posted_at
+            ) VALUES (
+                'vch-2', 'RCP-202610-00002', 'key-2', 'hash-2', 'acc-1', 'inflow',
+                'operating_income', 'cash', 50000, '2026-10-19', 'posted', 1000, 1000
+            );",
+            [],
+        ).unwrap();
+
+        let disagree_mov_res = conn.execute(
+            "INSERT INTO cashbook_movements (id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at)
+             VALUES ('mov-agree-err', 'vch-2', 'acc-1', -50000, '2026-10-19', 2, 1000);",
+            [],
+        );
+        assert!(disagree_mov_res.is_err(), "Mismatched movement sign must be rejected");
+        assert!(disagree_mov_res.unwrap_err().to_string().contains("Movement details (account, date, amount, sign) must agree with voucher"));
+
+        // 4. Verify audit event immutability
+        conn.execute(
+            "INSERT INTO cashbook_audit_events (id, voucher_id, event_type, details_json, created_at)
+             VALUES ('aud-1', 'vch-1', 'voucher_posted', '{}', 1000);",
+            [],
+        ).unwrap();
+
+        let update_audit = conn.execute("UPDATE cashbook_audit_events SET event_type = 'hacked' WHERE id = 'aud-1';", []);
+        assert!(update_audit.is_err(), "Updating audit events must be rejected");
+        assert!(update_audit.unwrap_err().to_string().contains("Cannot update cashbook audit events"));
+
+        let delete_audit = conn.execute("DELETE FROM cashbook_audit_events WHERE id = 'aud-1';", []);
+        assert!(delete_audit.is_err(), "Deleting audit events must be rejected");
+        assert!(delete_audit.unwrap_err().to_string().contains("Cannot delete cashbook audit events"));
     }
 }
 

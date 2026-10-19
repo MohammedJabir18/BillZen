@@ -35,6 +35,20 @@ pub enum CashbookError {
     },
     #[error("Invalid business date format (expected YYYY-MM-DD): {0}")]
     InvalidDateFormat(String),
+    #[error("Cannot post to or modify archived account: {0}")]
+    AccountArchived(String),
+    #[error("Incompatible direction {0:?} with classification {1:?}")]
+    IncompatibleDirectionClassification(MovementDirection, CashbookClassification),
+    #[error("Incompatible direction {0:?} with category type {1:?}")]
+    IncompatibleDirectionCategory(MovementDirection, CategoryType),
+    #[error("Currency code '{actual}' does not match company base currency '{expected}'")]
+    CurrencyMismatch { expected: String, actual: String },
+    #[error("Currency exponent '{actual}' does not match expected exponent '{expected}'")]
+    CurrencyExponentMismatch { expected: i32, actual: i32 },
+    #[error("Category not found: {0}")]
+    CategoryNotFound(String),
+    #[error("Unsupported operation: {0}")]
+    UnsupportedOperation(String),
     #[error("Database error: {0}")]
     Database(String),
 }
@@ -391,9 +405,12 @@ pub struct CashbookLedgerEntry {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CashbookSummary {
     pub total_cash_minor: i64,
+    pub active_cash_minor: i64,
     pub period_inflows_minor: i64,
     pub period_outflows_minor: i64,
     pub net_operating_cash_flow_minor: i64,
+    pub opening_balance_minor: i64,
+    pub closing_balance_minor: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -444,6 +461,7 @@ pub struct CashbookLedgerFilter {
     pub end_date: Option<String>,
     pub classification: Option<String>,
     pub search: Option<String>,
+    pub include_archived: Option<bool>,
 }
 
 pub fn validate_money_amount(amount: i64) -> Result<(), CashbookError> {
@@ -457,36 +475,112 @@ pub fn validate_money_amount(amount: i64) -> Result<(), CashbookError> {
 }
 
 pub fn calculate_running_balance(opening: i64, movements: &[i64]) -> Result<i64, CashbookError> {
-    if opening.abs() > MAX_MONEY_MINOR {
-        return Err(CashbookError::AmountExceedsMaximum(opening.abs(), MAX_MONEY_MINOR));
+    if opening < -MAX_MONEY_MINOR || opening > MAX_MONEY_MINOR {
+        return Err(CashbookError::AmountExceedsMaximum(opening, MAX_MONEY_MINOR));
     }
     let mut total: i128 = opening as i128;
     for &m in movements {
         total = total.checked_add(m as i128).ok_or(CashbookError::BalanceOverflow)?;
-        if total.abs() > MAX_TOTAL_MINOR as i128 {
+        if total < -(MAX_TOTAL_MINOR as i128) || total > (MAX_TOTAL_MINOR as i128) {
             return Err(CashbookError::BalanceExceedsMaximum(total as i64, MAX_TOTAL_MINOR));
         }
     }
     Ok(total as i64)
 }
 
+#[derive(Serialize)]
+struct CanonicalClientIntent<'a> {
+    account_id: &'a str,
+    amount_minor: i64,
+    business_date: &'a str,
+    category_id: Option<&'a str>,
+    classification: &'a str,
+    direction: &'a str,
+    notes: Option<&'a str>,
+    party_id: Option<&'a str>,
+    payment_method: &'a str,
+    reference_note: Option<&'a str>,
+}
+
+fn normalize_opt_str(s: Option<&str>) -> Option<&str> {
+    s.map(str::trim).filter(|trimmed| !trimmed.is_empty())
+}
+
 pub fn compute_client_intent_hash(input: &CreateVoucherInput) -> String {
+    let canonical = CanonicalClientIntent {
+        account_id: input.account_id.trim(),
+        amount_minor: input.amount_minor,
+        business_date: input.business_date.trim(),
+        category_id: normalize_opt_str(input.category_id.as_deref()),
+        classification: input.classification.as_str(),
+        direction: input.direction.as_str(),
+        notes: normalize_opt_str(input.notes.as_deref()),
+        party_id: normalize_opt_str(input.party_id.as_deref()),
+        payment_method: input.payment_method.as_str(),
+        reference_note: normalize_opt_str(input.reference_note.as_deref()),
+    };
+
+    let canonical_bytes = serde_json::to_vec(&canonical)
+        .expect("Canonical client intent serialization must never fail");
+
     let mut hasher = Sha256::new();
-    let norm = format!(
-        "{{\"account_id\":\"{}\",\"amount_minor\":{},\"business_date\":\"{}\",\"category_id\":{},\"classification\":\"{}\",\"direction\":\"{}\",\"notes\":{},\"party_id\":{},\"payment_method\":\"{}\",\"reference_note\":{}}}",
-        input.account_id,
-        input.amount_minor,
-        input.business_date,
-        input.category_id.as_deref().map(|s| format!("\"{}\"", s)).unwrap_or_else(|| "null".to_string()),
-        input.classification.as_str(),
-        input.direction.as_str(),
-        input.notes.as_deref().map(|s| format!("\"{}\"", s)).unwrap_or_else(|| "null".to_string()),
-        input.party_id.as_deref().map(|s| format!("\"{}\"", s)).unwrap_or_else(|| "null".to_string()),
-        input.payment_method.as_str(),
-        input.reference_note.as_deref().map(|s| format!("\"{}\"", s)).unwrap_or_else(|| "null".to_string()),
-    );
-    hasher.update(norm.as_bytes());
+    hasher.update(&canonical_bytes);
     format!("{:x}", hasher.finalize())
+}
+
+pub fn validate_direction_and_classification(
+    direction: MovementDirection,
+    classification: CashbookClassification,
+) -> Result<(), CashbookError> {
+    if classification == CashbookClassification::Transfer {
+        return Err(CashbookError::UnsupportedOperation(
+            "Transfers are not supported in C1 ordinary voucher route".to_string(),
+        ));
+    }
+    if classification == CashbookClassification::OpeningBalance {
+        return Err(CashbookError::UnsupportedOperation(
+            "Opening balance cannot be posted as a voucher".to_string(),
+        ));
+    }
+
+    match direction {
+        MovementDirection::Inflow => match classification {
+            CashbookClassification::OperatingIncome
+            | CashbookClassification::Capital
+            | CashbookClassification::Loan
+            | CashbookClassification::Refund => Ok(()),
+            _ => Err(CashbookError::IncompatibleDirectionClassification(
+                direction,
+                classification,
+            )),
+        },
+        MovementDirection::Outflow => match classification {
+            CashbookClassification::OperatingExpense
+            | CashbookClassification::Capital
+            | CashbookClassification::Loan
+            | CashbookClassification::Advance
+            | CashbookClassification::Refund => Ok(()),
+            _ => Err(CashbookError::IncompatibleDirectionClassification(
+                direction,
+                classification,
+            )),
+        },
+    }
+}
+
+pub fn validate_direction_and_category(
+    direction: MovementDirection,
+    category_type: CategoryType,
+) -> Result<(), CashbookError> {
+    match (direction, category_type) {
+        (MovementDirection::Inflow, CategoryType::Expense) => {
+            Err(CashbookError::IncompatibleDirectionCategory(direction, category_type))
+        }
+        (MovementDirection::Outflow, CategoryType::Income) => {
+            Err(CashbookError::IncompatibleDirectionCategory(direction, category_type))
+        }
+        _ => Ok(()),
+    }
 }
 
 pub fn format_voucher_number(prefix: &str, year_month: &str, seq: i64) -> String {
@@ -556,5 +650,73 @@ mod tests {
         input2.amount_minor = 100001;
         let hash3 = compute_client_intent_hash(&input2);
         assert_ne!(hash1, hash3, "Altered amount must produce different hash");
+
+        // Quotes, backslashes, and Unicode escaping integrity
+        let mut input_special = input1.clone();
+        input_special.notes = Some("Special \"quotes\" and \\backslashes\\ & മലയാളം & العربية".to_string());
+        let hash_special_1 = compute_client_intent_hash(&input_special);
+        let hash_special_2 = compute_client_intent_hash(&input_special);
+        assert_eq!(hash_special_1, hash_special_2, "Special characters must hash deterministically");
+        assert_ne!(hash1, hash_special_1, "Different notes must produce different hash");
+
+        // Whitespace and empty optional fields normalization
+        let mut input_empty_str = input1.clone();
+        input_empty_str.notes = Some("   ".to_string());
+        let mut input_none = input1.clone();
+        input_none.notes = None;
+        assert_eq!(
+            compute_client_intent_hash(&input_empty_str),
+            compute_client_intent_hash(&input_none),
+            "Whitespace-only string must normalize identically to None"
+        );
+    }
+
+    #[test]
+    fn test_direction_and_classification_validation() {
+        // Valid Inflows
+        assert!(validate_direction_and_classification(MovementDirection::Inflow, CashbookClassification::OperatingIncome).is_ok());
+        assert!(validate_direction_and_classification(MovementDirection::Inflow, CashbookClassification::Capital).is_ok());
+        assert!(validate_direction_and_classification(MovementDirection::Inflow, CashbookClassification::Loan).is_ok());
+        assert!(validate_direction_and_classification(MovementDirection::Inflow, CashbookClassification::Refund).is_ok());
+
+        // Invalid Inflow: OperatingExpense
+        assert!(matches!(
+            validate_direction_and_classification(MovementDirection::Inflow, CashbookClassification::OperatingExpense),
+            Err(CashbookError::IncompatibleDirectionClassification(MovementDirection::Inflow, CashbookClassification::OperatingExpense))
+        ));
+
+        // Valid Outflows
+        assert!(validate_direction_and_classification(MovementDirection::Outflow, CashbookClassification::OperatingExpense).is_ok());
+        assert!(validate_direction_and_classification(MovementDirection::Outflow, CashbookClassification::Capital).is_ok());
+        assert!(validate_direction_and_classification(MovementDirection::Outflow, CashbookClassification::Loan).is_ok());
+        assert!(validate_direction_and_classification(MovementDirection::Outflow, CashbookClassification::Advance).is_ok());
+        assert!(validate_direction_and_classification(MovementDirection::Outflow, CashbookClassification::Refund).is_ok());
+
+        // Invalid Outflow: OperatingIncome
+        assert!(matches!(
+            validate_direction_and_classification(MovementDirection::Outflow, CashbookClassification::OperatingIncome),
+            Err(CashbookError::IncompatibleDirectionClassification(MovementDirection::Outflow, CashbookClassification::OperatingIncome))
+        ));
+
+        // Rejected operations in C1 ordinary voucher route
+        assert!(matches!(
+            validate_direction_and_classification(MovementDirection::Inflow, CashbookClassification::Transfer),
+            Err(CashbookError::UnsupportedOperation(_))
+        ));
+        assert!(matches!(
+            validate_direction_and_classification(MovementDirection::Inflow, CashbookClassification::OpeningBalance),
+            Err(CashbookError::UnsupportedOperation(_))
+        ));
+    }
+
+    #[test]
+    fn test_direction_and_category_validation() {
+        assert!(validate_direction_and_category(MovementDirection::Inflow, CategoryType::Income).is_ok());
+        assert!(validate_direction_and_category(MovementDirection::Inflow, CategoryType::Both).is_ok());
+        assert!(validate_direction_and_category(MovementDirection::Inflow, CategoryType::Expense).is_err());
+
+        assert!(validate_direction_and_category(MovementDirection::Outflow, CategoryType::Expense).is_ok());
+        assert!(validate_direction_and_category(MovementDirection::Outflow, CategoryType::Both).is_ok());
+        assert!(validate_direction_and_category(MovementDirection::Outflow, CategoryType::Income).is_err());
     }
 }
