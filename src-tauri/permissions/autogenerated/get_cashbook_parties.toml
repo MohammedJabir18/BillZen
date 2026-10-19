@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-cashbook-parties"
+description = "Enables the get_cashbook_parties command without any pre-configured scope."
+commands.allow = ["get_cashbook_parties"]
+
+[[permission]]
+identifier = "deny-get-cashbook-parties"
+description = "Denies the get_cashbook_parties command without any pre-configured scope."
+commands.deny = ["get_cashbook_parties"]

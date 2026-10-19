@@ -32,32 +32,36 @@
 
 ### Section C1A: Schema, Domain & Native Posting Service
 
-- [ ] **Task C1A.1: Database Migration `v7_cashbook_foundation.sql`**
+- [x] **Task C1A.1: Database Migration `v7_cashbook_foundation.sql` & Runner Registration**
   - **Files:**
     - Create: `src-tauri/src/db/migrations/v7_cashbook_foundation.sql`
+    - Modify: `src-tauri/src/db/mod.rs`
   - **Details:**
     - Create tables: `money_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_sequences`, `cashbook_audit_events`.
-    - Implement trigger `trg_prevent_posted_voucher_update`: blocks modifications to posted voucher amounts, dates, accounts, and snapshot columns.
-    - Implement trigger `trg_prevent_posted_voucher_delete`: blocks row deletions of posted vouchers.
-    - Implement trigger `trg_cashbook_prevent_opening_balance_update_when_movements_exist`: blocks changing `money_accounts.opening_balance_minor` once movements exist.
-    - Upgrade trigger `trg_business_settings_prevent_currency_change_when_financial_records_exist` to include cashbook vouchers and non-zero accounts.
-    - Register migration in `src-tauri/src/db/migrations/mod.rs` with exact SHA-256 checksum tracking.
+    - Triggers for posted voucher immutability:
+      - `trg_prevent_posted_voucher_update`: permits updating ONLY `is_reversed`, `reversed_by_voucher_id`, `reversed_at` when `OLD.is_reversed = 0 AND NEW.is_reversed = 1`. Any modification to amounts, accounts, dates, snapshots, or reversals of reversals is strictly rejected.
+      - `trg_prevent_posted_voucher_delete`: blocks row deletions of posted vouchers.
+      - `trg_prevent_cashbook_movement_update`: blocks any update to `cashbook_movements`.
+      - `trg_prevent_cashbook_movement_delete`: blocks any deletion from `cashbook_movements`.
+      - `trg_cashbook_prevent_opening_balance_update_when_movements_exist`: blocks changing `money_accounts.opening_balance_minor` once movements exist.
+      - Upgrade trigger `trg_business_settings_prevent_currency_change_when_financial_records_exist` to include cashbook vouchers and non-zero accounts.
+    - Register `V7_MIGRATION_SQL` in `src-tauri/src/db/mod.rs` with exact SHA-256 checksum tracking.
   - **Verification:**
-    - Run `cargo test --manifest-path src-tauri/Cargo.toml test_migration_v7` to verify forward migration and table creation.
+    - Run `cargo test --manifest-path src-tauri/Cargo.toml` verifying clean upgrade from populated V6 to V7.
 
-- [ ] **Task C1A.2: Rust Domain & Arithmetic Engine**
+- [x] **Task C1A.2: Rust Domain & Arithmetic Engine**
   - **Files:**
     - Create: `src-tauri/src/domain/cashbook.rs`
     - Modify: `src-tauri/src/domain/mod.rs`
   - **Details:**
-    - Define domain structs: `MoneyAccount`, `CashbookCategory`, `CashbookParty`, `CashbookVoucher`, `CashbookMovement`, `CashbookClassification`, `MovementDirection`.
+    - Define domain structs: `MoneyAccount`, `CashbookCategory`, `CashbookParty`, `CashbookVoucher`, `CashbookMovement`, `CashbookClassification`, `MovementDirection`, `CreateVoucherPayload`.
     - Implement checked arithmetic helpers: `validate_money_amount(amount: i64)`, `calculate_running_balance(opening: i64, movements: &[i64]) -> Result<i64, FinancialError>`.
-    - Implement idempotency hashing: `compute_payload_hash(payload: &CreateVoucherPayload) -> String`.
-    - Implement sequence number formatting: `format_voucher_number(prefix: &str, year_month: &str, seq: i64) -> String`.
+    - Implement canonical client-intent idempotency hashing: `compute_payload_hash(payload: &CreateVoucherPayload) -> String` over client-submitted intent (excluding server-generated numbering, timestamps, or live business profile).
+    - Implement sequence number formatting: `format_voucher_number(prefix: &str, year_month: &str, seq: i64) -> String` using fixed `RCP` and `PAY` prefixes.
   - **Verification:**
-    - Write unit tests in `src-tauri/src/domain/cashbook.rs` testing overflow bounds, negative bounds, and sequence formatting.
+    - Unit tests in `src-tauri/src/domain/cashbook.rs` testing overflow bounds, negative bounds, sequence formatting, and payload hash stability.
 
-- [ ] **Task C1A.3: Native Database Worker Operations**
+- [x] **Task C1A.3: Native Database Worker Operations & Two-Step Negative Confirmation**
   - **Files:**
     - Modify: `src-tauri/src/db/worker.rs`
   - **Details:**
@@ -66,8 +70,16 @@
       - `GetCashbookCategories`, `CreateCashbookCategory`
       - `GetCashbookParties`, `CreateCashbookParty`
       - `PostCashbookVoucher`, `ReverseCashbookVoucher`, `GetCashbookLedger`
+    - Two-Step Negative Balance Confirmation:
+      - If `allow_negative_balance = 0` and operation would result in $\text{Account Balance} < 0$, and `confirmed_negative_balance = false`:
+        - Do NOT write movements.
+        - Do NOT consume sequence numbers.
+        - Return `PostingResult::RequiresConfirmation { projected_balance_minor, current_balance_minor }`.
+      - When `confirmed_negative_balance = true`:
+        - Recheck condition atomically inside transaction.
+        - Post voucher and record audit event `negative_balance_confirmed`.
     - Transactional posting workflow in worker:
-      1. Validate amount and inputs against domain limits.
+      1. Validate amount and inputs against domain bounds (`MAX_MONEY_MINOR`).
       2. Check `idempotency_key`: if exists, compare `payload_hash`; match $\rightarrow$ return existing; mismatch $\rightarrow$ return `Conflict`.
       3. Allocate next sequence from `cashbook_sequences` within transaction.
       4. Freeze business profile snapshot, party snapshot, and currency snapshot.
@@ -75,14 +87,15 @@
       6. Insert corresponding `cashbook_movements` row (+ for Inflow, - for Outflow).
       7. Insert `cashbook_audit_events` row.
     - Reversal workflow:
-      1. Check target voucher is posted and `reversed_by_voucher_id IS NULL`.
-      2. Allocate reversal sequence number.
-      3. Insert reversal voucher with reversed direction and opposite-sign movement.
-      4. Update original voucher setting `reversed_by_voucher_id`.
+      1. Check target voucher is posted, `is_reversal = 0`, and `reversed_by_voucher_id IS NULL`.
+      2. Check if reversing an inflow would cause negative balance without confirmation.
+      3. Allocate reversal sequence number (`RCP-REV-...` / `PAY-REV-...`).
+      4. Insert reversal voucher with reversed direction, opposite-sign movement, and `is_reversal = 1`.
+      5. Update original voucher setting `is_reversed = 1`, `reversed_by_voucher_id`, `reversed_at`.
   - **Verification:**
-    - Integration test in `src-tauri/tests/cashbook_worker_tests.rs` testing transaction commit, rollback on failure, idempotency replay, and reversal reconciliation.
+    - Integration test in `src-tauri/tests/cashbook_worker_tests.rs` testing transaction commit, rollback on failure, idempotency replay/conflict, negative balance confirmation, and reversal reconciliation.
 
-- [ ] **Task C1A.4: Tauri Commands & App Manifest Registration**
+- [x] **Task C1A.4: Tauri Commands & App Manifest Registration**
   - **Files:**
     - Create: `src-tauri/src/commands/cashbook.rs`
     - Modify: `src-tauri/src/commands/mod.rs`

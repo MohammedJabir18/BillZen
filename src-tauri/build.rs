@@ -23,6 +23,17 @@ fn main() {
                 "restore_customer",
                 "get_categories",
                 "create_category",
+
+                "get_money_accounts",
+                "create_money_account",
+                "update_money_account",
+                "get_cashbook_categories",
+                "create_cashbook_category",
+                "get_cashbook_parties",
+                "create_cashbook_party",
+                "post_cashbook_voucher",
+                "reverse_cashbook_voucher",
+                "get_cashbook_ledger",
             ]),
         ),
     )

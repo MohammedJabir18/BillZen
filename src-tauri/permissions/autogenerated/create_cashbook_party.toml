@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-cashbook-party"
+description = "Enables the create_cashbook_party command without any pre-configured scope."
+commands.allow = ["create_cashbook_party"]
+
+[[permission]]
+identifier = "deny-create-cashbook-party"
+description = "Denies the create_cashbook_party command without any pre-configured scope."
+commands.deny = ["create_cashbook_party"]

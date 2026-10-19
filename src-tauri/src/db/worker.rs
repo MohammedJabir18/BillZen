@@ -4,7 +4,8 @@ use crate::domain::catalog::{
     Product, ProductFilter, UpdateCustomerDto, UpdateProductDto,
 };
 use crate::domain::models::{BusinessProfileDto, BusinessSettings};
-use rusqlite::{params, Connection};
+use crate::domain::cashbook::*;
+use rusqlite::{params, Connection, OptionalExtension};
 use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 
@@ -86,6 +87,46 @@ pub enum DbRequest {
     },
     Ping {
         respond_to: oneshot::Sender<Result<String, String>>,
+    },
+
+    // Cashbook
+    GetMoneyAccounts {
+        respond_to: oneshot::Sender<Result<Vec<MoneyAccount>, String>>,
+    },
+    CreateMoneyAccount {
+        dto: CreateMoneyAccountDto,
+        respond_to: oneshot::Sender<Result<MoneyAccount, String>>,
+    },
+    UpdateMoneyAccount {
+        dto: UpdateMoneyAccountDto,
+        respond_to: oneshot::Sender<Result<MoneyAccount, String>>,
+    },
+    GetCashbookCategories {
+        respond_to: oneshot::Sender<Result<Vec<CashbookCategory>, String>>,
+    },
+    CreateCashbookCategory {
+        dto: CreateCashbookCategoryDto,
+        respond_to: oneshot::Sender<Result<CashbookCategory, String>>,
+    },
+    GetCashbookParties {
+        respond_to: oneshot::Sender<Result<Vec<CashbookParty>, String>>,
+    },
+    CreateCashbookParty {
+        dto: CreateCashbookPartyDto,
+        respond_to: oneshot::Sender<Result<CashbookParty, String>>,
+    },
+    PostCashbookVoucher {
+        input: CreateVoucherInput,
+        respond_to: oneshot::Sender<Result<PostVoucherResult, String>>,
+    },
+    ReverseCashbookVoucher {
+        voucher_id: String,
+        confirmed_negative_balance: bool,
+        respond_to: oneshot::Sender<Result<PostVoucherResult, String>>,
+    },
+    GetCashbookLedger {
+        filter: CashbookLedgerFilter,
+        respond_to: oneshot::Sender<Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String>>,
     },
 }
 
@@ -206,6 +247,46 @@ impl DbWorkerHandle {
                         }
                         DbRequest::Ping { respond_to } => {
                             let _ = respond_to.send(Ok("pong".to_string()));
+                        }
+                        DbRequest::GetMoneyAccounts { respond_to } => {
+                            let result = fetch_money_accounts(&conn);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::CreateMoneyAccount { dto, respond_to } => {
+                            let result = create_money_account(&conn, dto);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::UpdateMoneyAccount { dto, respond_to } => {
+                            let result = update_money_account(&conn, dto);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::GetCashbookCategories { respond_to } => {
+                            let result = fetch_cashbook_categories(&conn);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::CreateCashbookCategory { dto, respond_to } => {
+                            let result = create_cashbook_category(&conn, dto);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::GetCashbookParties { respond_to } => {
+                            let result = fetch_cashbook_parties(&conn);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::CreateCashbookParty { dto, respond_to } => {
+                            let result = create_cashbook_party(&conn, dto);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::PostCashbookVoucher { input, respond_to } => {
+                            let result = post_cashbook_voucher(&mut conn, input);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::ReverseCashbookVoucher { voucher_id, confirmed_negative_balance, respond_to } => {
+                            let result = reverse_cashbook_voucher(&mut conn, voucher_id, confirmed_negative_balance);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::GetCashbookLedger { filter, respond_to } => {
+                            let result = fetch_cashbook_ledger(&conn, filter);
+                            let _ = respond_to.send(result);
                         }
                     }
                 }
@@ -433,6 +514,106 @@ impl DbWorkerHandle {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(DbRequest::Ping { respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn get_money_accounts(&self) -> Result<Vec<MoneyAccount>, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::GetMoneyAccounts { respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn create_money_account(&self, dto: CreateMoneyAccountDto) -> Result<MoneyAccount, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::CreateMoneyAccount { dto, respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn update_money_account(&self, dto: UpdateMoneyAccountDto) -> Result<MoneyAccount, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::UpdateMoneyAccount { dto, respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn get_cashbook_categories(&self) -> Result<Vec<CashbookCategory>, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::GetCashbookCategories { respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn create_cashbook_category(&self, dto: CreateCashbookCategoryDto) -> Result<CashbookCategory, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::CreateCashbookCategory { dto, respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn get_cashbook_parties(&self) -> Result<Vec<CashbookParty>, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::GetCashbookParties { respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn create_cashbook_party(&self, dto: CreateCashbookPartyDto) -> Result<CashbookParty, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::CreateCashbookParty { dto, respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn post_cashbook_voucher(&self, input: CreateVoucherInput) -> Result<PostVoucherResult, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::PostCashbookVoucher { input, respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn reverse_cashbook_voucher(&self, voucher_id: String, confirmed_negative_balance: bool) -> Result<PostVoucherResult, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::ReverseCashbookVoucher { voucher_id, confirmed_negative_balance, respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn get_cashbook_ledger(&self, filter: CashbookLedgerFilter) -> Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::GetCashbookLedger { filter, respond_to: tx })
             .await
             .map_err(|_| "Database worker thread has terminated".to_string())?;
         rx.await
@@ -1416,6 +1597,968 @@ fn create_category(conn: &Connection, dto: CreateCategoryDto) -> Result<Category
         created_at: now,
         updated_at: now,
     })
+}
+
+// ---------------------------------------------------------------------------
+// Cashbook Operations
+// ---------------------------------------------------------------------------
+
+fn row_to_voucher(r: &rusqlite::Row) -> Result<CashbookVoucher, rusqlite::Error> {
+    let dir_str: String = r.get(7)?;
+    let class_str: String = r.get(8)?;
+    let pay_method_str: String = r.get(9)?;
+    let status_str: String = r.get(12)?;
+
+    let direction = MovementDirection::from_str(&dir_str).unwrap_or(MovementDirection::Inflow);
+    let classification = CashbookClassification::from_str(&class_str).unwrap_or(CashbookClassification::OperatingIncome);
+    let payment_method = PaymentMethod::from_str(&pay_method_str).unwrap_or(PaymentMethod::Cash);
+    let status = VoucherStatus::from_str(&status_str).unwrap_or(VoucherStatus::Posted);
+
+    Ok(CashbookVoucher {
+        id: r.get(0)?,
+        voucher_number: r.get(1)?,
+        idempotency_key: r.get(2)?,
+        payload_hash: r.get(3)?,
+        account_id: r.get(4)?,
+        party_id: r.get(5)?,
+        category_id: r.get(6)?,
+        direction,
+        classification,
+        payment_method,
+        amount_minor: r.get(10)?,
+        business_date: r.get(11)?,
+        status,
+        is_reversal: r.get::<_, i64>(13)? == 1,
+        reversal_for_voucher_id: r.get(14)?,
+        is_reversed: r.get::<_, i64>(15)? == 1,
+        reversed_by_voucher_id: r.get(16)?,
+        reversed_at: r.get(17)?,
+        reference_note: r.get(18)?,
+        notes: r.get(19)?,
+        business_name_snap: r.get(20)?,
+        business_tax_id_snap: r.get(21)?,
+        business_address_snap: r.get(22)?,
+        business_phone_snap: r.get(23)?,
+        party_name_snap: r.get(24)?,
+        party_phone_snap: r.get(25)?,
+        party_tax_id_snap: r.get(26)?,
+        party_address_snap: r.get(27)?,
+        account_name_snap: r.get(28)?,
+        currency_code_snap: r.get(29)?,
+        currency_exponent_snap: r.get(30)?,
+        amount_in_words_snap: r.get(31)?,
+        created_at: r.get(32)?,
+        posted_at: r.get(33)?,
+    })
+}
+
+fn fetch_voucher_by_id(conn: &Connection, id: &str) -> Result<CashbookVoucher, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT 
+                id, voucher_number, idempotency_key, payload_hash, account_id,
+                party_id, category_id, direction, classification, payment_method,
+                amount_minor, business_date, status, is_reversal, reversal_for_voucher_id,
+                is_reversed, reversed_by_voucher_id, reversed_at, reference_note, notes,
+                business_name_snap, business_tax_id_snap, business_address_snap, business_phone_snap,
+                party_name_snap, party_phone_snap, party_tax_id_snap, party_address_snap,
+                account_name_snap, currency_code_snap, currency_exponent_snap, amount_in_words_snap,
+                created_at, posted_at
+             FROM cashbook_vouchers
+             WHERE id = ?1;"
+        )
+        .map_err(|e| format!("Query prepare error: {}", e))?;
+
+    stmt.query_row(params![id], |r| row_to_voucher(r))
+        .map_err(|e| format!("Voucher with id '{}' not found: {}", id, e))
+}
+
+fn fetch_money_accounts(conn: &Connection) -> Result<Vec<MoneyAccount>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT 
+                a.id, a.account_name, a.account_type, a.opening_balance_minor,
+                a.allow_negative_balance, a.currency_code, a.currency_exponent,
+                a.bank_name, a.account_number, a.ifsc_or_routing, a.is_archived,
+                a.created_at, a.updated_at,
+                (a.opening_balance_minor + COALESCE((SELECT SUM(m.amount_minor) FROM cashbook_movements m WHERE m.account_id = a.id), 0)) AS current_balance_minor
+            FROM money_accounts a
+            ORDER BY a.is_archived ASC, a.account_name COLLATE NOCASE ASC;"
+        )
+        .map_err(|e| format!("Query prepare error: {}", e))?;
+
+    let rows = stmt
+        .query_map([], |r| {
+            let act_type_str: String = r.get(2)?;
+            let act_type = AccountType::from_str(&act_type_str).unwrap_or(AccountType::Other);
+            Ok(MoneyAccount {
+                id: r.get(0)?,
+                account_name: r.get(1)?,
+                account_type: act_type,
+                opening_balance_minor: r.get(3)?,
+                allow_negative_balance: r.get::<_, i64>(4)? == 1,
+                currency_code: r.get(5)?,
+                currency_exponent: r.get(6)?,
+                bank_name: r.get(7)?,
+                account_number: r.get(8)?,
+                ifsc_or_routing: r.get(9)?,
+                is_archived: r.get::<_, i64>(10)? == 1,
+                created_at: r.get(11)?,
+                updated_at: r.get(12)?,
+                current_balance_minor: r.get(13)?,
+            })
+        })
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut list = Vec::new();
+    for a in rows {
+        list.push(a.map_err(|e| format!("Row mapping error: {}", e))?);
+    }
+    Ok(list)
+}
+
+fn create_money_account(conn: &Connection, dto: CreateMoneyAccountDto) -> Result<MoneyAccount, String> {
+    let name = dto.account_name.trim();
+    if name.is_empty() {
+        return Err("Account name cannot be empty".to_string());
+    }
+    if dto.opening_balance_minor.abs() > MAX_MONEY_MINOR {
+        return Err(format!("Opening balance exceeds limit: {}", MAX_MONEY_MINOR));
+    }
+    let act_type = AccountType::from_str(&dto.account_type)
+        .ok_or_else(|| format!("Invalid account type: {}", dto.account_type))?;
+
+    let (currency_code, currency_exponent) = match (dto.currency_code, dto.currency_exponent) {
+        (Some(c), Some(e)) => (c, e),
+        _ => {
+            let settings = fetch_business_settings(conn)?;
+            (settings.currency_code, settings.currency_exponent)
+        }
+    };
+
+    let id = format!("acc_{}", uuid::Uuid::new_v4().simple());
+    let now = chrono::Utc::now().timestamp_millis();
+
+    let res = conn.execute(
+        "INSERT INTO money_accounts (
+            id, account_name, account_type, opening_balance_minor,
+            allow_negative_balance, currency_code, currency_exponent,
+            bank_name, account_number, ifsc_or_routing, is_archived,
+            created_at, updated_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?11);",
+        params![
+            id,
+            name,
+            act_type.as_str(),
+            dto.opening_balance_minor,
+            if dto.allow_negative_balance { 1 } else { 0 },
+            currency_code,
+            currency_exponent,
+            dto.bank_name.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.account_number.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.ifsc_or_routing.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            now
+        ],
+    );
+
+    if let Err(e) = res {
+        let msg = e.to_string();
+        if msg.contains("UNIQUE constraint failed") {
+            return Err(format!("An account with name '{}' already exists.", name));
+        }
+        return Err(format!("Failed to insert money account: {}", e));
+    }
+
+    Ok(MoneyAccount {
+        id,
+        account_name: name.to_string(),
+        account_type: act_type,
+        opening_balance_minor: dto.opening_balance_minor,
+        allow_negative_balance: dto.allow_negative_balance,
+        currency_code,
+        currency_exponent,
+        bank_name: dto.bank_name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        account_number: dto.account_number.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        ifsc_or_routing: dto.ifsc_or_routing.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        is_archived: false,
+        current_balance_minor: dto.opening_balance_minor,
+        created_at: now,
+        updated_at: now,
+    })
+}
+
+fn update_money_account(conn: &Connection, dto: UpdateMoneyAccountDto) -> Result<MoneyAccount, String> {
+    let name = dto.account_name.trim();
+    if name.is_empty() {
+        return Err("Account name cannot be empty".to_string());
+    }
+    let now = chrono::Utc::now().timestamp_millis();
+
+    let res = conn.execute(
+        "UPDATE money_accounts SET
+            account_name = ?1,
+            allow_negative_balance = ?2,
+            bank_name = ?3,
+            account_number = ?4,
+            ifsc_or_routing = ?5,
+            is_archived = ?6,
+            updated_at = ?7
+        WHERE id = ?8;",
+        params![
+            name,
+            if dto.allow_negative_balance { 1 } else { 0 },
+            dto.bank_name.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.account_number.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.ifsc_or_routing.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            if dto.is_archived { 1 } else { 0 },
+            now,
+            dto.id
+        ],
+    );
+
+    if let Err(e) = res {
+        let msg = e.to_string();
+        if msg.contains("UNIQUE constraint failed") {
+            return Err(format!("An account with name '{}' already exists.", name));
+        }
+        return Err(format!("Failed to update money account: {}", e));
+    }
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT 
+                a.id, a.account_name, a.account_type, a.opening_balance_minor,
+                a.allow_negative_balance, a.currency_code, a.currency_exponent,
+                a.bank_name, a.account_number, a.ifsc_or_routing, a.is_archived,
+                a.created_at, a.updated_at,
+                (a.opening_balance_minor + COALESCE((SELECT SUM(m.amount_minor) FROM cashbook_movements m WHERE m.account_id = a.id), 0)) AS current_balance_minor
+            FROM money_accounts a
+            WHERE a.id = ?1;"
+        )
+        .map_err(|e| format!("Query prepare error: {}", e))?;
+
+    stmt.query_row(params![dto.id], |r| {
+        let act_type_str: String = r.get(2)?;
+        let act_type = AccountType::from_str(&act_type_str).unwrap_or(AccountType::Other);
+        Ok(MoneyAccount {
+            id: r.get(0)?,
+            account_name: r.get(1)?,
+            account_type: act_type,
+            opening_balance_minor: r.get(3)?,
+            allow_negative_balance: r.get::<_, i64>(4)? == 1,
+            currency_code: r.get(5)?,
+            currency_exponent: r.get(6)?,
+            bank_name: r.get(7)?,
+            account_number: r.get(8)?,
+            ifsc_or_routing: r.get(9)?,
+            is_archived: r.get::<_, i64>(10)? == 1,
+            created_at: r.get(11)?,
+            updated_at: r.get(12)?,
+            current_balance_minor: r.get(13)?,
+        })
+    })
+    .map_err(|e| format!("Account with id '{}' not found: {}", dto.id, e))
+}
+
+fn fetch_cashbook_categories(conn: &Connection) -> Result<Vec<CashbookCategory>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, name, category_type, is_default, is_archived, created_at 
+             FROM cashbook_categories 
+             ORDER BY is_default DESC, name COLLATE NOCASE ASC;"
+        )
+        .map_err(|e| format!("Query prepare error: {}", e))?;
+
+    let rows = stmt
+        .query_map([], |r| {
+            let cat_type_str: String = r.get(2)?;
+            let cat_type = CategoryType::from_str(&cat_type_str).unwrap_or(CategoryType::Both);
+            Ok(CashbookCategory {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                category_type: cat_type,
+                is_default: r.get::<_, i64>(3)? == 1,
+                is_archived: r.get::<_, i64>(4)? == 1,
+                created_at: r.get(5)?,
+            })
+        })
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut list = Vec::new();
+    for c in rows {
+        list.push(c.map_err(|e| format!("Row mapping error: {}", e))?);
+    }
+    Ok(list)
+}
+
+fn create_cashbook_category(conn: &Connection, dto: CreateCashbookCategoryDto) -> Result<CashbookCategory, String> {
+    let name = dto.name.trim();
+    if name.is_empty() {
+        return Err("Category name cannot be empty".to_string());
+    }
+    let cat_type = CategoryType::from_str(&dto.category_type)
+        .ok_or_else(|| format!("Invalid category type: {}", dto.category_type))?;
+
+    let id = format!("cbcat_{}", uuid::Uuid::new_v4().simple());
+    let now = chrono::Utc::now().timestamp_millis();
+
+    let res = conn.execute(
+        "INSERT INTO cashbook_categories (id, name, category_type, is_default, is_archived, created_at)
+         VALUES (?1, ?2, ?3, 0, 0, ?4);",
+        params![id, name, cat_type.as_str(), now],
+    );
+
+    if let Err(e) = res {
+        let msg = e.to_string();
+        if msg.contains("UNIQUE constraint failed") {
+            return Err(format!("A category with name '{}' already exists.", name));
+        }
+        return Err(format!("Failed to insert category: {}", e));
+    }
+
+    Ok(CashbookCategory {
+        id,
+        name: name.to_string(),
+        category_type: cat_type,
+        is_default: false,
+        is_archived: false,
+        created_at: now,
+    })
+}
+
+fn fetch_cashbook_parties(conn: &Connection) -> Result<Vec<CashbookParty>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, name, party_type, customer_id, phone, email, tax_id, address, is_archived, created_at, updated_at
+             FROM cashbook_parties
+             ORDER BY name COLLATE NOCASE ASC;"
+        )
+        .map_err(|e| format!("Query prepare error: {}", e))?;
+
+    let rows = stmt
+        .query_map([], |r| {
+            let pty_type_str: String = r.get(2)?;
+            let pty_type = PartyType::from_str(&pty_type_str).unwrap_or(PartyType::Other);
+            Ok(CashbookParty {
+                id: r.get(0)?,
+                name: r.get(1)?,
+                party_type: pty_type,
+                customer_id: r.get(3)?,
+                phone: r.get(4)?,
+                email: r.get(5)?,
+                tax_id: r.get(6)?,
+                address: r.get(7)?,
+                is_archived: r.get::<_, i64>(8)? == 1,
+                created_at: r.get(9)?,
+                updated_at: r.get(10)?,
+            })
+        })
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut list = Vec::new();
+    for p in rows {
+        list.push(p.map_err(|e| format!("Row mapping error: {}", e))?);
+    }
+    Ok(list)
+}
+
+fn create_cashbook_party(conn: &Connection, dto: CreateCashbookPartyDto) -> Result<CashbookParty, String> {
+    let name = dto.name.trim();
+    if name.is_empty() {
+        return Err("Party name cannot be empty".to_string());
+    }
+    let pty_type = PartyType::from_str(&dto.party_type)
+        .ok_or_else(|| format!("Invalid party type: {}", dto.party_type))?;
+
+    let id = format!("pty_{}", uuid::Uuid::new_v4().simple());
+    let now = chrono::Utc::now().timestamp_millis();
+
+    conn.execute(
+        "INSERT INTO cashbook_parties (
+            id, name, party_type, customer_id, phone, email, tax_id, address, is_archived, created_at, updated_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9, ?9);",
+        params![
+            id,
+            name,
+            pty_type.as_str(),
+            dto.customer_id.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.phone.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.email.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.tax_id.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            dto.address.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            now
+        ],
+    )
+    .map_err(|e| format!("Failed to insert party: {}", e))?;
+
+    Ok(CashbookParty {
+        id,
+        name: name.to_string(),
+        party_type: pty_type,
+        customer_id: dto.customer_id.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        phone: dto.phone.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        email: dto.email.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        tax_id: dto.tax_id.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        address: dto.address.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+        is_archived: false,
+        created_at: now,
+        updated_at: now,
+    })
+}
+
+fn post_cashbook_voucher(
+    conn: &mut Connection,
+    input: CreateVoucherInput,
+) -> Result<PostVoucherResult, String> {
+    validate_money_amount(input.amount_minor).map_err(|e| e.to_string())?;
+
+    let parsed_date = chrono::NaiveDate::parse_from_str(&input.business_date, "%Y-%m-%d")
+        .map_err(|_| CashbookError::InvalidDateFormat(input.business_date.clone()).to_string())?;
+
+    if input.idempotency_key.trim().is_empty() {
+        return Err("Idempotency key cannot be empty".to_string());
+    }
+
+    let payload_hash = compute_client_intent_hash(&input);
+
+    // 1. Idempotency Check
+    let existing: Option<(String, String)> = conn
+        .query_row(
+            "SELECT id, payload_hash FROM cashbook_vouchers WHERE idempotency_key = ?1;",
+            params![input.idempotency_key],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| format!("Failed to check idempotency key: {}", e))?;
+
+    if let Some((existing_id, existing_hash)) = existing {
+        if existing_hash == payload_hash {
+            let v = fetch_voucher_by_id(conn, &existing_id)?;
+            return Ok(PostVoucherResult::Posted(v));
+        } else {
+            return Err(CashbookError::IdempotencyKeyConflict.to_string());
+        }
+    }
+
+    // 2. Fetch Account Info
+    let (account_name, opening_balance_minor, allow_negative_balance, currency_code, currency_exponent): (String, i64, i64, String, i32) = conn
+        .query_row(
+            "SELECT account_name, opening_balance_minor, allow_negative_balance, currency_code, currency_exponent FROM money_accounts WHERE id = ?1;",
+            params![input.account_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+        )
+        .map_err(|_| CashbookError::AccountNotFound(input.account_id.clone()).to_string())?;
+
+    let sum_movs: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements WHERE account_id = ?1;",
+            params![input.account_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+
+    let current_balance = opening_balance_minor + sum_movs;
+
+    let movement_delta = match input.direction {
+        MovementDirection::Inflow => input.amount_minor,
+        MovementDirection::Outflow => -input.amount_minor,
+    };
+
+    let projected_balance = current_balance + movement_delta;
+
+    // 3. Negative Balance Guard (Pre-transaction check)
+    if projected_balance < 0 && allow_negative_balance == 0 && !input.confirmed_negative_balance {
+        return Ok(PostVoucherResult::RequiresConfirmation {
+            current_balance_minor: current_balance,
+            amount_minor: input.amount_minor,
+            projected_balance_minor: projected_balance,
+            message: format!(
+                "Account balance would become negative: current {}, projected {}",
+                current_balance, projected_balance
+            ),
+        });
+    }
+
+    // 4. Begin Immediate Transaction
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| format!("Transaction begin error: {}", e))?;
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let year_month = parsed_date.format("%Y%m").to_string();
+
+    let prefix = match input.direction {
+        MovementDirection::Inflow => "RCP",
+        MovementDirection::Outflow => "PAY",
+    };
+    let seq_key = format!("{}-{}", prefix, year_month);
+
+    let next_seq: i64 = tx
+        .query_row(
+            "INSERT INTO cashbook_sequences (sequence_key, current_number, updated_at)
+             VALUES (?1, 1, ?2)
+             ON CONFLICT(sequence_key) DO UPDATE SET current_number = current_number + 1, updated_at = ?2
+             RETURNING current_number;",
+            params![seq_key, now],
+            |r| r.get(0),
+        )
+        .map_err(|e| format!("Failed to allocate sequence: {}", e))?;
+
+    let voucher_number = format_voucher_number(prefix, &year_month, next_seq);
+    let voucher_id = format!("vch_{}", uuid::Uuid::new_v4().simple());
+
+    // Snapshots
+    let (biz_name, biz_tax_id, biz_addr, biz_phone): (Option<String>, Option<String>, Option<String>, Option<String>) = tx
+        .query_row(
+            "SELECT business_name, tax_identifier, address_line1, phone FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .unwrap_or((Some("BillZen Store".to_string()), None, None, None));
+
+    let (party_name, party_phone, party_tax_id, party_addr): (Option<String>, Option<String>, Option<String>, Option<String>) = if let Some(ref pid) = input.party_id {
+        tx.query_row(
+            "SELECT name, phone, tax_id, address FROM cashbook_parties WHERE id = ?1;",
+            params![pid],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .unwrap_or((None, None, None, None))
+    } else {
+        (None, None, None, None)
+    };
+
+    tx.execute(
+        "INSERT INTO cashbook_vouchers (
+            id, voucher_number, idempotency_key, payload_hash, account_id,
+            party_id, category_id, direction, classification, payment_method,
+            amount_minor, business_date, status, is_reversal, reversal_for_voucher_id,
+            is_reversed, reversed_by_voucher_id, reversed_at, reference_note, notes,
+            business_name_snap, business_tax_id_snap, business_address_snap, business_phone_snap,
+            party_name_snap, party_phone_snap, party_tax_id_snap, party_address_snap,
+            account_name_snap, currency_code_snap, currency_exponent_snap, amount_in_words_snap,
+            created_at, posted_at
+        ) VALUES (
+            ?1, ?2, ?3, ?4, ?5,
+            ?6, ?7, ?8, ?9, ?10,
+            ?11, ?12, 'posted', 0, NULL,
+            0, NULL, NULL, ?13, ?14,
+            ?15, ?16, ?17, ?18,
+            ?19, ?20, ?21, ?22,
+            ?23, ?24, ?25, NULL,
+            ?26, ?26
+        );",
+        params![
+            voucher_id,
+            voucher_number,
+            input.idempotency_key,
+            payload_hash,
+            input.account_id,
+            input.party_id,
+            input.category_id,
+            input.direction.as_str(),
+            input.classification.as_str(),
+            input.payment_method.as_str(),
+            input.amount_minor,
+            input.business_date,
+            input.reference_note.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            input.notes.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+            biz_name,
+            biz_tax_id,
+            biz_addr,
+            biz_phone,
+            party_name,
+            party_phone,
+            party_tax_id,
+            party_addr,
+            account_name,
+            currency_code,
+            currency_exponent,
+            now
+        ],
+    ).map_err(|e| format!("Failed to insert voucher: {}", e))?;
+
+    let movement_id = format!("mov_{}", uuid::Uuid::new_v4().simple());
+    let next_mov_seq: i64 = tx
+        .query_row(
+            "SELECT COALESCE(MAX(sequence_number), 0) + 1 FROM cashbook_movements WHERE account_id = ?1;",
+            params![input.account_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(1);
+
+    tx.execute(
+        "INSERT INTO cashbook_movements (
+            id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);",
+        params![
+            movement_id,
+            voucher_id,
+            input.account_id,
+            movement_delta,
+            input.business_date,
+            next_mov_seq,
+            now
+        ],
+    ).map_err(|e| format!("Failed to insert movement: {}", e))?;
+
+    if projected_balance < 0 && allow_negative_balance == 0 && input.confirmed_negative_balance {
+        let audit_id = format!("aud_{}", uuid::Uuid::new_v4().simple());
+        let details = serde_json::json!({
+            "current_balance_minor": current_balance,
+            "amount_minor": input.amount_minor,
+            "projected_balance_minor": projected_balance,
+            "account_id": input.account_id,
+            "voucher_id": voucher_id,
+            "voucher_number": voucher_number,
+            "confirmed_at": now,
+        }).to_string();
+
+        tx.execute(
+            "INSERT INTO cashbook_audit_events (id, voucher_id, event_type, details_json, created_at)
+             VALUES (?1, ?2, 'negative_balance_confirmed', ?3, ?4);",
+            params![audit_id, voucher_id, details, now],
+        ).map_err(|e| format!("Failed to log audit event: {}", e))?;
+    }
+
+    tx.commit().map_err(|e| format!("Transaction commit failed: {}", e))?;
+    let v = fetch_voucher_by_id(conn, &voucher_id)?;
+    Ok(PostVoucherResult::Posted(v))
+}
+
+fn reverse_cashbook_voucher(
+    conn: &mut Connection,
+    voucher_id: String,
+    confirmed_negative_balance: bool,
+) -> Result<PostVoucherResult, String> {
+    let orig = fetch_voucher_by_id(conn, &voucher_id)
+        .map_err(|_| CashbookError::VoucherNotFound(voucher_id.clone()).to_string())?;
+
+    if orig.status != VoucherStatus::Posted {
+        return Err(CashbookError::CannotReverseNonPosted(voucher_id).to_string());
+    }
+    if orig.is_reversed {
+        return Err(CashbookError::VoucherAlreadyReversed(voucher_id).to_string());
+    }
+    if orig.is_reversal {
+        return Err(CashbookError::CannotReverseReversal(voucher_id).to_string());
+    }
+
+    let (allow_negative_balance, opening_balance_minor): (i64, i64) = conn
+        .query_row(
+            "SELECT allow_negative_balance, opening_balance_minor FROM money_accounts WHERE id = ?1;",
+            params![orig.account_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to read money account: {}", e))?;
+
+    let sum_movs: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(amount_minor), 0) FROM cashbook_movements WHERE account_id = ?1;",
+            params![orig.account_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+
+    let current_balance = opening_balance_minor + sum_movs;
+
+    let (reversal_movement_delta, reversal_direction, reversal_prefix) = match orig.direction {
+        MovementDirection::Inflow => (-orig.amount_minor, MovementDirection::Outflow, "RCP-REV"),
+        MovementDirection::Outflow => (orig.amount_minor, MovementDirection::Inflow, "PAY-REV"),
+    };
+
+    let projected_balance = current_balance + reversal_movement_delta;
+
+    if projected_balance < 0 && allow_negative_balance == 0 && !confirmed_negative_balance {
+        return Ok(PostVoucherResult::RequiresConfirmation {
+            current_balance_minor: current_balance,
+            amount_minor: orig.amount_minor,
+            projected_balance_minor: projected_balance,
+            message: format!(
+                "Reversal would make account balance negative: current {}, projected {}",
+                current_balance, projected_balance
+            ),
+        });
+    }
+
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| format!("Transaction begin error: {}", e))?;
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let today_str = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let year_month = chrono::Utc::now().format("%Y%m").to_string();
+    let seq_key = format!("{}-{}", reversal_prefix, year_month);
+
+    let next_seq: i64 = tx
+        .query_row(
+            "INSERT INTO cashbook_sequences (sequence_key, current_number, updated_at)
+             VALUES (?1, 1, ?2)
+             ON CONFLICT(sequence_key) DO UPDATE SET current_number = current_number + 1, updated_at = ?2
+             RETURNING current_number;",
+            params![seq_key, now],
+            |r| r.get(0),
+        )
+        .map_err(|e| format!("Failed to allocate sequence: {}", e))?;
+
+    let reversal_voucher_number = format_voucher_number(reversal_prefix, &year_month, next_seq);
+    let reversal_voucher_id = format!("vch_{}", uuid::Uuid::new_v4().simple());
+    let reversal_idempotency_key = format!("rev_{}", orig.id);
+
+    tx.execute(
+        "INSERT INTO cashbook_vouchers (
+            id, voucher_number, idempotency_key, payload_hash, account_id,
+            party_id, category_id, direction, classification, payment_method,
+            amount_minor, business_date, status, is_reversal, reversal_for_voucher_id,
+            is_reversed, reversed_by_voucher_id, reversed_at, reference_note, notes,
+            business_name_snap, business_tax_id_snap, business_address_snap, business_phone_snap,
+            party_name_snap, party_phone_snap, party_tax_id_snap, party_address_snap,
+            account_name_snap, currency_code_snap, currency_exponent_snap, amount_in_words_snap,
+            created_at, posted_at
+        ) VALUES (
+            ?1, ?2, ?3, 'reversal', ?4,
+            ?5, ?6, ?7, ?8, ?9,
+            ?10, ?11, 'posted', 1, ?12,
+            0, NULL, NULL, ?13, ?14,
+            ?15, ?16, ?17, ?18,
+            ?19, ?20, ?21, ?22,
+            ?23, ?24, ?25, ?26,
+            ?27, ?27
+        );",
+        params![
+            reversal_voucher_id,
+            reversal_voucher_number,
+            reversal_idempotency_key,
+            orig.account_id,
+            orig.party_id,
+            orig.category_id,
+            reversal_direction.as_str(),
+            orig.classification.as_str(),
+            orig.payment_method.as_str(),
+            orig.amount_minor,
+            today_str,
+            orig.id,
+            orig.reference_note,
+            format!("Reversal of voucher {}", orig.voucher_number),
+            orig.business_name_snap,
+            orig.business_tax_id_snap,
+            orig.business_address_snap,
+            orig.business_phone_snap,
+            orig.party_name_snap,
+            orig.party_phone_snap,
+            orig.party_tax_id_snap,
+            orig.party_address_snap,
+            orig.account_name_snap,
+            orig.currency_code_snap,
+            orig.currency_exponent_snap,
+            orig.amount_in_words_snap,
+            now
+        ],
+    ).map_err(|e| format!("Failed to insert reversal voucher: {}", e))?;
+
+    let movement_id = format!("mov_{}", uuid::Uuid::new_v4().simple());
+    let next_mov_seq: i64 = tx
+        .query_row(
+            "SELECT COALESCE(MAX(sequence_number), 0) + 1 FROM cashbook_movements WHERE account_id = ?1;",
+            params![orig.account_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(1);
+
+    tx.execute(
+        "INSERT INTO cashbook_movements (
+            id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);",
+        params![
+            movement_id,
+            reversal_voucher_id,
+            orig.account_id,
+            reversal_movement_delta,
+            today_str,
+            next_mov_seq,
+            now
+        ],
+    ).map_err(|e| format!("Failed to insert reversal movement: {}", e))?;
+
+    tx.execute(
+        "UPDATE cashbook_vouchers SET is_reversed = 1, reversed_by_voucher_id = ?1, reversed_at = ?2 WHERE id = ?3;",
+        params![reversal_voucher_id, now, orig.id],
+    ).map_err(|e| format!("Failed to update original voucher reversal status: {}", e))?;
+
+    let audit_id = format!("aud_{}", uuid::Uuid::new_v4().simple());
+    let details = serde_json::json!({
+        "original_voucher_id": orig.id,
+        "original_voucher_number": orig.voucher_number,
+        "reversal_voucher_id": reversal_voucher_id,
+        "reversal_voucher_number": reversal_voucher_number,
+        "reversed_at": now,
+    }).to_string();
+
+    tx.execute(
+        "INSERT INTO cashbook_audit_events (id, voucher_id, event_type, details_json, created_at)
+         VALUES (?1, ?2, 'voucher_reversed', ?3, ?4);",
+        params![audit_id, orig.id, details, now],
+    ).map_err(|e| format!("Failed to log reversal audit event: {}", e))?;
+
+    if projected_balance < 0 && allow_negative_balance == 0 && confirmed_negative_balance {
+        let aud_neg_id = format!("aud_{}", uuid::Uuid::new_v4().simple());
+        let neg_details = serde_json::json!({
+            "current_balance_minor": current_balance,
+            "reversal_amount_minor": orig.amount_minor,
+            "projected_balance_minor": projected_balance,
+            "account_id": orig.account_id,
+            "reversal_voucher_id": reversal_voucher_id,
+            "confirmed_at": now,
+        }).to_string();
+
+        tx.execute(
+            "INSERT INTO cashbook_audit_events (id, voucher_id, event_type, details_json, created_at)
+             VALUES (?1, ?2, 'negative_balance_confirmed', ?3, ?4);",
+            params![aud_neg_id, reversal_voucher_id, neg_details, now],
+        ).map_err(|e| format!("Failed to log negative balance audit event: {}", e))?;
+    }
+
+    tx.commit().map_err(|e| format!("Transaction commit failed: {}", e))?;
+    let rev_v = fetch_voucher_by_id(conn, &reversal_voucher_id)?;
+    Ok(PostVoucherResult::Posted(rev_v))
+}
+
+fn fetch_cashbook_ledger(
+    conn: &Connection,
+    filter: CashbookLedgerFilter,
+) -> Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String> {
+    let mut sql = "WITH ledger AS (
+        SELECT 
+            v.id AS v_id, v.voucher_number, v.idempotency_key, v.payload_hash, v.account_id AS v_account_id,
+            v.party_id, v.category_id, v.direction, v.classification, v.payment_method,
+            v.amount_minor AS v_amount_minor, v.business_date AS v_business_date, v.status, v.is_reversal, v.reversal_for_voucher_id,
+            v.is_reversed, v.reversed_by_voucher_id, v.reversed_at, v.reference_note, v.notes,
+            v.business_name_snap, v.business_tax_id_snap, v.business_address_snap, v.business_phone_snap,
+            v.party_name_snap, v.party_phone_snap, v.party_tax_id_snap, v.party_address_snap,
+            v.account_name_snap, v.currency_code_snap, v.currency_exponent_snap, v.amount_in_words_snap,
+            v.created_at AS v_created_at, v.posted_at,
+            m.id AS m_id, m.voucher_id AS m_voucher_id, m.account_id AS m_account_id, m.amount_minor AS m_amount_minor, 
+            m.business_date AS m_business_date, m.sequence_number AS m_sequence_number, m.created_at AS m_created_at,
+            (a.opening_balance_minor + SUM(m.amount_minor) OVER (
+                PARTITION BY m.account_id 
+                ORDER BY m.business_date ASC, m.sequence_number ASC, m.id ASC
+            )) AS running_balance_minor
+        FROM cashbook_movements m
+        JOIN cashbook_vouchers v ON m.voucher_id = v.id
+        JOIN money_accounts a ON m.account_id = a.id
+    )
+    SELECT 
+        v_id, voucher_number, idempotency_key, payload_hash, v_account_id,
+        party_id, category_id, direction, classification, payment_method,
+        v_amount_minor, v_business_date, status, is_reversal, reversal_for_voucher_id,
+        is_reversed, reversed_by_voucher_id, reversed_at, reference_note, notes,
+        business_name_snap, business_tax_id_snap, business_address_snap, business_phone_snap,
+        party_name_snap, party_phone_snap, party_tax_id_snap, party_address_snap,
+        account_name_snap, currency_code_snap, currency_exponent_snap, amount_in_words_snap,
+        v_created_at, posted_at,
+        m_id, m_voucher_id, m_account_id, m_amount_minor,
+        m_business_date, m_sequence_number, m_created_at,
+        running_balance_minor
+    FROM ledger
+    WHERE 1=1".to_string();
+
+    let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+    if let Some(ref acc_id) = filter.account_id {
+        sql.push_str(" AND m_account_id = ?");
+        params_vec.push(Box::new(acc_id.clone()));
+    }
+    if let Some(ref start) = filter.start_date {
+        sql.push_str(" AND m_business_date >= ?");
+        params_vec.push(Box::new(start.clone()));
+    }
+    if let Some(ref end) = filter.end_date {
+        sql.push_str(" AND m_business_date <= ?");
+        params_vec.push(Box::new(end.clone()));
+    }
+    if let Some(ref class) = filter.classification {
+        sql.push_str(" AND classification = ?");
+        params_vec.push(Box::new(class.clone()));
+    }
+    if let Some(ref search) = filter.search {
+        let pattern = format!("%{}%", search.trim());
+        sql.push_str(" AND (voucher_number LIKE ? OR party_name_snap LIKE ? OR notes LIKE ? OR reference_note LIKE ?)");
+        params_vec.push(Box::new(pattern.clone()));
+        params_vec.push(Box::new(pattern.clone()));
+        params_vec.push(Box::new(pattern.clone()));
+        params_vec.push(Box::new(pattern));
+    }
+
+    sql.push_str(" ORDER BY m_business_date ASC, m_sequence_number ASC, m_id ASC;");
+
+    let params_slice: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| format!("Query prepare error: {}", e))?;
+    let rows = stmt.query_map(params_slice.as_slice(), |r| {
+        let voucher = row_to_voucher(r)?;
+        let movement = CashbookMovement {
+            id: r.get(34)?,
+            voucher_id: r.get(35)?,
+            account_id: r.get(36)?,
+            amount_minor: r.get(37)?,
+            business_date: r.get(38)?,
+            sequence_number: r.get(39)?,
+            created_at: r.get(40)?,
+        };
+        let running_balance_minor: i64 = r.get(41)?;
+        Ok(CashbookLedgerEntry {
+            voucher,
+            movement,
+            running_balance_minor,
+        })
+    }).map_err(|e| format!("Query execution error: {}", e))?;
+
+    let mut entries = Vec::new();
+    let mut period_inflows: i64 = 0;
+    let mut period_outflows: i64 = 0;
+    let mut net_operating: i64 = 0;
+
+    for item in rows {
+        let entry = item.map_err(|e| format!("Row mapping error: {}", e))?;
+        let m_amt = entry.movement.amount_minor;
+        if m_amt > 0 {
+            period_inflows = period_inflows.saturating_add(m_amt);
+        } else {
+            period_outflows = period_outflows.saturating_add(m_amt.abs());
+        }
+
+        if entry.voucher.classification == CashbookClassification::OperatingIncome
+            || entry.voucher.classification == CashbookClassification::OperatingExpense
+        {
+            net_operating = net_operating.saturating_add(m_amt);
+        }
+
+        entries.push(entry);
+    }
+
+    let total_cash_minor: i64 = if let Some(ref acc_id) = filter.account_id {
+        conn.query_row(
+            "SELECT (opening_balance_minor + COALESCE((SELECT SUM(amount_minor) FROM cashbook_movements WHERE account_id = ?1), 0))
+             FROM money_accounts WHERE id = ?1;",
+            params![acc_id],
+            |r| r.get(0),
+        ).unwrap_or(0)
+    } else {
+        conn.query_row(
+            "SELECT (COALESCE(SUM(opening_balance_minor), 0) + COALESCE((SELECT SUM(amount_minor) FROM cashbook_movements), 0))
+             FROM money_accounts WHERE is_archived = 0;",
+            [],
+            |r| r.get(0),
+        ).unwrap_or(0)
+    };
+
+    let summary = CashbookSummary {
+        total_cash_minor,
+        period_inflows_minor: period_inflows,
+        period_outflows_minor: period_outflows,
+        net_operating_cash_flow_minor: net_operating,
+    };
+
+    Ok((entries, summary))
 }
 
 #[cfg(test)]
