@@ -56,6 +56,13 @@ export function applyThemeToDOM(resolved: ResolvedTheme): void {
     document.head.appendChild(metaTheme);
   }
   metaTheme.setAttribute('content', resolved === 'dark' ? '#09090b' : '#ffffff');
+
+  // Explicitly notify Android native host for status bar & navigation bar contrast
+  if (typeof (window as any).BillZenNative?.setDarkMode === 'function') {
+    try {
+      (window as any).BillZenNative.setDarkMode(resolved === 'dark');
+    } catch {}
+  }
 }
 
 // Synchronous initialization before React paint to prevent theme flash

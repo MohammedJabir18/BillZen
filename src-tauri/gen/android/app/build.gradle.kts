@@ -17,7 +17,7 @@ val tauriProperties = Properties().apply {
 val resolvedVersionCode = System.getenv("BILLZEN_VERSION_CODE")?.toIntOrNull()
     ?: (project.findProperty("versionCode") as? String)?.toIntOrNull()
     ?: tauriProperties.getProperty("tauri.android.versionCode")?.toIntOrNull()
-    ?: 1002
+    ?: 1003
 
 val resolvedVersionName = System.getenv("BILLZEN_VERSION_NAME")
     ?: (project.findProperty("versionName") as? String)

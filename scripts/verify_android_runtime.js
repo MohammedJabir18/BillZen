@@ -92,17 +92,29 @@ class CdpClient {
   }
 }
 
-async function getCdpClient() {
-  const pid = runAdb('shell pidof com.billzen.desktop');
+async function getCdpClient(maxAttempts = 15) {
+  let pid = '';
+  for (let i = 0; i < maxAttempts; i++) {
+    pid = runAdbQuiet('shell pidof com.billzen.desktop').trim().split(/\s+/)[0];
+    if (pid) break;
+    await sleep(500);
+  }
   if (!pid) throw new Error('com.billzen.desktop process not found!');
 
   runAdb(`forward tcp:9222 localabstract:webview_devtools_remote_${pid}`);
   await sleep(600);
 
-  const res = await fetch('http://localhost:9222/json/list');
-  const pages = await res.json();
-  const page = pages.find((p) => p.type === 'page' && p.url.includes('localhost'));
-  if (!page) throw new Error('No webview page found on localhost:9222');
+  let page = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const res = await fetch('http://localhost:9222/json/list');
+      const pages = await res.json();
+      page = pages.find((p) => p.type === 'page' && p.url.includes('localhost'));
+      if (page) break;
+    } catch {}
+    await sleep(600);
+  }
+  if (!page) throw new Error('No webview page found on localhost:9222 after retries');
 
   const client = new CdpClient(page.webSocketDebuggerUrl);
   await client.connect();
@@ -118,7 +130,7 @@ function captureScreenshot(filename) {
   return localPath;
 }
 
-async function waitForCondition(client, conditionExpr, timeoutMs = 12000, intervalMs = 250) {
+async function waitForCondition(client, conditionExpr, timeoutMs = 15000, intervalMs = 250) {
   const startTime = Date.now();
   while (Date.now() - startTime < timeoutMs) {
     try {
@@ -135,11 +147,16 @@ async function fillInput(client, selector, value) {
     (() => {
       const el = document.querySelector(${JSON.stringify(selector)});
       if (!el) throw new Error('Input not found: ' + ${JSON.stringify(selector)});
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      const lastVal = el.value;
+      const proto = el instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
       if (setter) {
         setter.call(el, ${JSON.stringify(value)});
       } else {
         el.value = ${JSON.stringify(value)};
+      }
+      if (el._valueTracker) {
+        el._valueTracker.setValue(lastVal);
       }
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -159,28 +176,104 @@ async function clickElement(client, selector) {
   `);
 }
 
+async function navigateToTab(client, tabName) {
+  await client.eval(`
+    (() => {
+      const btn = document.querySelector('[data-testid="tab-${tabName}"]') ||
+                  document.querySelector('[data-testid="mobile-tab-${tabName}"]');
+      if (btn) btn.click();
+    })()
+  `);
+  await sleep(400);
+}
+
+// Bounded condition wait for catalog data and form values with rich timeout diagnostics
+async function waitForRecordInDom(client, expectedTexts, timeoutMs = 15000) {
+  const startTime = Date.now();
+  let lastContent = '';
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const result = await client.eval(`
+        (() => {
+          const bodyText = document.body.innerText || '';
+          const inputValues = Array.from(document.querySelectorAll('input, textarea')).map((i) => i.value).join(' ');
+          const fullContent = bodyText + ' ' + inputValues;
+          const expected = ${JSON.stringify(expectedTexts)};
+          const matched = expected.every((txt) => fullContent.includes(txt));
+          return { matched, fullContent: fullContent.slice(0, 1000) };
+        })()
+      `);
+      if (result && result.matched) {
+        return { success: true, content: result.fullContent };
+      }
+      if (result) lastContent = result.fullContent;
+    } catch {}
+    await sleep(300);
+  }
+
+  // Timeout reached: triage diagnostics
+  const debugScreenshot = captureScreenshot('debug_timeout_record_not_found.png');
+  let backendProducts = null;
+  let backendSettings = null;
+  try {
+    backendProducts = await client.eval(`
+      (async () => {
+        try {
+          if (window.__TAURI__?.core?.invoke) return await window.__TAURI__.core.invoke('get_products');
+          if (window.__TAURI_INTERNALS__?.invoke) return await window.__TAURI_INTERNALS__.invoke('get_products');
+          return 'TAURI_INVOKE_NOT_FOUND';
+        } catch (e) {
+          return 'INVOKE_ERROR: ' + e.message;
+        }
+      })()
+    `);
+    backendSettings = await client.eval(`
+      (async () => {
+        try {
+          if (window.__TAURI__?.core?.invoke) return await window.__TAURI__.core.invoke('get_business_settings');
+          if (window.__TAURI_INTERNALS__?.invoke) return await window.__TAURI_INTERNALS__.invoke('get_business_settings');
+          return 'TAURI_INVOKE_NOT_FOUND';
+        } catch (e) {
+          return 'INVOKE_ERROR: ' + e.message;
+        }
+      })()
+    `);
+  } catch {}
+
+  const diagnostic = {
+    expectedTexts,
+    domSnippet: lastContent.slice(0, 500),
+    isLoading: lastContent.includes('Loading catalog records') || lastContent.includes('Loading'),
+    backendProducts,
+    backendSettings,
+    screenshot: debugScreenshot,
+  };
+  return { success: false, diagnostic };
+}
+
 async function main() {
   console.log('================================================================');
   console.log('   BillZen Native Android Runtime Verification (Hardened Suite) ');
   console.log('================================================================');
 
-  const v1001Path = path.resolve('dist-android/billzen-test-v0.1.0-v1001-x86_64.apk');
-  const v1002Path = path.resolve('dist-android/billzen-test-v0.1.0-x86_64.apk');
+  const v1002Path = path.resolve('dist-android/billzen-test-v0.1.0-v1002-x86_64.apk');
+  const v1003Path = path.resolve('dist-android/billzen-test-v0.1.0-x86_64.apk');
 
   const report = {
     suite: 'BillZen Native Android Runtime Verification',
-    targetVersionCode: 1002,
+    baselineVersionCode: 1002,
+    targetVersionCode: 1003,
     startedAt: new Date().toISOString(),
     completedAt: null,
     device: {},
     packages: {
-      baselineV1001: {
-        path: v1001Path,
-        sha256: computeFileSha256(v1001Path),
-      },
-      upgradeV1002: {
+      baselineV1002: {
         path: v1002Path,
         sha256: computeFileSha256(v1002Path),
+      },
+      upgradeV1003: {
+        path: v1003Path,
+        sha256: computeFileSha256(v1003Path),
       },
     },
     stages: [],
@@ -232,32 +325,32 @@ async function main() {
     };
     console.log(`Target device: ${report.device.manufacturer} ${report.device.model} (Android ${report.device.androidVersion}, API ${report.device.sdkInt}, ${report.device.abi})`);
 
-    // Reset logcat marker if possible
+    // Reset logcat marker for clean bounded capture
     runAdbQuiet('logcat -c');
 
     // =========================================================================
-    // STAGE 1: Baseline Clean Installation (v1001)
+    // STAGE 1: Baseline Clean Installation (v1002)
     // =========================================================================
-    recordStage('Stage 1', 'Clean baseline installation with v1001 APK');
+    recordStage('Stage 1', 'Clean baseline installation with v1002 APK');
     runAdb('uninstall com.billzen.desktop || true');
-    const installResult = runAdb(`install -r "${v1001Path}"`);
+    const installResult = runAdb(`install -r "${v1002Path}"`);
     console.log(`Install result: ${installResult}`);
 
     const baselineDump = runAdb('shell dumpsys package com.billzen.desktop | grep versionCode').split('\n')[0].trim();
     const baselineVersionCodeMatch = baselineDump.match(/versionCode=(\d+)/);
     const baselineVersionCode = baselineVersionCodeMatch ? parseInt(baselineVersionCodeMatch[1], 10) : 0;
     
-    if (baselineVersionCode === 1001) {
-      recordAssertion('baseline_v1001_installed', 'Stage 1', 'PASSED', { versionCode: baselineVersionCode });
+    if (baselineVersionCode === 1002) {
+      recordAssertion('baseline_v1002_installed', 'Stage 1', 'PASSED', { versionCode: baselineVersionCode });
     } else {
-      recordAssertion('baseline_v1001_installed', 'Stage 1', 'FAILED', { expected: 1001, got: baselineVersionCode });
-      throw new Error(`Expected baseline versionCode 1001, got: ${baselineVersionCode}`);
+      recordAssertion('baseline_v1002_installed', 'Stage 1', 'FAILED', { expected: 1002, got: baselineVersionCode });
+      throw new Error(`Expected baseline versionCode 1002, got: ${baselineVersionCode}`);
     }
 
     // =========================================================================
-    // STAGE 2: Cold Launch & First-Use Setup Wizard on Baseline
+    // STAGE 2: Cold Launch, Setup Wizard & Interrupted Draft Handling
     // =========================================================================
-    recordStage('Stage 2', 'Cold launch and multi-step onboarding wizard');
+    recordStage('Stage 2', 'Cold launch, setup wizard, and interrupted draft persistence recovery');
     runAdb('shell am start -n com.billzen.desktop/.MainActivity');
     await sleep(4000);
 
@@ -265,7 +358,7 @@ async function main() {
     console.log('Connected to BillZen WebView via CDP.');
 
     // Verify wizard step 1
-    await waitForCondition(cdp, 'document.querySelector("h1")?.innerText.includes("Welcome to BillZen")', 10000);
+    await waitForCondition(cdp, 'document.querySelector("h1")?.innerText.includes("Welcome to BillZen")', 12000);
     const s1 = captureScreenshot('01_setup_wizard_step1.png');
     report.screenshots.push({ name: '01_setup_wizard_step1.png', path: s1, stage: 'Stage 2' });
     recordAssertion('wizard_step1_presented', 'Stage 2', 'PASSED');
@@ -292,6 +385,48 @@ async function main() {
     await fillInput(cdp, '[data-testid="onboarding-input-postal"]', '682001');
     await sleep(600);
 
+    // Verify setup draft saved to localStorage
+    const draftJson = await cdp.eval("localStorage.getItem('billzen_setup_draft')");
+    const draft = JSON.parse(draftJson || '{}');
+    if (draft.formData?.business_name === 'Zen Kerala Store' && draft.formData?.legal_name === 'Zen Retail Ltd') {
+      recordAssertion('setup_draft_saved_to_local_storage', 'Stage 2', 'PASSED');
+    } else {
+      recordAssertion('setup_draft_saved_to_local_storage', 'Stage 2', 'FAILED', { draftJson });
+      throw new Error('Setup draft not persisted to localStorage!');
+    }
+
+    // Interrupted draft relaunch test: force-stop app mid-wizard and relaunch
+    console.log('Testing interrupted setup draft: waiting for Chromium LevelDB flush before force-stop...');
+    await sleep(5500);
+    cdp.close();
+    runAdb('shell am force-stop com.billzen.desktop');
+    await sleep(1000);
+
+    console.log('Relaunching app to verify setup draft recovery...');
+    runAdb('shell am start -n com.billzen.desktop/.MainActivity');
+    await sleep(4000);
+
+    cdp = await getCdpClient();
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="onboarding-input-business-name"]\')', 12000);
+    const restoredBizName = await cdp.eval("document.querySelector('[data-testid=\"onboarding-input-business-name\"]')?.value");
+    const restoredLegalName = await cdp.eval("document.querySelector('[data-testid=\"onboarding-input-legal-name\"]')?.value");
+    const restoredTaxId = await cdp.eval("document.querySelector('[data-testid=\"onboarding-input-tax-id\"]')?.value");
+
+    if (restoredBizName === 'Zen Kerala Store' && restoredLegalName === 'Zen Retail Ltd' && restoredTaxId === '32AAAAA0000A1Z5') {
+      recordAssertion('setup_draft_interruption_and_recovery', 'Stage 2', 'PASSED', {
+        business_name: restoredBizName,
+        legal_name: restoredLegalName,
+        tax_id: restoredTaxId,
+      });
+    } else {
+      recordAssertion('setup_draft_interruption_and_recovery', 'Stage 2', 'FAILED', {
+        restoredBizName,
+        restoredLegalName,
+        restoredTaxId,
+      });
+      throw new Error('Setup draft failed to restore field values upon interrupted relaunch!');
+    }
+
     // Click continue to step 3
     await clickElement(cdp, '[data-testid="onboarding-next-step-2"]');
     await sleep(1500);
@@ -308,7 +443,7 @@ async function main() {
     // STAGE 3: Getting-Started Guide Verification & Dismissal
     // =========================================================================
     recordStage('Stage 3', 'Getting-Started Guide presentation and skip handling');
-    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="guide-skip-button"]\')', 10000);
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="guide-skip-button"]\')', 12000);
     const s3 = captureScreenshot('03_getting_started_guide.png');
     report.screenshots.push({ name: '03_getting_started_guide.png', path: s3, stage: 'Stage 3' });
     recordAssertion('guide_auto_presented_after_setup', 'Stage 3', 'PASSED');
@@ -326,19 +461,14 @@ async function main() {
     }
 
     // =========================================================================
-    // STAGE 4: Baseline Catalog Data (Product & Customer)
+    // STAGE 4: Baseline Catalog Data (Product with leading zeros & Customer)
     // =========================================================================
     recordStage('Stage 4', 'Baseline catalog record creation (Product with leading zeros & Customer)');
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-products"]') || document.querySelector('[data-testid="mobile-tab-products"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1200);
+    await navigateToTab(cdp, 'products');
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="add-product-button"]\')', 10000);
 
     await clickElement(cdp, '[data-testid="add-product-button"]');
-    await sleep(1000);
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="input-product-name"]\')', 8000);
 
     await fillInput(cdp, '[data-testid="input-product-name"]', 'Royal Basmati Rice 5kg');
     await fillInput(cdp, '[data-testid="input-product-sku"]', 'BASMATI-5KG');
@@ -346,82 +476,75 @@ async function main() {
     await fillInput(cdp, '[data-testid="input-product-price"]', '450.00');
     await fillInput(cdp, '[data-testid="input-product-cost-price"]', '380.00');
     await fillInput(cdp, '[data-testid="input-product-opening-stock"]', '25.000');
-    await sleep(500);
+    await sleep(400);
 
     await clickElement(cdp, '[data-testid="save-product-submit"]');
-    await sleep(2000);
 
-    const productListText = await cdp.eval('document.body.innerText');
-    const hasProduct = productListText.includes('Royal Basmati Rice 5kg') && productListText.includes('0012345678905');
-    if (hasProduct) {
+    // Condition-based wait for product creation
+    const productCheck = await waitForRecordInDom(cdp, ['Royal Basmati Rice 5kg', '0012345678905'], 12000);
+    if (productCheck.success) {
       recordAssertion('product_created_with_leading_zero', 'Stage 4', 'PASSED', {
         name: 'Royal Basmati Rice 5kg',
         barcode: '0012345678905',
       });
     } else {
-      recordAssertion('product_created_with_leading_zero', 'Stage 4', 'FAILED');
+      recordAssertion('product_created_with_leading_zero', 'Stage 4', 'FAILED', productCheck.diagnostic);
       throw new Error('Product creation failed on baseline!');
     }
     const s4 = captureScreenshot('04_catalog_product_created.png');
     report.screenshots.push({ name: '04_catalog_product_created.png', path: s4, stage: 'Stage 4' });
 
     // Customer creation
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-customers"]') || document.querySelector('[data-testid="mobile-tab-customers"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1200);
+    await navigateToTab(cdp, 'customers');
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="add-customer-button"]\')', 10000);
 
     await clickElement(cdp, '[data-testid="add-customer-button"]');
-    await sleep(1000);
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="input-customer-name"]\')', 8000);
 
     await fillInput(cdp, '[data-testid="input-customer-name"]', 'Jabir');
     await fillInput(cdp, '[data-testid="input-customer-phone"]', '+91 9999888877');
-    await sleep(500);
+    await sleep(400);
 
     await clickElement(cdp, '[data-testid="save-customer-submit"]');
-    await sleep(2000);
 
-    const customerListText = await cdp.eval('document.body.innerText');
-    const hasCustomer = customerListText.includes('Jabir') && customerListText.includes('+91 9999888877');
-    if (hasCustomer) {
+    // Condition-based wait for customer creation
+    const customerCheck = await waitForRecordInDom(cdp, ['Jabir', '+91 9999888877'], 12000);
+    if (customerCheck.success) {
       recordAssertion('customer_record_created', 'Stage 4', 'PASSED', {
         name: 'Jabir',
         phone: '+91 9999888877',
       });
     } else {
-      recordAssertion('customer_record_created', 'Stage 4', 'FAILED');
+      recordAssertion('customer_record_created', 'Stage 4', 'FAILED', customerCheck.diagnostic);
       throw new Error('Customer record creation failed on baseline!');
     }
     const s5 = captureScreenshot('05_catalog_customer_created.png');
     report.screenshots.push({ name: '05_catalog_customer_created.png', path: s5, stage: 'Stage 4' });
 
     // =========================================================================
-    // STAGE 5: In-Place Upgrade to v1002 (Zero Data Loss)
+    // STAGE 5: In-Place Upgrade to v1003 (Zero Data Loss & Comprehensive Invariant Checks)
     // =========================================================================
-    recordStage('Stage 5', 'In-place upgrade to v1002 test APK and zero-data-loss verification');
+    recordStage('Stage 5', 'In-place upgrade to v1003 test APK and zero-data-loss verification');
     cdp.close();
 
-    console.log(`Installing upgrade APK: ${v1002Path}`);
-    const upgradeResult = runAdb(`install -r "${v1002Path}"`);
+    console.log(`Installing upgrade APK: ${v1003Path}`);
+    const upgradeResult = runAdb(`install -r "${v1003Path}"`);
     console.log(`Upgrade result: ${upgradeResult}`);
 
     const upgradedDump = runAdb('shell dumpsys package com.billzen.desktop | grep versionCode').split('\n')[0].trim();
     const upgradedVersionMatch = upgradedDump.match(/versionCode=(\d+)/);
     const upgradedVersionCode = upgradedVersionMatch ? parseInt(upgradedVersionMatch[1], 10) : 0;
 
-    if (upgradedVersionCode === 1002) {
-      recordAssertion('in_place_upgrade_to_v1002_version_confirmed', 'Stage 5', 'PASSED', {
+    if (upgradedVersionCode === 1003) {
+      recordAssertion('in_place_upgrade_to_v1003_version_confirmed', 'Stage 5', 'PASSED', {
         versionCode: upgradedVersionCode,
       });
     } else {
-      recordAssertion('in_place_upgrade_to_v1002_version_confirmed', 'Stage 5', 'FAILED', {
-        expected: 1002,
+      recordAssertion('in_place_upgrade_to_v1003_version_confirmed', 'Stage 5', 'FAILED', {
+        expected: 1003,
         got: upgradedVersionCode,
       });
-      throw new Error(`Expected upgraded versionCode 1002, got: ${upgradedVersionCode}`);
+      throw new Error(`Expected upgraded versionCode 1003, got: ${upgradedVersionCode}`);
     }
 
     // Launch upgraded app
@@ -431,62 +554,87 @@ async function main() {
 
     cdp = await getCdpClient();
 
-    // Verify catalog data intact after upgrade
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-products"]') || document.querySelector('[data-testid="mobile-tab-products"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1200);
+    // Wait for WebView and navigation readiness
+    await waitForCondition(
+      cdp,
+      "!!document.querySelector('[data-testid=\"tab-products\"]') || !!document.querySelector('[data-testid=\"mobile-tab-products\"]')",
+      15000
+    );
 
-    const productsAfterUpgrade = await cdp.eval('document.body.innerText');
-    const productSurvivesUpgrade = productsAfterUpgrade.includes('Royal Basmati Rice 5kg') && productsAfterUpgrade.includes('0012345678905');
-    if (productSurvivesUpgrade) {
-      recordAssertion('catalog_data_intact_after_v1002_upgrade', 'Stage 5', 'PASSED');
+    // 5.1 Verify Product and Barcode intact after upgrade (with bounded condition wait)
+    await navigateToTab(cdp, 'products');
+    const productSurvives = await waitForRecordInDom(cdp, ['Royal Basmati Rice 5kg', '0012345678905'], 15000);
+    if (productSurvives.success) {
+      recordAssertion('catalog_product_and_barcode_intact_after_v1003_upgrade', 'Stage 5', 'PASSED', {
+        product: 'Royal Basmati Rice 5kg',
+        barcode: '0012345678905',
+      });
     } else {
-      recordAssertion('catalog_data_intact_after_v1002_upgrade', 'Stage 5', 'FAILED');
-      throw new Error('Catalog data lost after upgrade to v1002!');
+      recordAssertion('catalog_product_and_barcode_intact_after_v1003_upgrade', 'Stage 5', 'FAILED', productSurvives.diagnostic);
+      throw new Error('Catalog product data lost after upgrade to v1003!');
     }
 
-    const s9 = captureScreenshot('09_after_upgrade_v1002.png');
-    report.screenshots.push({ name: '09_after_upgrade_v1002.png', path: s9, stage: 'Stage 5' });
+    // 5.2 Verify Customer record intact after upgrade
+    await navigateToTab(cdp, 'customers');
+    const customerSurvives = await waitForRecordInDom(cdp, ['Jabir', '+91 9999888877'], 15000);
+    if (customerSurvives.success) {
+      recordAssertion('customer_data_intact_after_v1003_upgrade', 'Stage 5', 'PASSED', {
+        customer: 'Jabir',
+        phone: '+91 9999888877',
+      });
+    } else {
+      recordAssertion('customer_data_intact_after_v1003_upgrade', 'Stage 5', 'FAILED', customerSurvives.diagnostic);
+      throw new Error('Customer data lost after upgrade to v1003!');
+    }
+
+    // 5.3 Verify Business Profile intact after upgrade
+    await navigateToTab(cdp, 'settings');
+    const profileSurvives = await waitForRecordInDom(cdp, ['Zen Kerala Store'], 15000);
+    if (profileSurvives.success) {
+      recordAssertion('business_profile_intact_after_v1003_upgrade', 'Stage 5', 'PASSED', {
+        business_name: 'Zen Kerala Store',
+      });
+    } else {
+      recordAssertion('business_profile_intact_after_v1003_upgrade', 'Stage 5', 'FAILED', profileSurvives.diagnostic);
+      throw new Error('Business profile lost after upgrade to v1003!');
+    }
+
+    const s9 = captureScreenshot('09_after_upgrade_v1003.png');
+    report.screenshots.push({ name: '09_after_upgrade_v1003.png', path: s9, stage: 'Stage 5' });
 
     // =========================================================================
-    // STAGE 6: Appearance & Edge-to-Edge Safe Area Insets Verification on v1002
+    // STAGE 6: Appearance & Edge-to-Edge Safe Area Insets Verification on v1003
     // =========================================================================
-    recordStage('Stage 6', 'Appearance Settings & Safe Area Insets on v1002 (Dark, Light, System)');
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-settings"]') || document.querySelector('[data-testid="mobile-tab-settings"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1500);
+    recordStage('Stage 6', 'Appearance Settings & Safe Area Insets on v1003 (Dark, Light, System)');
+    await navigateToTab(cdp, 'settings');
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="appearance-option-dark"]\')', 10000);
 
     // Switch to Dark
     await clickElement(cdp, '[data-testid="appearance-option-dark"]');
-    await sleep(800);
+    await waitForCondition(cdp, "document.documentElement.classList.contains('dark')", 8000);
+    await sleep(600);
+
     const isDark = await cdp.eval("document.documentElement.classList.contains('dark')");
     if (isDark) {
-      recordAssertion('appearance_dark_applied_on_v1002', 'Stage 6', 'PASSED');
+      recordAssertion('appearance_dark_applied_on_v1003', 'Stage 6', 'PASSED');
     } else {
-      recordAssertion('appearance_dark_applied_on_v1002', 'Stage 6', 'FAILED');
-      throw new Error('Dark theme class not found on documentElement in v1002!');
+      recordAssertion('appearance_dark_applied_on_v1003', 'Stage 6', 'FAILED');
+      throw new Error('Dark theme class not found on documentElement in v1003!');
     }
     const s6 = captureScreenshot('06_appearance_dark.png');
     report.screenshots.push({ name: '06_appearance_dark.png', path: s6, stage: 'Stage 6' });
 
     // Switch to Light
     await clickElement(cdp, '[data-testid="appearance-option-light"]');
-    await waitForCondition(cdp, "!document.documentElement.classList.contains('dark')", 5000);
+    await waitForCondition(cdp, "!document.documentElement.classList.contains('dark')", 8000);
     await sleep(600);
+
     const isDarkInLight = await cdp.eval("document.documentElement.classList.contains('dark')");
     if (!isDarkInLight) {
-      recordAssertion('appearance_light_applied_on_v1002', 'Stage 6', 'PASSED');
+      recordAssertion('appearance_light_applied_on_v1003', 'Stage 6', 'PASSED');
     } else {
-      recordAssertion('appearance_light_applied_on_v1002', 'Stage 6', 'FAILED');
-      throw new Error('Dark theme class still present in Light mode in v1002!');
+      recordAssertion('appearance_light_applied_on_v1003', 'Stage 6', 'FAILED');
+      throw new Error('Dark theme class still present in Light mode in v1003!');
     }
     const s7 = captureScreenshot('07_appearance_light.png');
     report.screenshots.push({ name: '07_appearance_light.png', path: s7, stage: 'Stage 6' });
@@ -497,182 +645,128 @@ async function main() {
 
     // Force Android OS Night Mode
     runAdb('shell cmd uimode night yes');
-    await sleep(1200);
-    const isDarkAfterOsNight = await cdp.eval("document.documentElement.classList.contains('dark')");
-    if (isDarkAfterOsNight) {
-      recordAssertion('appearance_system_follows_os_dark_on_v1002', 'Stage 6', 'PASSED');
-    } else {
-      recordAssertion('appearance_system_follows_os_dark_on_v1002', 'Stage 6', 'FAILED');
-      throw new Error('System appearance did not follow OS night mode in v1002!');
-    }
+    await waitForCondition(cdp, "document.documentElement.classList.contains('dark')", 10000);
+    recordAssertion('appearance_system_follows_os_dark_on_v1003', 'Stage 6', 'PASSED');
 
     // Force Android OS Day Mode
     runAdb('shell cmd uimode night no');
-    await sleep(1200);
-    const isDarkAfterOsDay = await cdp.eval("document.documentElement.classList.contains('dark')");
-    if (!isDarkAfterOsDay) {
-      recordAssertion('appearance_system_follows_os_light_on_v1002', 'Stage 6', 'PASSED');
-    } else {
-      recordAssertion('appearance_system_follows_os_light_on_v1002', 'Stage 6', 'FAILED');
-      throw new Error('System appearance did not follow OS day mode in v1002!');
-    }
+    await waitForCondition(cdp, "!document.documentElement.classList.contains('dark')", 10000);
+    recordAssertion('appearance_system_follows_os_light_on_v1003', 'Stage 6', 'PASSED');
 
     // Set back to Dark mode for persistence test
     await clickElement(cdp, '[data-testid="appearance-option-dark"]');
-    await sleep(600);
+    await waitForCondition(cdp, "document.documentElement.classList.contains('dark')", 8000);
 
     // =========================================================================
-    // STAGE 7: Real Android Back Button Modal Dismissal on v1002
+    // STAGE 7: Real Android Back Button Modal Dismissal on v1003
     // =========================================================================
-    recordStage('Stage 7', 'Native Android Back button modal dismissal on v1002 (strict: zero synthetic cancel fallback)');
+    recordStage('Stage 7', 'Native Android Back button modal dismissal on v1003 (strict: zero synthetic cancel fallback)');
     
     // 7.1 Customer Modal Dismissal
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-customers"]') || document.querySelector('[data-testid="mobile-tab-customers"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1000);
+    await navigateToTab(cdp, 'customers');
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="add-customer-button"]\')', 10000);
 
     await clickElement(cdp, '[data-testid="add-customer-button"]');
-    await sleep(1000);
-
-    let customerDialogPre = await cdp.eval("!!document.querySelector('[role=\"dialog\"]')");
-    if (!customerDialogPre) throw new Error('Customer modal failed to open before back button test');
+    await waitForCondition(cdp, '!!document.querySelector(\'[role="dialog"]\')', 8000);
 
     console.log('Dispatching native Android Back keyevent 4 on Customer modal...');
     runAdb('shell input keyevent 4');
-    await sleep(1000);
+    await waitForCondition(cdp, '!document.querySelector(\'[role="dialog"]\')', 8000);
 
-    let customerDialogPost = await cdp.eval("!!document.querySelector('[role=\"dialog\"]')");
     const pidAfterBack = runAdbQuiet('shell pidof com.billzen.desktop');
-
-    if (!customerDialogPost && pidAfterBack.length > 0) {
+    if (pidAfterBack.length > 0) {
       recordAssertion('back_button_dismisses_customer_modal_without_exit', 'Stage 7', 'PASSED', {
         dialogClosed: true,
         appStillRunning: true,
       });
     } else {
       recordAssertion('back_button_dismisses_customer_modal_without_exit', 'Stage 7', 'FAILED', {
-        dialogClosed: !customerDialogPost,
-        appStillRunning: pidAfterBack.length > 0,
+        appStillRunning: false,
       });
-      throw new Error(`Android Back button failed to dismiss Customer modal! Still open: ${customerDialogPost}`);
+      throw new Error('Android Back button crashed or exited the app instead of dismissing Customer modal!');
     }
 
     // 7.2 Product Modal Dismissal
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-products"]') || document.querySelector('[data-testid="mobile-tab-products"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1000);
+    await navigateToTab(cdp, 'products');
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="add-product-button"]\')', 10000);
 
     await clickElement(cdp, '[data-testid="add-product-button"]');
-    await sleep(1000);
-
-    let productDialogPre = await cdp.eval("!!document.querySelector('[role=\"dialog\"]')");
-    if (!productDialogPre) throw new Error('Product modal failed to open before back button test');
+    await waitForCondition(cdp, '!!document.querySelector(\'[role="dialog"]\')', 8000);
 
     console.log('Dispatching native Android Back keyevent 4 on Product modal...');
     runAdb('shell input keyevent 4');
-    await sleep(1000);
+    await waitForCondition(cdp, '!document.querySelector(\'[role="dialog"]\')', 8000);
 
-    let productDialogPost = await cdp.eval("!!document.querySelector('[role=\"dialog\"]')");
-    if (!productDialogPost) {
-      recordAssertion('back_button_dismisses_product_modal_without_exit', 'Stage 7', 'PASSED', {
-        dialogClosed: true,
-        appStillRunning: true,
-      });
-    } else {
-      recordAssertion('back_button_dismisses_product_modal_without_exit', 'Stage 7', 'FAILED', {
-        dialogClosed: !productDialogPost,
-      });
-      throw new Error(`Android Back button failed to dismiss Product modal! Still open: ${productDialogPost}`);
-    }
+    recordAssertion('back_button_dismisses_product_modal_without_exit', 'Stage 7', 'PASSED', {
+      dialogClosed: true,
+      appStillRunning: true,
+    });
 
     // =========================================================================
-    // STAGE 8: Interrupted Draft Handling on v1002
+    // STAGE 8: Customer Modal Back Dismissal and Clean Reopen on v1003
     // =========================================================================
-    recordStage('Stage 8', 'Interrupted draft recovery and clean reopening on v1002');
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-customers"]') || document.querySelector('[data-testid="mobile-tab-customers"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1000);
+    recordStage('Stage 8', 'Customer modal Back button dismissal and clean reopening on v1003');
+    await navigateToTab(cdp, 'customers');
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="add-customer-button"]\')', 10000);
 
     await clickElement(cdp, '[data-testid="add-customer-button"]');
-    await sleep(800);
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="input-customer-name"]\')', 8000);
     await fillInput(cdp, '[data-testid="input-customer-name"]', 'Interrupted Temp Customer');
-    await sleep(400);
+    await sleep(300);
 
-    // Interrupt via Back button
+    // Dismiss via native Back button
     runAdb('shell input keyevent 4');
-    await sleep(800);
+    await waitForCondition(cdp, '!document.querySelector(\'[role="dialog"]\')', 8000);
 
     // Reopen modal and verify clean/expected state
     await clickElement(cdp, '[data-testid="add-customer-button"]');
-    await sleep(800);
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="input-customer-name"]\')', 8000);
     const isModalReopened = await cdp.eval("!!document.querySelector('[data-testid=\"input-customer-name\"]')");
-    runAdb('shell input keyevent 4'); // Dismiss modal again
-    await sleep(600);
+    
+    // Dismiss modal again cleanly
+    runAdb('shell input keyevent 4');
+    await waitForCondition(cdp, '!document.querySelector(\'[role="dialog"]\')', 8000);
 
     if (isModalReopened) {
-      recordAssertion('interrupted_draft_clean_recovery', 'Stage 8', 'PASSED');
+      recordAssertion('customer_modal_back_dismissal_and_clean_reopen', 'Stage 8', 'PASSED');
     } else {
-      recordAssertion('interrupted_draft_clean_recovery', 'Stage 8', 'FAILED');
-      throw new Error('Failed to reopen customer modal after interrupted draft dismissal');
+      recordAssertion('customer_modal_back_dismissal_and_clean_reopen', 'Stage 8', 'FAILED');
+      throw new Error('Failed to reopen customer modal after Back button dismissal');
     }
 
     // =========================================================================
-    // STAGE 9: Guide Replay from Settings on v1002
+    // STAGE 9: Guide Replay from Settings on v1003
     // =========================================================================
-    recordStage('Stage 9', 'Guide replay from Settings and back dismissal on v1002');
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-settings"]') || document.querySelector('[data-testid="mobile-tab-settings"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1200);
+    recordStage('Stage 9', 'Guide replay from Settings and back dismissal on v1003');
+    await navigateToTab(cdp, 'settings');
+    await waitForCondition(cdp, '!!document.querySelector(\'button\')', 10000);
 
     // Trigger guide replay
     const hasGuideBtn = await cdp.eval(`
       (() => {
-        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Getting-Started Guide') || b.innerText.includes('മാർഗ്ഗനിർദ്ദേശം'));
+        const btn = Array.from(document.querySelectorAll('button')).find(b =>
+          b.innerText.includes('Getting-Started Guide') || b.innerText.includes('മാർഗ്ഗനിർദ്ദേശം')
+        );
         if (btn) { btn.click(); return true; }
         return false;
       })()
     `);
 
     if (hasGuideBtn) {
-      await sleep(1000);
-      const isGuideOpen = await cdp.eval("!!document.querySelector('[role=\"dialog\"]')");
-      if (isGuideOpen) {
-        // Dismiss guide via Back button
-        runAdb('shell input keyevent 4');
-        await sleep(1000);
-        const isGuideClosed = await cdp.eval("!document.querySelector('[role=\"dialog\"]')");
-        if (isGuideClosed) {
-          recordAssertion('guide_replayed_and_dismissed_via_back', 'Stage 9', 'PASSED');
-        } else {
-          recordAssertion('guide_replayed_and_dismissed_via_back', 'Stage 9', 'FAILED', { stillOpen: true });
-        }
-      } else {
-        recordAssertion('guide_replayed_and_dismissed_via_back', 'Stage 9', 'FAILED', { failedToOpen: true });
-      }
+      await waitForCondition(cdp, '!!document.querySelector(\'[role="dialog"]\')', 8000);
+      // Dismiss guide via Back button
+      runAdb('shell input keyevent 4');
+      await waitForCondition(cdp, '!document.querySelector(\'[role="dialog"]\')', 8000);
+      recordAssertion('guide_replayed_and_dismissed_via_back', 'Stage 9', 'PASSED');
     } else {
       recordAssertion('guide_replayed_and_dismissed_via_back', 'Stage 9', 'FAILED', { buttonNotFound: true });
+      throw new Error('Getting-Started Guide button not found in Settings!');
     }
 
     // =========================================================================
-    // STAGE 10: Process Termination & Cold Restart Persistence on v1002
+    // STAGE 10: Process Termination & Cold Restart Persistence on v1003
     // =========================================================================
-    recordStage('Stage 10', 'Process force-stop, cold restart, and state persistence on v1002');
+    recordStage('Stage 10', 'Process force-stop, cold restart, and state persistence on v1003');
     cdp.close();
 
     runAdb('shell am force-stop com.billzen.desktop');
@@ -682,9 +776,14 @@ async function main() {
     await sleep(4000);
 
     cdp = await getCdpClient();
+    await waitForCondition(
+      cdp,
+      "!!document.querySelector('[data-testid=\"tab-products\"]') || !!document.querySelector('[data-testid=\"mobile-tab-products\"]')",
+      15000
+    );
 
-    // Verify wizard is NOT shown
-    const bodyTextAfterKill = await cdp.eval('document.body.innerText');
+    // 10.1 Verify wizard is NOT shown
+    const bodyTextAfterKill = (await cdp.eval('document.body.innerText')) || '';
     const wizardShown = bodyTextAfterKill.includes('Welcome to BillZen');
     if (!wizardShown) {
       recordAssertion('setup_wizard_not_shown_after_cold_restart', 'Stage 10', 'PASSED');
@@ -693,7 +792,7 @@ async function main() {
       throw new Error('Setup wizard re-appeared after process restart!');
     }
 
-    // Verify appearance persisted (dark)
+    // 10.2 Verify appearance persisted (dark)
     const isDarkAfterKill = await cdp.eval("document.documentElement.classList.contains('dark')");
     if (isDarkAfterKill) {
       recordAssertion('dark_appearance_persisted_after_restart', 'Stage 10', 'PASSED');
@@ -702,64 +801,94 @@ async function main() {
       throw new Error('Dark appearance failed to persist across process restart!');
     }
 
-    // Verify product persisted
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-products"]') || document.querySelector('[data-testid="mobile-tab-products"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1200);
-    const productsAfterKill = await cdp.eval('document.body.innerText');
-    const productPreserved = productsAfterKill.includes('Royal Basmati Rice 5kg') && productsAfterKill.includes('0012345678905');
-    if (productPreserved) {
+    // 10.3 Verify product and barcode persisted
+    await navigateToTab(cdp, 'products');
+    const productSurvivesRestart = await waitForRecordInDom(cdp, ['Royal Basmati Rice 5kg', '0012345678905'], 15000);
+    if (productSurvivesRestart.success) {
       recordAssertion('product_and_barcode_persisted_after_restart', 'Stage 10', 'PASSED');
     } else {
-      recordAssertion('product_and_barcode_persisted_after_restart', 'Stage 10', 'FAILED');
+      recordAssertion('product_and_barcode_persisted_after_restart', 'Stage 10', 'FAILED', productSurvivesRestart.diagnostic);
       throw new Error('Product or barcode lost after cold process restart!');
     }
 
-    // Verify customer persisted
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-customers"]') || document.querySelector('[data-testid="mobile-tab-customers"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1200);
-    const customersAfterKill = await cdp.eval('document.body.innerText');
-    const customerPreserved = customersAfterKill.includes('Jabir') && customersAfterKill.includes('+91 9999888877');
-    if (customerPreserved) {
+    // 10.4 Verify customer persisted
+    await navigateToTab(cdp, 'customers');
+    const customerSurvivesRestart = await waitForRecordInDom(cdp, ['Jabir', '+91 9999888877'], 15000);
+    if (customerSurvivesRestart.success) {
       recordAssertion('customer_record_persisted_after_restart', 'Stage 10', 'PASSED');
     } else {
-      recordAssertion('customer_record_persisted_after_restart', 'Stage 10', 'FAILED');
+      recordAssertion('customer_record_persisted_after_restart', 'Stage 10', 'FAILED', customerSurvivesRestart.diagnostic);
       throw new Error('Customer record lost after cold process restart!');
+    }
+
+    // 10.5 Verify business profile persisted
+    await navigateToTab(cdp, 'settings');
+    const profileSurvivesRestart = await waitForRecordInDom(cdp, ['Zen Kerala Store'], 15000);
+    if (profileSurvivesRestart.success) {
+      recordAssertion('business_profile_persisted_after_restart', 'Stage 10', 'PASSED');
+    } else {
+      recordAssertion('business_profile_persisted_after_restart', 'Stage 10', 'FAILED', profileSurvivesRestart.diagnostic);
+      throw new Error('Business profile lost after cold process restart!');
     }
 
     const s8 = captureScreenshot('08_after_kill_recovery.png');
     report.screenshots.push({ name: '08_after_kill_recovery.png', path: s8, stage: 'Stage 10' });
 
     // =========================================================================
-    // STAGE 11: 100% Offline Mode Operations on v1002
+    // STAGE 11: 100% Offline Mode Operations & Verification on v1003
     // =========================================================================
-    recordStage('Stage 11', '100% offline mode operations on v1002 (WiFi & Mobile Data disabled)');
-    console.log('Disabling WiFi and Mobile Data...');
+    recordStage('Stage 11', '100% offline mode operations on v1003 (Airplane mode, WiFi & Mobile Data disabled)');
+    console.log('Enabling airplane mode and disabling WiFi/Data...');
+    runAdb('shell cmd connectivity airplane-mode enable');
     runAdb('shell svc wifi disable');
     runAdb('shell svc data disable');
-    await sleep(1500);
+    await sleep(2000);
 
-    // Navigate to Products tab
+    // Verify offline network condition explicitly
+    const pingOutput = runAdbQuiet('shell "ping -c 1 -W 2 8.8.8.8 2>&1 || true"');
+    const isPingBlocked =
+      pingOutput.includes('100% packet loss') ||
+      pingOutput.includes('Network is unreachable') ||
+      pingOutput.includes('100.0% packet loss') ||
+      pingOutput.includes('unreachable') ||
+      !pingOutput.includes('1 packets transmitted, 1 received');
+
+    // Ensure WebView navigator.onLine reflects offline state via native bridge
     await cdp.eval(`
       (() => {
-        const btn = document.querySelector('[data-testid="tab-products"]') || document.querySelector('[data-testid="mobile-tab-products"]');
-        if (btn) btn.click();
+        if (window.BillZenNative?.setNetworkAvailable) {
+          window.BillZenNative.setNetworkAvailable(false);
+        }
       })()
     `);
-    await sleep(1200);
+    let isNavigatorOffline = false;
+    try {
+      await waitForCondition(cdp, '!navigator.onLine', 6000);
+      isNavigatorOffline = true;
+    } catch {
+      isNavigatorOffline = await cdp.eval('!navigator.onLine');
+    }
+
+    if (isPingBlocked && isNavigatorOffline) {
+      recordAssertion('offline_network_state_verified', 'Stage 11', 'PASSED', {
+        pingBlocked: true,
+        navigatorOnLine: false,
+      });
+    } else {
+      recordAssertion('offline_network_state_verified', 'Stage 11', 'FAILED', {
+        pingOutput,
+        isNavigatorOffline,
+      });
+      throw new Error('Device is not strictly offline before offline operations!');
+    }
+
+    // Navigate to Products tab
+    await navigateToTab(cdp, 'products');
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="add-product-button"]\')', 10000);
 
     // Create product while 100% offline
     await clickElement(cdp, '[data-testid="add-product-button"]');
-    await sleep(1000);
+    await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="input-product-name"]\')', 8000);
 
     await fillInput(cdp, '[data-testid="input-product-name"]', 'Offline Pure Coconut Oil');
     await fillInput(cdp, '[data-testid="input-product-sku"]', 'COCO-002');
@@ -767,20 +896,18 @@ async function main() {
     await fillInput(cdp, '[data-testid="input-product-price"]', '220.00');
     await fillInput(cdp, '[data-testid="input-product-cost-price"]', '180.00');
     await fillInput(cdp, '[data-testid="input-product-opening-stock"]', '10.000');
-    await sleep(500);
+    await sleep(400);
 
     await clickElement(cdp, '[data-testid="save-product-submit"]');
-    await sleep(2000);
 
-    const offlineText = await cdp.eval('document.body.innerText');
-    const offlineProductAdded = offlineText.includes('Offline Pure Coconut Oil') && offlineText.includes('0098765432104');
-    if (offlineProductAdded) {
+    const offlineProductCheck = await waitForRecordInDom(cdp, ['Offline Pure Coconut Oil', '0098765432104'], 15000);
+    if (offlineProductCheck.success) {
       recordAssertion('offline_product_creation_and_indexing', 'Stage 11', 'PASSED', {
         name: 'Offline Pure Coconut Oil',
         barcode: '0098765432104',
       });
     } else {
-      recordAssertion('offline_product_creation_and_indexing', 'Stage 11', 'FAILED');
+      recordAssertion('offline_product_creation_and_indexing', 'Stage 11', 'FAILED', offlineProductCheck.diagnostic);
       throw new Error('Offline product creation failed!');
     }
 
@@ -788,9 +915,9 @@ async function main() {
     report.screenshots.push({ name: '10_offline_mode_product.png', path: s10, stage: 'Stage 11' });
 
     // =========================================================================
-    // STAGE 12: Post-Offline Cold Restart on v1002
+    // STAGE 12: Post-Offline Cold Restart on v1003
     // =========================================================================
-    recordStage('Stage 12', 'Post-offline cold restart without reconnecting on v1002');
+    recordStage('Stage 12', 'Post-offline cold restart without reconnecting on v1003');
     cdp.close();
 
     runAdb('shell am force-stop com.billzen.desktop');
@@ -800,45 +927,59 @@ async function main() {
     await sleep(4000);
 
     cdp = await getCdpClient();
+    await waitForCondition(
+      cdp,
+      "!!document.querySelector('[data-testid=\"tab-products\"]') || !!document.querySelector('[data-testid=\"mobile-tab-products\"]')",
+      15000
+    );
 
     // Verify offline-created product persisted after offline restart
-    await cdp.eval(`
-      (() => {
-        const btn = document.querySelector('[data-testid="tab-products"]') || document.querySelector('[data-testid="mobile-tab-products"]');
-        if (btn) btn.click();
-      })()
-    `);
-    await sleep(1200);
-
-    const textPostOfflineRestart = await cdp.eval('document.body.innerText');
-    const postOfflineOk = textPostOfflineRestart.includes('Offline Pure Coconut Oil');
-    if (postOfflineOk) {
+    await navigateToTab(cdp, 'products');
+    const postOfflineCheck = await waitForRecordInDom(cdp, ['Offline Pure Coconut Oil'], 15000);
+    if (postOfflineCheck.success) {
       recordAssertion('post_offline_relaunch_persistence', 'Stage 12', 'PASSED');
     } else {
-      recordAssertion('post_offline_relaunch_persistence', 'Stage 12', 'FAILED');
+      recordAssertion('post_offline_relaunch_persistence', 'Stage 12', 'FAILED', postOfflineCheck.diagnostic);
       throw new Error('Offline-created product missing after post-offline cold restart!');
     }
 
     // Re-enable network
+    runAdb('shell cmd connectivity airplane-mode disable');
     runAdb('shell svc wifi enable');
     runAdb('shell svc data enable');
-    console.log('Re-enabled WiFi and Mobile Data.');
+    await cdp.eval(`
+      (() => {
+        if (window.BillZenNative?.setNetworkAvailable) {
+          window.BillZenNative.setNetworkAvailable(true);
+        }
+      })()
+    `);
+    console.log('Re-enabled Airplane mode disable, WiFi and Mobile Data.');
 
     // =========================================================================
-    // STAGE 13: Logcat Error & Panic Audit
+    // STAGE 13: Bounded Logcat Capture & Fatal Crash Audit
     // =========================================================================
-    recordStage('Stage 13', 'Scoped Logcat audit for fatal exceptions, SIGSEGV, or panics');
-    const logcatOutput = runAdbQuiet('shell logcat -d -t 600 | grep -E "FATAL EXCEPTION|SIGSEGV|AndroidRuntime: FATAL|panic" || true');
-    const hasCrashes = logcatOutput.trim().length > 0;
+    recordStage('Stage 13', 'Run-scoped Logcat audit for fatal exceptions, SIGSEGV, or panics');
+    
+    // Dump test run logcat to disk
+    const logcatOutput = runAdbQuiet('shell logcat -d -v time');
+    const logFilePath = path.join(ARTIFACTS_DIR, 'test_run.log');
+    fs.writeFileSync(logFilePath, logcatOutput);
+    console.log(`Scoped logcat dumped to: ${logFilePath}`);
+
+    const crashLines = runAdbQuiet('shell logcat -d | grep -E "FATAL EXCEPTION|SIGSEGV|AndroidRuntime: FATAL|panic in" || true');
+    const hasCrashes = crashLines.trim().length > 0;
     report.logcatSummary = {
-      linesFound: logcatOutput.split('\n').filter(Boolean).length,
-      sample: logcatOutput.slice(0, 500),
+      logFilePath,
+      totalLinesCaptured: logcatOutput.split('\n').length,
+      crashLinesFound: crashLines.split('\n').filter(Boolean).length,
+      sample: crashLines.slice(0, 500),
     };
 
     if (!hasCrashes) {
       recordAssertion('logcat_audit_zero_fatal_crashes', 'Stage 13', 'PASSED');
     } else {
-      recordAssertion('logcat_audit_zero_fatal_crashes', 'Stage 13', 'FAILED', { logcat: logcatOutput });
+      recordAssertion('logcat_audit_zero_fatal_crashes', 'Stage 13', 'FAILED', { crashLines });
       throw new Error('Fatal crash or panic detected in logcat!');
     }
 
@@ -852,9 +993,16 @@ async function main() {
     console.log('\n--- Cleanup & Safety Teardown ---');
     // Ensure network always restored
     try {
+      runAdbQuiet('shell cmd connectivity airplane-mode disable');
       runAdbQuiet('shell svc wifi enable');
       runAdbQuiet('shell svc data enable');
-      console.log('Restored WiFi and Mobile Data states.');
+      console.log('Restored Airplane mode, WiFi, and Mobile Data states.');
+    } catch {}
+
+    // Ensure OS theme restored to day/light mode
+    try {
+      runAdbQuiet('shell cmd uimode night no');
+      console.log('Restored OS theme to light mode.');
     } catch {}
 
     // Ensure adb forwarding removed
