@@ -116,7 +116,16 @@ async function main() {
         console.log(`  Desktop navigation tabs visible: ${desktopTabVisible}`);
       }
 
-      // 3. Test Add Product Modal and Form Scrollability
+      // 3. Test Add Product Modal and Form Scrollability (Navigate to Products tab first)
+      if (vp.width < 1024) {
+        const mobileTab = await page.$('[data-testid="mobile-tab-products"]');
+        if (mobileTab) await mobileTab.click();
+      } else {
+        const desktopTab = await page.$('[data-testid="tab-products"]');
+        if (desktopTab) await desktopTab.click();
+      }
+      await page.waitForTimeout(200);
+
       const addBtn = await page.$('[data-testid="add-product-button"], [data-testid="mobile-add-product-button"]');
       let modalOpenedCleanly = false;
       if (addBtn) {
