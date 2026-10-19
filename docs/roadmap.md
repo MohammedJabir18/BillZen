@@ -16,12 +16,12 @@ The primary business priority is an offline company cashbook for recording money
 - Authored `docs/cashbook-architecture-spec.md` and `docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md`.
 - Formalized money-flow classification, canonical ledger, zero double-cancellation reversals, immutable snapshots, and exact integer arithmetic contracts.
 
-### Phase C1: Core Cashbook Vertical Slice (NEXT MILESTONE)
+### Phase C1: Core Cashbook Vertical Slice (COMPLETED)
 - **C1A**: Schema migration `v7_cashbook_foundation.sql`, Rust domain entities, checked arithmetic, sequence generator, native Tauri commands, and transaction integrity tests.
 - **C1B**: React UI (dashboard summary, entry modal, ledger table, filters) and printable voucher PDF engine (`RCP-`, `PAY-`).
-- **C1C**: Persistent Web IndexedDB adapter, portable JSON backup and safe restore engine, and cross-platform verification suite.
+- **C1C**: Persistent Web IndexedDB adapter, portable whole-workspace JSON backup and safe restore engine (RFC 8785 JCS + SHA-256), hardened native desktop harness with provenance and cold restart, and cross-platform verification suite.
 
-### Phase C2: Transfers, Statements & Workbooks
+### Phase C2: Transfers, Statements & Workbooks (NEXT MILESTONE)
 - Atomic 2-legged account transfers (`TRF-YYYYMM-XXXXX`).
 - Multi-sheet XLSX workbooks and period date-range PDF statements.
 - Local receipt attachment metadata and storage.

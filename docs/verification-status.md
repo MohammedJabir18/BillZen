@@ -8,9 +8,13 @@ Fresh local runs during this documentation/upload session:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | 14 tests passed across 2 files |
+| `npm test` | 41 tests passed across 6 files (financial engine, backup canonicalization/crypto, IndexedDB web database) |
 | `npm run build` | TypeScript and Vite production build passed cleanly |
-| `cargo test --manifest-path src-tauri/Cargo.toml` | 53 tests passed (including v6 migration repair scoping, unseen/skipped/completed guide status preservation across repeated restarts, checksum advancement, settings ownership isolation against stale profiles, duplicate category inheritance, creation ties, repeat migration idempotency, rollback, and unknown checksum rejection) |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 81 tests passed (67 unit tests + 14 integration tests, including backup export/restore, 4-tier validation, staging DB integrity, and cashbook V8 transactions) |
+| Native Cashbook Desktop Verification (`npm run test:native-cashbook`) | 34 assertions passed across 12 steps on release binary `src-tauri/target/release/billzen` (SHA-256: `85f4dac...`, Git: `599a8c4...`). Tested: setup wizard, accounts, receipt, payment, negative balance confirmation, reversal, print DOM isolation, cold restart persistence (-₹84,000.00 balance preserved), idempotent conflict rejection, and untouched real database `~/.local/share/billzen` |
+| Cashbook Playwright E2E (`npm run test:cashbook`) | All 12 scripted steps passed (dashboard, receipt/payment, negative balance guard, reversal, print modal, search filtering, mobile responsiveness, themes, reload persistence across browser restart, and backup export/restore roundtrip with corrupted file rejection) |
+| Cashbook Voucher PDF Isolation (`npm run test:cashbook-pdf`) | All 3 scenarios passed (A4 1-page fit, 80mm thermal receipt geometry, and multi-page long text handling with zero invoice contamination) |
+| Standalone Linux Release Binary (`src-tauri/target/release/billzen`) | Built release executable (15.70 MB, SHA-256: `85f4dac16e40a85e3b93b946c8e8ec77571ad47f1ff8fd3b9c9a96708fcb1099`, Git: `599a8c436eed824180a85999263013e963835fe5`) |
 | `npm run test:responsive` | All 6 viewports passed (320, 360, 390, 412, 768, 1280) with zero horizontal document scroll, adaptive bottom navigation (<lg), scrollable modal drawers, and RTL |
 | `npm run test:onboarding` | All 34 tests passed across 6 sections (3-step setup wizard, regional defaults for India & GCC, validation, guide navigation/skip/replay, 3-option appearance in Settings with strict isolation, dynamic OS dark/light following, print paper purity in dark mode, and computed-style dark mode contrast verification on Products, Customers, Settings, forms, and dialogs with contrast ratios 6.91:1 - 16.12:1) |
 | Catalog Playwright (`npm run test:catalog`) | All 6 scripted steps passed |
