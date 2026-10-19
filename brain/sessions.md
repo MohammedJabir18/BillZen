@@ -488,7 +488,64 @@
   - `npm run test:matrix`: All 4 A4 print scenarios passed.
   - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
 - **Unfinished Tasks / Immediate Next Steps**:
+  - [Completed in Session 2026-10-19 Part 3] Android native visual defects, edge-to-edge safe area insets, native back button modal handler, compact tab localization, authoritative versionCode 1002, and 13-stage verification.
   - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, stock decrements, payment allocations, thermal/A4 receipt printing.
+
+## 2026-10-19 — Native Mobile UI & Inset Corrections, Native Back Navigation & Android Beta v1002
+- **Goals**: Investigate and resolve native Android visual defects observed in screenshots (status bar overlapping header, bottom gesture bar overlapping bottom tabs, light background with unreadable Settings header in dark mode, and crowded Print Feasibility Probe tab label); implement real, testable Android Back button behavior dismissing open modals without synthetic cancel clicks; strengthen native test harness with 13-stage structured verification; increment authoritative `versionCode` to `1002`; build and verify signed ARM64 release APK and x86_64 test APK; and update Second Brain.
+- **Completed Tasks**:
+  - **1. Native Visual Defects & Edge-to-Edge Safe Insets**:
+    - Added `viewport-fit=cover` to `<meta name="viewport">` in `index.html`.
+    - Captured `webViewInstance` in `MainActivity.kt` and evaluated `WindowInsetsCompat.Type.systemBars()` via `ViewCompat.setOnApplyWindowInsetsListener(window.decorView)`, injecting dynamic `--sat` and `--sab` CSS root variables to WebView.
+    - Updated `src/styles/globals.css` with `--sat: env(safe-area-inset-top, 0px)` and `--sab: env(safe-area-inset-bottom, 0px)`.
+    - Padded `<header>` in `App.tsx` with `isAndroid ? max(24px, env(safe-area-inset-top, 0px), var(--sat, 0px)) : ...` and bottom `<nav>` with `isAndroid ? max(1.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)) : ...`, completely resolving status bar and gesture navigation bar clipping.
+    - Fixed dark mode body background in `index.html` with `bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100`, providing pure `#09090b` high-contrast background in dark mode.
+    - Added localized `tab_print_probe_short` in `src/i18n/index.ts` (`'Print Probe'` / `'പ്രിന്റ് ടെസ്റ്റ്'` / `'فحص الطباعة'`) with full accessible `aria-label`, fitting 4-column mobile bottom nav cleanly.
+  - **2. Real Android Back Button Modal Dismissal**:
+    - Registered `onBackPressedDispatcher.addCallback` in `MainActivity.kt` that checks the WebView DOM for open dialogs (`role="dialog"` or `[aria-modal="true"]`) and dispatches a synthetic `billzen-back-button` CustomEvent.
+    - Created reusable hook `src/hooks/useBackHandler.ts` handling both keyboard `Escape` and `billzen-back-button`.
+    - Wired `useBackHandler` into `CustomerCatalogView.tsx`, `ProductCatalogView.tsx`, and `GettingStartedGuide.tsx`.
+    - Removed synthetic cancel-click fallbacks from `verify_android_runtime.js` assertion path; Back button strictly dismisses modals without app exit.
+  - **3. Authoritative Versioning & Packaging (versionCode 1002)**:
+    - Updated `src-tauri/tauri.conf.json` (`"android": { "versionCode": 1002 }`), `build.gradle.kts`, and `scripts/build_android_apk.sh`.
+    - Built signed ARM64 Release APK: `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk` (15M, SHA-256: `69d808cdc8bc7e587e0b1cc78b4519ebd1746cfbd06dc0d875250db27d988991`, `versionCode = 1002`).
+    - Built signed x86_64 Test APK: `dist-android/billzen-test-v0.1.0-x86_64.apk` (14M, SHA-256: `d72525ce92ed37868064e15c2a4029afa1efb1a6891963c7007d574b073a4823`, `versionCode = 1002`).
+    - Verified 16 KB page-size ELF alignment (`0x4000`), 16 KB packaging alignment (`zipalign -P 16 4`), and v2/v3 signatures.
+  - **4. Native Android Runtime Suite Execution (13/13 Stages Passed)**:
+    - Executed `scripts/verify_android_runtime.js` on Android 14 API 34 emulator (`emulator-5554`):
+      1. Baseline clean installation (v1001)
+      2. Cold launch & onboarding wizard (Steps 1, 2, 3)
+      3. Getting-started guide presentation & skip
+      4. Baseline catalog creation (Product with leading zeros & Customer)
+      5. In-place upgrade to v1002 test APK (zero data loss verified)
+      6. Appearance Dark, Light, and System following via `cmd uimode night yes/no` on v1002 (with inspected `06_appearance_dark.png` and `07_appearance_light.png`)
+      7. Native Android Back keyevent 4 modal dismissal on Customer & Product modals (zero synthetic cancel click)
+      8. Interrupted draft recovery
+      9. Guide replay from Settings & back dismissal
+      10. Process force-stop, cold restart & persistence
+      11. 100% offline mode product creation & SQLite indexing
+      12. Post-offline cold restart persistence
+      13. Scoped logcat audit: zero fatal exceptions / panics
+    - Generated structured report: `test_artifacts/android_runtime/runtime_verification_report.json`.
+- **Files Modified / Added**:
+  - `src-tauri/gen/android/app/src/main/java/com/billzen/desktop/MainActivity.kt`, `src-tauri/gen/android/app/build.gradle.kts`, `src-tauri/tauri.conf.json`
+  - `src/hooks/useBackHandler.ts`, `src/components/CustomerCatalogView.tsx`, `src/components/ProductCatalogView.tsx`, `src/components/GettingStartedGuide.tsx`
+  - `src/App.tsx`, `src/contexts/ThemeContext.tsx`, `src/i18n/index.ts`, `src/styles/globals.css`, `index.html`
+  - `scripts/build_android_apk.sh`, `scripts/verify_android_runtime.js`
+  - `docs/verification-status.md`, `brain/architecture.md`, `brain/sessions.md`
+- **Verification Evidence**:
+  - `npm run test:android-runtime`: 13/13 stages PASSED on Android 14 (API 34).
+  - `npm test`: 14/14 unit tests passed.
+  - `npm run test:responsive`: 6/6 viewports passed (zero document overflow).
+  - `npm run test:onboarding`: 34/34 tests passed.
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 print scenarios passed.
+  - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 53/53 passed.
+  - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 15M, SHA-256: `69d808cdc8bc7e587e0b1cc78b4519ebd1746cfbd06dc0d875250db27d988991`, `versionCode = 1002`.
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, stock decrements, payment allocations, thermal/A4 receipt printing.
+
 
 
 

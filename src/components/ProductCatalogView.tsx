@@ -24,6 +24,7 @@ import {
 } from '../adapters/tauri';
 import { formatMinorUnits, parseToMinorUnits, MAX_MONEY_MINOR, MAX_QUANTITY_SCALED } from '../domain/financial';
 import { translations, Language } from '../i18n';
+import { useBackHandler } from '../hooks/useBackHandler';
 
 interface ProductCatalogViewProps {
   settings: BusinessSettings;
@@ -50,6 +51,8 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  useBackHandler(isModalOpen, () => setIsModalOpen(false));
 
   // Form fields
   const [formSku, setFormSku] = useState<string>('');

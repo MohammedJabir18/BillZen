@@ -122,6 +122,9 @@ export function ThemeProvider({
     if (mode === 'light' || mode === 'dark' || mode === 'system') {
       if (mode !== appearance) {
         setAppearanceState(mode);
+        const resolved = resolveAppearance(mode);
+        setResolvedTheme(resolved);
+        applyThemeToDOM(resolved);
         try {
           localStorage.setItem(STORAGE_KEY, mode);
         } catch {}
@@ -132,6 +135,9 @@ export function ThemeProvider({
   const handleSetAppearance = async (mode: AppearanceMode) => {
     const previousAppearance = appearance;
     setAppearanceState(mode);
+    const nextResolved = resolveAppearance(mode);
+    setResolvedTheme(nextResolved);
+    applyThemeToDOM(nextResolved);
     setPersistenceError(null);
     try {
       localStorage.setItem(STORAGE_KEY, mode);
@@ -150,6 +156,9 @@ export function ThemeProvider({
       console.warn('Failed to persist appearance preference to backend, rolling back:', e);
       // Roll back to previous state and localStorage
       setAppearanceState(previousAppearance);
+      const prevResolved = resolveAppearance(previousAppearance);
+      setResolvedTheme(prevResolved);
+      applyThemeToDOM(prevResolved);
       try {
         localStorage.setItem(STORAGE_KEY, previousAppearance);
       } catch {}
