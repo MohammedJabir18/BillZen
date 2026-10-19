@@ -61,6 +61,7 @@ brain/.obsidian/workspace*.json
 
 # Local diagram authoring workspace (published copies live under docs/diagrams)
 .archify/
+.superpowers/
 
 # Android Build Outputs & Keystores
 .gradle/
