@@ -226,6 +226,34 @@ flowchart TD
    - Signed distribution release APK: `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk` (15M, SHA-256: `fb9f2d170afe535132a24329b5c5b5e6d6ce1b60b9adc0de39cbcf2a4d282279`).
    - Signed test APK: `dist-android/billzen-test-v0.1.0-x86_64.apk` (14M, SHA-256: `adeda77f1ea88e64c6d9689f13fd0f1904b6da023dfa91732024e9dea51f5024`).
 
+## 17. Offline Company Cashbook Architecture (Milestones C0 — C4)
+- **Specification & Plan**: Complete architectural specification in `docs/cashbook-architecture-spec.md` and sequenced implementation plan in `docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md`.
+- **Core Priority**: Shifted from deferred commercial invoicing (M4A) to an offline-first company cashbook for recording money received (Receipts) and money paid (Payments), issuing numbered vouchers, tracking running balances, and providing portable backups.
+- **Single-Operator Local Independence**: Operates on an independent local device (desktop or mobile) without cloud servers, user logins, staff roles, live multi-device synchronization, or automatic dataset merging.
+- **Cash Flow vs. Profit Invariant**: Net cash flow and accumulated balances represent cash liquidity, **never "Profit"**. Capital injections, loan disbursements, supplier advances, and transfers are strictly decoupled from operating income/expense totals.
+- **Canonical Ledger & Reversal Semantics**:
+  - Vouchers: `draft`, `posted`, `reversed`. Posted vouchers are immutable.
+  - Zero double-cancellation: Reversing an errant voucher posts an equal and opposite movement to the ledger. Both original and reversal movements remain in the ledger table summing to zero. Balance queries sum all movements without excluding reversed rows.
+  - Duplicate Prevention: UUID `idempotency_key` with SHA-256 payload hashing. Identical payload returns existing record; altered payload returns `409 Conflict`.
+- **Party & Historical Snapshots**:
+  - Parties can be linked to existing `customers` or ad-hoc entities (suppliers, employees, owners, lenders).
+  - Vouchers freeze immutable snapshots of business profile, party contact details, currency, and amount words to guarantee stable reprints.
+- **Exact Amount Contract & Numerical Bounds**:
+  - Entry amounts bound: `MAX_MONEY_MINOR = 10^11` ($100,000,000,000$).
+  - Cumulative balance bound: `MAX_TOTAL_MINOR = 10^14` ($100,000,000,000,000 < \text{Number.MAX\_SAFE\_INTEGER}$).
+  - Supported: 2-decimal (INR, AED, SAR, QAR, USD, EUR, GBP) and 3-decimal (KWD, BHD, OMR) currencies with `round_half_up_128`.
+  - Base currency change is blocked if invoices, posted vouchers, or non-zero accounts exist.
+- **Portable Backup & Safe Restore**:
+  - Versioned JSON format `1.0` with SHA-256 checksum and balance equation pre-validation.
+  - Atomic staging and timestamped recovery copy (`billzen.db.recovery-{timestamp}`) prevent corruption from raw WAL copies.
+- **Phased Delivery**:
+  - C1A: Schema migration `v7_cashbook_foundation.sql`, Rust domain entities, sequence generator, native commands, integrity tests.
+  - C1B: React cashbook UI, entry modal, running balance ledger, printable voucher PDF.
+  - C1C: Persistent Web IndexedDB adapter, portable backup/restore engine, cross-platform acceptance suite.
+  - C2: Account transfers (`TRF-`), XLSX workbooks, attachments.
+  - C3: Cash counter, budgets, local reminders, app lock.
+  - C4: Invoicing integration (resuming deferred M4A/M4B).
+
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
 

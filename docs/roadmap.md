@@ -1,25 +1,47 @@
 # Roadmap
 
-## M3 & M3.1 catalog integrity — completed corrections
+## Completed Milestones
+- **M1 & M2 Foundation**: Runnable Tauri 2 + Vite 8 + React 19 shell, SQLite WAL database worker, OS single-instance lock, strict platform CSP, and financial arithmetic engine.
+- **Regional Foundation & Verification**: Support for 2-decimal and 3-decimal currencies (India & GCC), currency change protections, automated headless A4 PDF generation.
+- **M3 & M3.1 Catalog Integrity**: Products, customers, case-insensitive categories, leading-zero barcode indexing, stock movements, and dual-checksum migration safety.
+- **Android Beta & Hardening (v1004)**: Distribution APK with dead-code eliminated WebView debugging, test-build CDP opt-in, comprehensive 14-stage runtime verification suite on Android 14 API 34.
 
-Stock/price/quantity bounds, tracking transition checks, category case-insensitive uniqueness, portable native probe, and CI PDF line-wrapping normalization were added. In M3.1, legacy V4 databases containing case-colliding categories (e.g. `Groceries` and `groceries`) are transactionally reconciled with canonical preservation, product repointing, and dual-checksum backward compatibility. 40 Rust tests, 14 Vitest tests, Playwright catalog E2E, and Playwright A4 PDF matrix verify this closure.
+---
 
-## Next milestone: M4A draft invoice vertical slice
+## Active Milestone: Offline Company Cashbook (Phased Delivery)
 
-Implement one complete offline workflow: choose a customer, search/scan a product, set quantity, calculate validated totals, save a draft, close/reopen and restore it. Keep calculations authoritative in Rust and add native command integration tests. Do not decrement stock for an editable draft. Snapshot semantics and optimistic conflict handling must be explicit.
+The primary business priority is an offline company cashbook for recording money received and paid, issuing numbered vouchers, maintaining account balances, and ensuring safe portable backup.
 
-## M4B finalization and inventory
+### Phase C0: Architecture & Implementation Specification (COMPLETED)
+- Authored `docs/cashbook-architecture-spec.md` and `docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md`.
+- Formalized money-flow classification, canonical ledger, zero double-cancellation reversals, immutable snapshots, and exact integer arithmetic contracts.
 
-Finalize with a unique invoice number and immutable snapshots. Persist totals and inventory movements atomically. Protect against repeated clicks/retries, insufficient stock policy violations and partial failure. Verify rollback, restart persistence and ledger reconciliation.
+### Phase C1: Core Cashbook Vertical Slice (NEXT MILESTONE)
+- **C1A**: Schema migration `v7_cashbook_foundation.sql`, Rust domain entities, checked arithmetic, sequence generator, native Tauri commands, and transaction integrity tests.
+- **C1B**: React UI (dashboard summary, entry modal, ledger table, filters) and printable voucher PDF engine (`RCP-`, `PAY-`).
+- **C1C**: Persistent Web IndexedDB adapter, portable JSON backup and safe restore engine, and cross-platform verification suite.
 
-## Later milestones
+### Phase C2: Transfers, Statements & Workbooks
+- Atomic 2-legged account transfers (`TRF-YYYYMM-XXXXX`).
+- Multi-sheet XLSX workbooks and period date-range PDF statements.
+- Local receipt attachment metadata and storage.
 
-- Partial payments, allocations, receipts and derived receivables.
-- Expenses and reconciled analytics.
-- SQLite online backup, validated restore, recovery and optional encrypted exports.
-- A4 export/print adapters followed by 80 mm/58 mm layouts and physical device verification.
-- Windows/macOS native build and release CI, then Android/iOS offline parity and durable web storage.
-- Country-specific tax adapters and statutory submission flows where required.
-- Optional cloud synchronization with explicit conflict handling and no mandatory account for local operation.
+### Phase C3: Tools, Budgets & Security
+- Currency denomination physical cash counter.
+- Category monthly budgets and spending charts.
+- Local offline reminders and session app lock.
+
+### Phase C4: Commercial Invoicing Integration
+- Resume deferred Milestone 4A/4B (`docs/m4a-invoice-drafts-spec.md`).
+- Integrate invoice settlement directly into cashbook vouchers without duplicate accounting.
+- Optional Android-only after-call entry shortcuts.
+
+---
+
+## Deferred Milestones
+- **Milestone 4A (Invoice Drafts)**: Specification preserved in `docs/m4a-invoice-drafts-spec.md`; deferred until cashbook ledger foundation (C1-C3) is complete.
+- **Milestone 4B (Invoice Finalization & Stock Decrements)**: Deferred to Phase C4.
+
+---
 
 No calendar delivery estimate is established; milestone acceptance depends on test evidence and platform access.

@@ -1,38 +1,47 @@
-# Antigravity handoff · M3.1 migration safety
+# Antigravity handoff · Milestone C1A: Cashbook Schema & Native Posting Service
 
 Copy the following task into Antigravity. The GitHub delivery rule is also persisted in the repository's `AGENTS.md`.
 
 ---
 
-Read AGENTS.md, brain/architecture.md, brain/sessions.md, docs/reviews/2026-10-18-m3-review.md, docs/verification-status.md and docs/roadmap.md before changing code.
+Read AGENTS.md, brain/architecture.md, brain/sessions.md, docs/cashbook-architecture-spec.md, docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md, and docs/roadmap.md before changing code.
 
-Use the installed Superpowers systematic-debugging, test-driven-development and verification-before-completion skills for the correction. Use Karpathy Guidelines to keep the change focused, Harness Engineering for reliable verification/handoff, and Archify only if an architectural flow actually changes. Report unavailable skills accurately rather than pretending they ran.
+Use the installed Superpowers systematic-debugging, test-driven-development and verification-before-completion skills. Use Karpathy Guidelines to keep the change focused, Harness Engineering for reliable verification/handoff, and Archify where relevant.
 
 ## Objective
 
-Close the M3.1 legacy-category upgrade blocker before starting M4 invoicing. V4 permits category case variants; the current V5 unique NOCASE index can fail on previously valid data and prevent startup.
+Implement Milestone C1A of the Offline Company Cashbook: SQLite migration `v7_cashbook_foundation.sql`, Rust domain entities with checked integer arithmetic, atomic voucher sequence generator, native Tauri IPC commands, and transaction integrity tests.
 
-## Section A · Diagnose the remote PDF discrepancy
+## Concrete Implementation Deliverables
 
-Inspect CI run 39144580607 and its browser-verification artifact. Rust/unit/build/catalog passed, but the long-text PDF check missed the exact extracted string `South Asian Trans-Regional Infrastructure` while local output passed. Reproduce or inspect the PDF, extracted text, fonts and browser versions. Establish the cause before modifying layout or assertions. If whitespace normalization is justified, preserve detection of missing content, numeric errors and overflow. Commit/push this independently after verification and inspect its actual CI result.
+1. **Database Migration `v7_cashbook_foundation.sql`**:
+   - Create tables: `money_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_sequences`, `cashbook_audit_events`.
+   - Triggers for posted voucher immutability: block `UPDATE` and `DELETE` on posted vouchers.
+   - Trigger blocking opening balance changes once movements exist.
+   - Upgrade currency change protection trigger to include cashbook vouchers and non-zero accounts.
+   - Register migration in `src-tauri/src/db/migrations/mod.rs` with exact SHA-256 checksum tracking.
 
-## Section B · Required migration work
+2. **Rust Domain & Arithmetic Engine**:
+   - Create `src-tauri/src/domain/cashbook.rs` with exact 64-bit integer minor unit arithmetic, checked addition/subtraction, and `MAX_MONEY_MINOR = 10^11` validation.
+   - SHA-256 payload hash calculation for idempotency verification.
+   - Sequence number formatter: `{PREFIX}-{YYYYMM}-{SEQUENCE:05d}`.
 
-1. Reproduce the issue with an isolated V4 database containing `Groceries`, `groceries`, and products assigned to both. Write a regression test that fails against the current code.
-2. Define a deterministic canonical category per collision group. Preserve product assignments, category metadata and recoverability. Document the policy.
-3. Reconcile duplicates transactionally before enforcing uniqueness. Test injected failure/rollback and repeat startup.
-4. Respect checksum-tracked migration history. Determine how the correction handles both a V4 database that never applied V5 and a database where V5 already succeeded. A later migration alone cannot repair an earlier failing migration. Do not silently edit applied migration checksums or bypass migration verification.
-5. Confirm the intended scope of SQLite NOCASE; do not claim Unicode-wide case folding. Preserve foreign-key integrity and business records.
-6. Expand numeric regression coverage to update rejection and inclusive maximum acceptance if it remains a small independent section.
+3. **Database Worker & Transactional Posting Service**:
+   - Implement `PostCashbookVoucher` and `ReverseCashbookVoucher` in `src-tauri/src/db/worker.rs`.
+   - Idempotency guard: exact payload hash match returns existing voucher; mismatch with identical key returns `Conflict`.
+   - Reversal guard: equal and opposite movements; original and reversal movements both persist in ledger summing to zero; zero double-cancellation; duplicate reversals rejected.
 
-Never delete the database, reset user data, disable foreign keys/checksums, discard product references or start unrelated invoicing/UI work to make this correction pass.
+4. **Tauri Commands & Permissions**:
+   - Register commands in `src-tauri/src/commands/cashbook.rs` and configure `capabilities/default.json`.
 
-## Verification and delivery
+5. **Test Suite**:
+   - Unit tests for financial bounds, half-up rounding, and sequence formatting.
+   - Integration tests in `src-tauri/tests/cashbook_worker_tests.rs` verifying transaction commit, rollback on failure, idempotency collision rejection, and reversal balance restoration.
 
-Run the targeted regression first, then Rust tests, frontend tests, production build, native persistence probe, catalog browser automation and A4 PDF matrix. Distinguish browser mock checks, native worker checks and untested native UI/IPC paths. Inspect actual results.
-
-Update verification status, roadmap, PRD/design notes if affected, and Second Brain session notes. Update diagrams only if their facts changed; preserve pinned source identity when regenerating.
-
-After EACH completed logical section: inspect the diff, run relevant checks, stage only intended files, commit with a clear message, push normally to the intended GitHub branch, verify the remote SHA and inspect the triggered CI run. Report local results and actual remote status separately. Do not force-push, leak credentials or claim success with failing checks. Authentication blockers must be reported with the local checkpoint preserved.
-
-Do not begin M4A until the migration blocker is resolved with the required evidence. Then propose the next bounded draft-invoice task: choose customer/items, calculate authoritative totals, save/reopen/edit a draft after restart, with no stock decrement or final number allocation.
+## Acceptance Criteria
+- 53 existing Rust tests and 14 frontend tests pass without regression.
+- New C1A integration test proves:
+  - Account with opening 0 + Receipt ₹10,000 + Payment ₹2,500 = Cash balance ₹7,500.
+  - Reversal of ₹2,500 payment restores balance to ₹10,000.
+  - Reused idempotency key with different payload fails with `Conflict`.
+  - Modification of posted voucher is rejected by database trigger.
