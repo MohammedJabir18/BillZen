@@ -331,4 +331,65 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
     expect(afterRestoreLedger.entries.some((e) => e.voucher.id === (vch as any).id)).toBe(true);
     expect(afterRestoreLedger.summary.total_cash_minor).toBe(250000);
   });
+
+  it('handles 3-decimal currency (KWD) with exact minor units calculation', async () => {
+    const originalLocal = (globalThis as any).localStorage;
+    const map = new Map<string, string>();
+    map.set(
+      'billzen_browser_settings',
+      JSON.stringify({
+        business_name: 'Kuwait Trading Co',
+        currency_code: 'KWD',
+        currency_exponent: 3,
+        timezone: 'Asia/Kuwait',
+      })
+    );
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => map.get(k) || null,
+      setItem: (k: string, v: string) => map.set(k, String(v)),
+      removeItem: (k: string) => map.delete(k),
+    };
+
+    try {
+      const kwdAccount = await createWebMoneyAccount({
+        account_name: 'Kuwait Cash Till',
+        account_type: 'cash',
+        opening_balance_minor: 12500, // 12.500 KWD
+        allow_negative_balance: false,
+        currency_code: 'KWD',
+        currency_exponent: 3,
+      });
+
+      expect(kwdAccount.currency_code).toBe('KWD');
+      expect(kwdAccount.currency_exponent).toBe(3);
+      expect(kwdAccount.opening_balance_minor).toBe(12500);
+
+      // Post 1.250 KWD (1250 minor units) receipt
+      const vch = await postWebCashbookVoucher({
+        idempotency_key: 'idem-kwd-1',
+        account_id: kwdAccount.id,
+        direction: 'inflow',
+        classification: 'operating_income',
+        payment_method: 'cash',
+        amount_minor: 1250,
+        business_date: '2026-10-19',
+      });
+
+      expect(vch.status).toBe('posted');
+      if (vch.status === 'posted') {
+        expect(vch.currency_code_snap).toBe('KWD');
+        expect(vch.currency_exponent_snap).toBe(3);
+        expect(vch.amount_minor).toBe(1250);
+      }
+
+      const ledger = await getWebCashbookLedger({ account_id: kwdAccount.id });
+      expect(ledger.entries.length).toBe(1);
+      // 12.500 + 1.250 = 13.750 KWD (13750 minor)
+      expect(ledger.entries[0].running_balance_minor).toBe(13750);
+      expect(ledger.summary.closing_balance_minor).toBe(13750);
+    } finally {
+      (globalThis as any).localStorage = originalLocal;
+    }
+  });
 });
+

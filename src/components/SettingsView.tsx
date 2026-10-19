@@ -627,6 +627,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {/* Backup Status Alert */}
           {restoreStatus && (
             <div
+              data-testid={restoreStatus.type === 'success' ? 'banner-restore-success' : 'banner-restore-error'}
               className={`p-4 rounded-lg text-sm flex items-start gap-2 ${
                 restoreStatus.type === 'success'
                   ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
