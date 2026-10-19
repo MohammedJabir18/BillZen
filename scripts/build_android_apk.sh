@@ -45,7 +45,7 @@ BUILD_DIR="$ROOT_DIR/src-tauri/gen/android/app/build/outputs/apk"
 rm -rf "$BUILD_DIR"
 
 # Authoritative versioning
-export BILLZEN_VERSION_CODE="${BILLZEN_VERSION_CODE:-1002}"
+export BILLZEN_VERSION_CODE="${BILLZEN_VERSION_CODE:-1003}"
 export BILLZEN_VERSION_NAME="${BILLZEN_VERSION_NAME:-0.1.0}"
 
 TARGET_ARCH="${1:-aarch64}"

@@ -544,6 +544,69 @@
   - `cargo test --manifest-path src-tauri/Cargo.toml`: 53/53 passed.
   - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 15M, SHA-256: `69d808cdc8bc7e587e0b1cc78b4519ebd1746cfbd06dc0d875250db27d988991`, `versionCode = 1002`.
 - **Unfinished Tasks / Immediate Next Steps**:
+  - [Completed in Session 2026-10-19 Part 3] Hardened Android test reliability, bounded condition-based upgrade assertions, true offline network verification, status bar contrast synchronization, and release versionCode 1003 delivery.
+  - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, stock decrements, payment allocations, thermal/A4 receipt printing.
+
+## 2026-10-19 — Native Test Reliability, Status Bar Contrast & Android Beta v1003 Delivery
+- **Goals**: Diagnose and resolve the upgrade assertion failure in Stage 5 ("Catalog data lost after upgrade"), replace brittle fixed delays with bounded condition-based waits and deep failure diagnostics, ensure authentic interrupted setup-draft recovery test in Stage 2, enforce true offline verification in Stage 11, audit scoped logcat in Stage 13, synchronize native Android status bar and navigation bar contrast (`isAppearanceLightStatusBars = !isDark`), advance authoritative `versionCode` to 1003, build signed release ARM64 APK and test x86_64 APK, and verify all 13 runtime stages on Android emulator.
+- **Completed Tasks**:
+  - **1. Upgrade Assertion Diagnostics & Condition-Based Waits**:
+    - Identified root cause of Stage 5 failure: fixed-delay sleep was polling `document.body.innerText` before asynchronous React Query catalog queries settled, and `document.body.innerText` did not include values within HTML `<input>` tags.
+    - Implemented `waitForRecordInDom` checking both `innerText` and all input values (`input.value`, `textarea.value`) with a bounded 15s condition wait.
+    - Added comprehensive failure diagnostics: captured DOM text snippet, loading indicator state, screenshot, and direct Tauri IPC queries (`get_products`, `get_business_settings`) distinguishing UI delays from true backend data loss.
+  - **2. Hardened Assertion Sequence & Evidence Claims**:
+    - **Stage 2**: Added genuine setup-draft interruption & relaunch test (`localStorage` key `billzen_setup_draft`), including 5500ms sleep for Chromium WebView LevelDB commit prior to `am force-stop`. Form values (`Zen Kerala Store`, `9999888877`) restore upon cold restart.
+    - **Stage 8**: Refactored assertion to `customer_modal_back_dismissal_and_clean_reopen`, verifying that dismissing a modal via Android Back button leaves the UI in a clean state where reopening the drawer works reliably.
+    - **Stage 11**: Verified genuine offline condition by testing network loss (`ping 8.8.8.8 2>&1`), invoking `window.BillZenNative?.setNetworkAvailable(false)`, and asserting `!navigator.onLine` before creating offline records (`Offline Pure Coconut Oil`, barcode `0098765432104`).
+    - **Stage 13**: Scoped logcat capture saved to `test_run.log` asserting zero fatal exceptions or Rust panics, with clean teardown in `finally` (restoring network, airplane mode, light theme, and removing ADB port forward).
+  - **3. Native Android Status Bar & System Bars Contrast Synchronization**:
+    - Fixed dark status-bar icons on dark background: in `MainActivity.kt`, implemented `applySystemBarsTheme(isDark)` setting `insetsController.isAppearanceLightStatusBars = !isDark` and `isAppearanceLightNavigationBars = !isDark`.
+    - Added `@JavascriptInterface fun setDarkMode(isDark: Boolean)` and `@JavascriptInterface fun setNetworkAvailable(isAvailable: Boolean)` on `NativeBridge`.
+    - Bound `ThemeContext.tsx` to `window.BillZenNative?.setDarkMode(isDark)`.
+    - Added `ACCESS_NETWORK_STATE` permission in `AndroidManifest.xml` and defensive try-catch in `setupNetworkMonitoring` preventing crashes.
+    - Verified screenshots `06_appearance_dark.png` (white status-bar icons on pure dark `#09090b` background) and `07_appearance_light.png` (dark status-bar icons on white background).
+  - **4. Authoritative Versioning & Release Delivery (versionCode 1003)**:
+    - Updated `src-tauri/tauri.conf.json` (`"android": { "versionCode": 1003 }`), `build.gradle.kts`, `tauri.properties`, and `scripts/build_android_apk.sh`.
+    - Built signed Release ARM64 APK: `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk` (15M, SHA-256: `a17e2e7986e2932751fc37332dc5c8c9ed21d7a5cb05f20869bf96465e967c9a`, `versionCode = 1003`).
+    - Built signed Test x86_64 APK: `dist-android/billzen-test-v0.1.0-x86_64.apk` (14M, SHA-256: `df4096ef20ff9d1586a3cb314e67bd9fcb4b2ff3576ca213f3e15cfa0e779965`, `versionCode = 1003`).
+    - Verified 16 KB page-size ELF LOAD alignment (`0x4000`), 16 KB packaging alignment (`zipalign -P 16 4`), and v2/v3 signatures.
+  - **5. Native Android Runtime Suite Execution (13/13 Stages Passed)**:
+    - Executed `scripts/verify_android_runtime.js` on Android 14 API 34 emulator (`emulator-5554`):
+      1. Baseline clean installation (v1002)
+      2. Cold launch & onboarding wizard with interrupted draft recovery
+      3. Getting-started guide presentation & skip
+      4. Baseline catalog creation (Product with leading zeros & Customer)
+      5. In-place upgrade to v1003 test APK (zero data loss verified)
+      6. Appearance Dark, Light, and System following via `cmd uimode night yes/no` on v1003 (with inspected `06_appearance_dark.png` and `07_appearance_light.png`)
+      7. Native Android Back keyevent 4 modal dismissal on Customer & Product modals (zero synthetic cancel fallback)
+      8. Customer modal Back dismissal and clean reopen
+      9. Guide replay from Settings & back dismissal
+      10. Process force-stop, cold restart & persistence
+      11. 100% offline mode product creation & SQLite indexing (`airplane-mode enable && svc wifi/data disable`)
+      12. Post-offline cold restart persistence
+      13. Scoped logcat audit: zero fatal exceptions / panics
+    - Generated structured report: `test_artifacts/android_runtime/runtime_verification_report.json` ("overallResult": "ALL PASSED").
+- **Files Modified / Added**:
+  - `src-tauri/gen/android/app/src/main/AndroidManifest.xml`
+  - `src-tauri/gen/android/app/src/main/java/com/billzen/desktop/MainActivity.kt`
+  - `src-tauri/gen/android/app/build.gradle.kts`
+  - `src-tauri/tauri.conf.json`
+  - `src/contexts/ThemeContext.tsx`
+  - `scripts/verify_android_runtime.js`
+  - `scripts/build_android_apk.sh`
+  - `docs/verification-status.md`
+  - `brain/sessions.md`
+- **Verification Evidence**:
+  - `npm run test:android-runtime`: 13/13 stages PASSED on Android 14 (API 34).
+  - `npm test`: 14/14 unit tests passed.
+  - `npm run test:responsive`: 6/6 viewports passed (zero document overflow).
+  - `npm run test:onboarding`: 34/34 tests passed.
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 print scenarios passed.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 53/53 passed.
+  - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 15M, SHA-256: `a17e2e7986e2932751fc37332dc5c8c9ed21d7a5cb05f20869bf96465e967c9a`, `versionCode = 1003`.
+  - `dist-android/billzen-test-v0.1.0-x86_64.apk`: 14M, SHA-256: `df4096ef20ff9d1586a3cb314e67bd9fcb4b2ff3576ca213f3e15cfa0e779965`, `versionCode = 1003`.
+- **Unfinished Tasks / Immediate Next Steps**:
   - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, stock decrements, payment allocations, thermal/A4 receipt printing.
 
 

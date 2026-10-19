@@ -202,12 +202,22 @@ flowchart TD
 2. **Native Android Back Navigation & Modal Dismissal**:
    - `MainActivity.kt` registers `onBackPressedDispatcher.addCallback` which inspects the WebView DOM for open dialogs (`role="dialog"` or `[aria-modal="true"]`) and dispatches a synthetic `billzen-back-button` `CustomEvent`. If handled, system back navigation is cancelled without exiting the application.
    - Frontend components use the reusable hook `src/hooks/useBackHandler.ts` which binds both keyboard `Escape` and native `billzen-back-button` CustomEvents. Integrated in `CustomerCatalogView.tsx`, `ProductCatalogView.tsx`, and `GettingStartedGuide.tsx`.
-3. **High-Contrast Dark Theme Foundation**:
+3. **High-Contrast Dark Theme Foundation & Status Bar Contrast Synchronization**:
    - `index.html` specifies `<body class="bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 ...">` matching `@layer base` rules, ensuring `#09090b` paints behind all views in dark mode with >16:1 contrast against white headers and text.
+   - Dynamic Status Bar Icon Contrast: `MainActivity.kt` implements `applySystemBarsTheme(isDark: Boolean)` updating `WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !isDark` and `isAppearanceLightNavigationBars = !isDark`. When dark theme is active, icons are white on `#09090b`. When light theme is active, icons are dark on `#ffffff`.
+   - NativeBridge integration: `MainActivity.kt` exposes `@JavascriptInterface setDarkMode(isDark: Boolean)` and `ThemeContext.tsx` synchronously invokes `window.BillZenNative?.setDarkMode(isDark)` on theme mutations.
+   - Added `ACCESS_NETWORK_STATE` in `AndroidManifest.xml` and defensive try-catch in network monitoring.
 4. **Compact Mobile Navigation Localization**:
    - Added `tab_print_probe_short` to `src/i18n/index.ts` (`'Print Probe'` in EN, `'പ്രിന്റ് ടെസ്റ്റ്'` in ML, `'فحص الطباعة'` in AR) with full `aria-label={t.tab_print_probe}`, preventing mobile bottom nav crowding on narrow screens.
-5. **Authoritative Release Packaging (versionCode 1002)**:
-   - Synchronized across `tauri.conf.json` (`"android": { "versionCode": 1002 }`), `build.gradle.kts`, and `scripts/build_android_apk.sh`. Tested and verified via `apksigner`, `zipalign -P 16 4`, and `readelf -l`.
+5. **Authoritative Release Packaging (versionCode 1003)**:
+   - Synchronized across `tauri.conf.json` (`"android": { "versionCode": 1003 }`), `build.gradle.kts`, `tauri.properties`, and `scripts/build_android_apk.sh`. Tested and verified via `apksigner`, `zipalign -P 16 4`, and `readelf -l`.
+6. **Hardened Native Android Verification Suite (`scripts/verify_android_runtime.js`)**:
+   - Condition-based waits replacing fixed sleeps: `waitForRecordInDom` queries both DOM text and all input/textarea values (`inputs`) with a bounded 15-second condition wait.
+   - Deep failure diagnostics: on timeout, records actual DOM snippet, loading states, and direct Tauri IPC invocation results (`get_products`, `get_business_settings`).
+   - Genuine interrupted setup-draft recovery: checks `localStorage` key `billzen_setup_draft` with Chromium LevelDB flush timing before `am force-stop`.
+   - Rigorous Back keyevent 4 dismissal without exit and clean drawer reopening.
+   - 100% offline creation asserting true disconnected state via blocked pings and `!navigator.onLine`.
+   - Run-scoped logcat capture asserting 0 fatal crashes or panics.
 
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
