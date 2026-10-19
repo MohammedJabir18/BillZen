@@ -366,7 +366,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
       {/* Search & Filter Toolbar */}
       <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
-          <Search className="w-5 h-5 text-gray-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-5 h-5 text-gray-500 dark:text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             ref={searchInputRef}
             type="text"
@@ -375,7 +375,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder={t.search_placeholder}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-lime-400 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-500 dark:placeholder-zinc-400 focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-lime-400 focus:outline-none"
           />
         </div>
 
@@ -429,7 +429,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
           <div className="p-12 text-center text-gray-500 dark:text-zinc-400">
             <Package className="w-12 h-12 mx-auto text-gray-300 dark:text-zinc-700 mb-3" />
             <p className="text-base font-medium text-gray-700 dark:text-zinc-200">{t.empty_state_no_items}</p>
-            <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">Try adjusting search or filters, or add a new product</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Try adjusting search or filters, or add a new product</p>
           </div>
         ) : (
           <>
@@ -470,7 +470,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                         <td className="py-3 px-4">
                           <span className="font-medium text-gray-900 dark:text-zinc-100 block">{p.name}</span>
                           {p.description && (
-                            <span className="text-xs text-gray-400 dark:text-zinc-500 truncate max-w-xs block">
+                            <span className="text-xs text-gray-500 dark:text-zinc-400 truncate max-w-xs block">
                               {p.description}
                             </span>
                           )}
@@ -482,7 +482,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                               {p.category_name}
                             </span>
                           ) : (
-                            <span className="text-gray-400 dark:text-zinc-600 text-xs">—</span>
+                            <span className="text-gray-500 dark:text-zinc-400 text-xs">—</span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-zinc-100 tabular-nums">
@@ -495,7 +495,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                         <td className="py-3 px-4 text-right tabular-nums">
                           {p.is_stock_tracked ? (
                             <div>
-                              <span className={`font-semibold ${isLow ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-zinc-200'}`}>
+                              <span className={`font-semibold ${isLow ? 'text-amber-700 dark:text-amber-400' : 'text-gray-800 dark:text-zinc-200'}`}>
                                 {(p.current_stock_scaled / 1000).toLocaleString(undefined, {
                                   minimumFractionDigits: 0,
                                   maximumFractionDigits: 3,
@@ -503,11 +503,11 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                                 <span className="text-xs font-normal text-gray-500 dark:text-zinc-400">{p.unit}</span>
                               </span>
                               {isLow && (
-                                <span className="block text-xs text-amber-600 dark:text-amber-400 font-medium">Low stock</span>
+                                <span className="block text-xs text-amber-700 dark:text-amber-400 font-medium">Low stock</span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-xs text-gray-400 dark:text-zinc-500 italic">Not tracked</span>
+                            <span className="text-xs text-gray-500 dark:text-zinc-400 italic">Not tracked</span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-center">
@@ -612,22 +612,22 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
 
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800 text-sm">
                       <div>
-                        <span className="text-xs text-gray-400 dark:text-zinc-500 block">{t.product_selling_price}</span>
+                        <span className="text-xs text-gray-500 dark:text-zinc-400 block">{t.product_selling_price}</span>
                         <span className="font-semibold text-gray-900 dark:text-zinc-100 tabular-nums">
                           {settings.currency_symbol}{' '}
                           {formatMinorUnits(p.unit_price_minor, settings.currency_exponent)}
                         </span>
-                        <span className="text-xs text-gray-400 dark:text-zinc-500 ml-1">
+                        <span className="text-xs text-gray-500 dark:text-zinc-400 ml-1">
                           ({(p.tax_rate_bp / 100).toFixed(1)}% tax)
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs text-gray-400 dark:text-zinc-500 block">{t.product_current_stock}</span>
+                        <span className="text-xs text-gray-500 dark:text-zinc-400 block">{t.product_current_stock}</span>
                         {p.is_stock_tracked ? (
                           <div>
                             <span
                               className={`font-semibold tabular-nums ${
-                                isLow ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-zinc-200'
+                                isLow ? 'text-amber-700 dark:text-amber-400' : 'text-gray-800 dark:text-zinc-200'
                               }`}
                             >
                               {(p.current_stock_scaled / 1000).toLocaleString(undefined, {
@@ -637,13 +637,13 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                               <span className="text-xs font-normal text-gray-500 dark:text-zinc-400">{p.unit}</span>
                             </span>
                             {isLow && (
-                              <span className="block text-xs text-amber-600 dark:text-amber-400 font-medium">
+                              <span className="block text-xs text-amber-700 dark:text-amber-400 font-medium">
                                 Low stock
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400 dark:text-zinc-500 italic">Not tracked</span>
+                          <span className="text-xs text-gray-500 dark:text-zinc-400 italic">Not tracked</span>
                         )}
                       </div>
                     </div>
@@ -661,7 +661,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                         <button
                           onClick={() => handleArchive(p.id)}
                           data-testid={`archive-product-mobile-${p.sku}`}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 flex items-center gap-1.5 min-h-[44px]"
+                          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 flex items-center gap-1.5 min-h-[44px]"
                         >
                           <Archive className="w-3.5 h-3.5" />
                           {t.action_archive}
@@ -696,7 +696,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
               <button
                 data-testid="close-product-modal"
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
+                className="text-gray-500 dark:text-zinc-400 hover:text-gray-600 dark:hover:text-zinc-300 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -904,7 +904,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                         }`}
                       />
                       {editingProduct && (
-                        <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
                           Stock quantity is ledger-controlled and cannot be edited directly.
                         </p>
                       )}

@@ -674,6 +674,35 @@ async function runNativeVerification() {
       voucherTextLength: voucherText?.length,
     });
 
+    // Exercise actual WebKitGTK theme resolution, including native controls and
+    // the print-screen heading that previously disappeared on dark backgrounds.
+    for (const theme of ['dark', 'light']) {
+      await evalInApp(`document.querySelector('[data-testid="tab-settings"]').click()`);
+      await waitForCondition(`Boolean(document.querySelector('[data-testid="appearance-option-${theme}"]'))`);
+      await evalInApp(`document.querySelector('[data-testid="appearance-option-${theme}"]').click()`);
+      await waitForCondition(`document.documentElement.classList.contains('dark') === ${theme === 'dark'}`);
+      await evalInApp(`document.querySelector('[data-testid="tab-print"]').click()`);
+      await waitForCondition(`Boolean(document.querySelector('main h1'))`);
+      const themeEvidence = JSON.parse(await evalInApp(`JSON.stringify((() => {
+        const rgb = s => s.match(/[\\d.]+/g).slice(0, 3).map(Number);
+        const lum = c => c.map(v => {
+          v /= 255;
+          return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;
+        }).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+        const foreground = lum(rgb(getComputedStyle(document.querySelector('main h1')).color));
+        const background = lum(rgb(getComputedStyle(document.body).backgroundColor));
+        return {
+          colorScheme: getComputedStyle(document.documentElement).colorScheme,
+          headingContrast: (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05),
+        };
+      })())`));
+      assert(themeEvidence.colorScheme === theme, `Native ${theme} controls use matching color-scheme`);
+      assert(themeEvidence.headingContrast >= 4.5, `Native ${theme} print heading remains readable`, themeEvidence);
+    }
+    recordTest('native_dark_light_print_visibility', true);
+    await evalInApp(`document.querySelector('[data-testid="tab-cashbook"]').click()`);
+    await waitForCondition(`document.body.innerText.includes('Company Cashbook')`);
+
     // Capture pre-restart accounts & ledger summary
     const preRestartSummary = await activeInstance.invokeInApp('get_cashbook_ledger', { filter: {} });
 

@@ -1054,3 +1054,13 @@
 
 
 
+
+## 2026-10-19 — Dark/light visibility audit and correction
+- **Goal:** Address the owner's report of unreadable dark-mode text throughout the application; review the latest C1C handoff without expanding financial features.
+- **Diagnosis:** Rendered contrast checks reproduced the print screen's nearly invisible heading (1.12:1), weak catalog placeholders (3.08:1), cashbook captions (3.67:1), and white action text on overly bright green buttons (3.77:1). Populated ledgers, negative-balance dialogs and light-mode badges also exposed failures.
+- **Changes:** Added component-specific dark surfaces/text in print diagnostics; improved cashbook summaries/actions/warnings, product/customer placeholders and empty/populated states, guide badges, setup markers, settings active badge and the voucher footer. Added CSS color-scheme for native controls with a light print override. Kept existing appearance settings, business logic and white-paper invoice/voucher design.
+- **Files modified/added:** `src/App.tsx`; `src/components/CashbookView.tsx`, `ProductCatalogView.tsx`, `CustomerCatalogView.tsx`, `SettingsView.tsx`, `GettingStartedGuide.tsx`, `OnboardingSetupWizard.tsx`, `PrintFeasibilityProbe.tsx`, `PrintableVoucherDocument.tsx`; `src/styles/globals.css`; `scripts/verify_theme_contrast.js`; `scripts/verify_native_cashbook.js`; `package.json`; `docs/verification-status.md`; `brain/architecture.md`; this session log.
+- **Verification:** Browser contrast regression observed failing before fixes. All 104 dark/light desktop/mobile state checks then passed with no detected horizontal overflow. 41 frontend tests and 81 Rust tests passed. All 3 A4/80mm/invoice PDF scenarios passed. Rebuilt the Linux release executable and ran the isolated native cashbook harness: 38 assertions passed, including new dark/light native control and print-heading checks plus cold restart.
+- **Limits:** Automated solid-color text checks are not a complete accessibility certification. Windows/macOS and Android/iOS runtime appearance were not tested in this session; mobile browser viewport checks do not replace them. The C1C financial backup implementation was inspected at a high level, not accepted as a comprehensive cross-platform recovery audit.
+- **Next:** Keep this theme regression gate when continuing Antigravity work. Independently validate populated native/web backup interoperability and Android file/restore behavior before broadly distributing the C1C build; then continue the approved C2 work. Rebuild Android separately to include these appearance corrections.
+- **Graphify:** Full semantic update was unavailable because no LLM API key is configured; used the local code-only update instead. No API keys were added or changed.

@@ -236,14 +236,14 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
       {/* Search & Filter Toolbar */}
       <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
-          <Search className="w-5 h-5 text-gray-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-5 h-5 text-gray-500 dark:text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             data-testid="customer-search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, phone (+91/+971...), or tax ID..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-lg text-sm focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
+            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 placeholder:text-gray-500 dark:placeholder:text-zinc-400 rounded-lg text-sm focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
           />
         </div>
 
@@ -271,7 +271,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
           <div className="p-12 text-center text-gray-500 dark:text-zinc-400">
             <Users className="w-12 h-12 mx-auto text-gray-300 dark:text-zinc-600 mb-3" />
             <p className="text-base font-medium text-gray-700 dark:text-zinc-200">{t.empty_state_no_items}</p>
-            <p className="text-sm text-gray-400 dark:text-zinc-500 mt-1">Add a new customer to start maintaining contacts</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Add a new customer to start maintaining contacts</p>
           </div>
         ) : (
           <>
@@ -302,21 +302,21 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                       <td className="py-3 px-4">
                         {c.phone && (
                           <span className="text-xs text-gray-700 dark:text-zinc-300 flex items-center gap-1 font-mono">
-                            <Phone className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
+                            <Phone className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400" />
                             {c.phone}
                           </span>
                         )}
                         {c.email && (
                           <span className="text-xs text-gray-500 dark:text-zinc-400 flex items-center gap-1 mt-0.5">
-                            <Mail className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
+                            <Mail className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400" />
                             {c.email}
                           </span>
                         )}
-                        {!c.phone && !c.email && <span className="text-gray-400 dark:text-zinc-500 text-xs">—</span>}
+                        {!c.phone && !c.email && <span className="text-gray-500 dark:text-zinc-400 text-xs">—</span>}
                       </td>
                       <td className="py-3 px-4">
                         <div className="text-xs text-gray-700 dark:text-zinc-300 flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 flex-shrink-0" />
+                          <MapPin className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400 flex-shrink-0" />
                           <span>
                             {[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}
                           </span>
@@ -328,7 +328,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                             {c.tax_identifier}
                           </span>
                         ) : (
-                          <span className="text-gray-400 dark:text-zinc-500 text-xs">—</span>
+                          <span className="text-gray-500 dark:text-zinc-400 text-xs">—</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-zinc-100 tabular-nums">
@@ -395,7 +395,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                     <div>
                       <span className="font-semibold text-gray-900 dark:text-zinc-100 block text-base">{c.name}</span>
                       <div className="text-xs text-gray-500 dark:text-zinc-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 flex-shrink-0" />
+                        <MapPin className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400 flex-shrink-0" />
                         <span>{[c.city, c.state, c.country].filter(Boolean).join(', ') || '—'}</span>
                       </div>
                     </div>
@@ -488,7 +488,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
               <button
                 data-testid="close-customer-modal"
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="text-gray-500 dark:text-zinc-400 hover:text-gray-600 dark:hover:text-zinc-300 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>

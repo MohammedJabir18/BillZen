@@ -250,8 +250,8 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                   step === 1
                     ? 'bg-lime-500 text-zinc-950'
                     : step > 1
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
                 }`}
               >
                 {step > 1 ? <CheckCircle2 className="w-4 h-4" /> : '1'}
@@ -269,8 +269,8 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                   step === 2
                     ? 'bg-lime-500 text-zinc-950'
                     : step > 2
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
                 }`}
               >
                 {step > 2 ? <CheckCircle2 className="w-4 h-4" /> : '2'}
@@ -287,7 +287,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                   step === 3
                     ? 'bg-lime-500 text-zinc-950'
-                    : 'bg-slate-200 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                    : 'bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
                 }`}
               >
                 3
@@ -423,7 +423,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 mb-1">
-                    Store / Trading Name <span className="text-red-500">*</span>
+                    Store / Trading Name <span className="text-red-600 dark:text-red-400">*</span>
                   </label>
                   <input
                     type="text"
@@ -438,7 +438,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                     }`}
                   />
                   {validationErrors.business_name && (
-                    <p className="text-[11px] text-red-500 mt-1">{validationErrors.business_name}</p>
+                    <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{validationErrors.business_name}</p>
                   )}
                 </div>
 
@@ -475,7 +475,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 mb-1">
-                      Phone Number <span className="text-red-500">*</span>
+                      Phone Number <span className="text-red-600 dark:text-red-400">*</span>
                     </label>
                     <input
                       type="tel"
@@ -490,7 +490,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                       }`}
                     />
                     {validationErrors.phone && (
-                      <p className="text-[11px] text-red-500 mt-1">{validationErrors.phone}</p>
+                      <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{validationErrors.phone}</p>
                     )}
                   </div>
 
@@ -511,7 +511,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 mb-1">
-                    Street Address Line 1 <span className="text-red-500">*</span>
+                    Street Address Line 1 <span className="text-red-600 dark:text-red-400">*</span>
                   </label>
                   <input
                     type="text"
@@ -526,14 +526,14 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                     }`}
                   />
                   {validationErrors.address_line1 && (
-                    <p className="text-[11px] text-red-500 mt-1">{validationErrors.address_line1}</p>
+                    <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{validationErrors.address_line1}</p>
                   )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 mb-1">
-                      City <span className="text-red-500">*</span>
+                      City <span className="text-red-600 dark:text-red-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -548,13 +548,13 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                       }`}
                     />
                     {validationErrors.city && (
-                      <p className="text-[11px] text-red-500 mt-1">{validationErrors.city}</p>
+                      <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{validationErrors.city}</p>
                     )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 mb-1">
-                      State / Province <span className="text-red-500">*</span>
+                      State / Province <span className="text-red-600 dark:text-red-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -569,7 +569,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                       }`}
                     />
                     {validationErrors.state && (
-                      <p className="text-[11px] text-red-500 mt-1">{validationErrors.state}</p>
+                      <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{validationErrors.state}</p>
                     )}
                   </div>
 
@@ -577,7 +577,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300 mb-1">
                       {isPostalCodeRequired ? (
                         <>
-                          Postal Code <span className="text-red-500">*</span>
+                          Postal Code <span className="text-red-600 dark:text-red-400">*</span>
                         </>
                       ) : (
                         'Postal Code (Optional)'
@@ -596,7 +596,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                       }`}
                     />
                     {validationErrors.postal_code && (
-                      <p className="text-[11px] text-red-500 mt-1">{validationErrors.postal_code}</p>
+                      <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{validationErrors.postal_code}</p>
                     )}
                   </div>
                 </div>
@@ -674,7 +674,7 @@ export const OnboardingSetupWizard: React.FC<OnboardingSetupWizardProps> = ({
                   </h3>
                   <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
                     <span>{formData.country}</span>
-                    <span className="text-xs font-mono text-lime-600 dark:text-lime-400 bg-lime-50 dark:bg-lime-950/40 px-2 py-0.5 rounded-full border border-lime-200 dark:border-lime-900">
+                    <span className="text-xs font-mono text-lime-800 dark:text-lime-400 bg-lime-50 dark:bg-lime-950/40 px-2 py-0.5 rounded-full border border-lime-200 dark:border-lime-900">
                       {formData.currency_code} ({formData.currency_symbol})
                     </span>
                   </div>

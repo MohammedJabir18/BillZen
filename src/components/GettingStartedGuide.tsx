@@ -170,7 +170,7 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
                 {t.guide_slide1_body}
               </p>
 
-              <div className="pt-2 flex flex-wrap justify-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+              <div className="pt-2 flex flex-wrap justify-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">Zero-padded Barcodes</span>
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">Atomic Movements</span>
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">Scanner Ready</span>
@@ -196,7 +196,7 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
                 {t.guide_slide2_body}
               </p>
 
-              <div className="pt-2 flex flex-wrap justify-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+              <div className="pt-2 flex flex-wrap justify-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">GSTIN / TRN IDs</span>
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">Contact Details</span>
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">Address Book</span>
@@ -222,7 +222,7 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
                 {t.guide_slide3_body}
               </p>
 
-              <div className="pt-2 flex flex-wrap justify-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+              <div className="pt-2 flex flex-wrap justify-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">SQLite WAL Engine</span>
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">Single-Instance Lock</span>
                 <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded">System / Light / Dark</span>

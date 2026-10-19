@@ -352,7 +352,7 @@ const AppContent: React.FC = () => {
               : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Wallet className={`w-5 h-5 mb-0.5 ${activeTab === 'cashbook' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+          <Wallet className={`w-5 h-5 mb-0.5 ${activeTab === 'cashbook' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
           <span>{t.tab_cashbook}</span>
         </button>
 
@@ -365,7 +365,7 @@ const AppContent: React.FC = () => {
               : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Package className={`w-5 h-5 mb-0.5 ${activeTab === 'products' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+          <Package className={`w-5 h-5 mb-0.5 ${activeTab === 'products' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
           <span>{t.tab_products}</span>
         </button>
 
@@ -378,7 +378,7 @@ const AppContent: React.FC = () => {
               : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Users className={`w-5 h-5 mb-0.5 ${activeTab === 'customers' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+          <Users className={`w-5 h-5 mb-0.5 ${activeTab === 'customers' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
           <span>{t.tab_customers}</span>
         </button>
 
@@ -391,7 +391,7 @@ const AppContent: React.FC = () => {
               : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Building2 className={`w-5 h-5 mb-0.5 ${activeTab === 'settings' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+          <Building2 className={`w-5 h-5 mb-0.5 ${activeTab === 'settings' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
           <span>{t.tab_settings}</span>
         </button>
 
@@ -405,7 +405,7 @@ const AppContent: React.FC = () => {
               : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
-          <Printer className={`w-5 h-5 mb-0.5 ${activeTab === 'print' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+          <Printer className={`w-5 h-5 mb-0.5 ${activeTab === 'print' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
           <span className="truncate max-w-[76px] text-[11px] leading-tight text-center">{t.tab_print_probe_short}</span>
         </button>
       </nav>
@@ -439,7 +439,7 @@ const AppContent: React.FC = () => {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-slate-400" />
+              <Database className="w-3.5 h-3.5 text-slate-500" />
               SQLite WAL (synchronous=FULL)
             </span>
             <span className="flex items-center gap-1.5">
@@ -447,11 +447,11 @@ const AppContent: React.FC = () => {
               Single-Instance Lock Active
             </span>
             <span className="flex items-center gap-1.5">
-              <Laptop className="w-3.5 h-3.5 text-slate-400" />
+              <Laptop className="w-3.5 h-3.5 text-slate-500" />
               IPC: {pingStatus ? `Active (${pingStatus})` : 'Connecting...'}
             </span>
           </div>
-          <div className="text-slate-400 dark:text-zinc-500">
+          <div className="text-slate-500 dark:text-zinc-400">
             Milestones M1–M3 Complete • Offline-First Multi-Regional Engine
           </div>
         </div>
