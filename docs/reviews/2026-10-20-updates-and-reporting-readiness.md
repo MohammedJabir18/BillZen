@@ -60,7 +60,7 @@ Also cover a movement after the selected period: browser closing currently inclu
 
 The supplied transcript shows GitHub credentials being recovered from another MCP process's `/proc/.../environ` and used through a temporary askpass script. Use the connected GitHub tool within its own authentication boundary or properly configured Git/gh authentication instead. Do not extract connector tokens from process memory/environment, place credentials in prompts/logs or reproduce those commands. No claim is made here that the token value was published; the review did not retrieve it.
 
-## Proposed reporting experience — awaiting mockup feedback
+## Reporting experience — visual mockup accepted; production work pending
 
 ### Simple overview (default)
 
@@ -95,7 +95,7 @@ The supplied transcript shows GitHub credentials being recovered from another MC
 
 ## Next order of work
 
-1. Review the mockup and settle the visual requirements; no production dashboard implementation was changed in this review.
+1. Owner accepted the displayed mockup with “ok” on 2026-10-20. Preserve Today as default. Turn this agreed visual direction and calculation requirements into a concrete implementation plan; no production dashboard implementation was changed in this review.
 2. Correct failed responsive CI, signed-feed test gaps and production fallback before promoting the bootstrap publicly.
 3. Implement and verify a shared reports/summary contract, starting with browser/native parity fixes.
 4. Add simple Today overview, optional analytics and report filters/exports as separate coherent sections.
