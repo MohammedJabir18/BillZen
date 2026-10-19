@@ -34,6 +34,8 @@ fn main() {
                 "post_cashbook_voucher",
                 "reverse_cashbook_voucher",
                 "get_cashbook_ledger",
+                "export_workspace_backup",
+                "restore_workspace_backup",
             ]),
         ),
     )

@@ -36,6 +36,8 @@
     "allow-create-cashbook-party",
     "allow-post-cashbook-voucher",
     "allow-reverse-cashbook-voucher",
-    "allow-get-cashbook-ledger"
+    "allow-get-cashbook-ledger",
+    "allow-export-workspace-backup",
+    "allow-restore-workspace-backup"
   ]
 }

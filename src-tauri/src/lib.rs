@@ -160,6 +160,8 @@ pub fn run() {
             commands::cashbook::post_cashbook_voucher,
             commands::cashbook::reverse_cashbook_voucher,
             commands::cashbook::get_cashbook_ledger,
+            commands::backup::export_workspace_backup,
+            commands::backup::restore_workspace_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running BillZen application");

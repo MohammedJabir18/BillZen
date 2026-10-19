@@ -128,6 +128,13 @@ pub enum DbRequest {
         filter: CashbookLedgerFilter,
         respond_to: oneshot::Sender<Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String>>,
     },
+    ExportWorkspaceBackup {
+        respond_to: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
+    RestoreWorkspaceBackup {
+        backup_json: serde_json::Value,
+        respond_to: oneshot::Sender<Result<crate::db::backup::RestoreBackupResult, String>>,
+    },
 }
 
 #[derive(Clone)]
@@ -287,6 +294,31 @@ impl DbWorkerHandle {
                         DbRequest::GetCashbookLedger { filter, respond_to } => {
                             let result = fetch_cashbook_ledger(&conn, filter);
                             let _ = respond_to.send(result);
+                        }
+                        DbRequest::ExportWorkspaceBackup { respond_to } => {
+                            let result = crate::db::backup::create_workspace_backup(&conn);
+                            let _ = respond_to.send(result);
+                        }
+                        DbRequest::RestoreWorkspaceBackup { backup_json, respond_to } => {
+                            // Checkpoint current active database
+                            let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+                            drop(conn);
+
+                            let restore_res = crate::db::backup::restore_workspace_backup(&db_path, &backup_json);
+
+                            // Reopen active connection to db_path
+                            match initialize_database(&db_path) {
+                                Ok(reopened) => {
+                                    conn = reopened;
+                                    let _ = respond_to.send(restore_res);
+                                }
+                                Err(e) => {
+                                    let err = format!("FATAL: Failed to reopen database after restore attempt: {}", e);
+                                    eprintln!("[BillZen DbWorker] {}", err);
+                                    let _ = respond_to.send(Err(err));
+                                    return;
+                                }
+                            }
                         }
                     }
                 }
@@ -614,6 +646,26 @@ impl DbWorkerHandle {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(DbRequest::GetCashbookLedger { filter, respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn export_workspace_backup(&self) -> Result<serde_json::Value, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::ExportWorkspaceBackup { respond_to: tx })
+            .await
+            .map_err(|_| "Database worker thread has terminated".to_string())?;
+        rx.await
+            .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn restore_workspace_backup(&self, backup_json: serde_json::Value) -> Result<crate::db::backup::RestoreBackupResult, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(DbRequest::RestoreWorkspaceBackup { backup_json, respond_to: tx })
             .await
             .map_err(|_| "Database worker thread has terminated".to_string())?;
         rx.await
