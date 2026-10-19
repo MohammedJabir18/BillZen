@@ -391,5 +391,146 @@ describe('web_cashbook_db (financial invariants & lifecycle)', () => {
       (globalThis as any).localStorage = originalLocal;
     }
   });
+
+  it('matches shared reporting fixture for review baseline, 3-decimal KWD, and cross-period reversals', async () => {
+    // 1. Test fixture_review_baseline
+    const accounts = await getWebMoneyAccounts();
+    const mainCash = accounts.find((a) => a.account_type === 'cash')!;
+
+    // Post review baseline vouchers
+    await postWebCashbookVoucher({
+      idempotency_key: 'fix-base-1',
+      account_id: mainCash.id,
+      direction: 'inflow',
+      classification: 'operating_income',
+      payment_method: 'cash',
+      amount_minor: 10000,
+      business_date: '2026-10-19',
+      party_name: 'Customer Prior',
+      notes: 'Prior day sales',
+    });
+
+    await postWebCashbookVoucher({
+      idempotency_key: 'fix-base-2',
+      account_id: mainCash.id,
+      direction: 'inflow',
+      classification: 'operating_income',
+      payment_method: 'cash',
+      amount_minor: 5000,
+      business_date: '2026-10-20',
+      party_name: 'Customer Today',
+      notes: 'Today operating receipt',
+    });
+
+    await postWebCashbookVoucher({
+      idempotency_key: 'fix-base-3',
+      account_id: mainCash.id,
+      direction: 'inflow',
+      classification: 'loan',
+      payment_method: 'cash',
+      amount_minor: 20000,
+      business_date: '2026-10-20',
+      party_name: 'Bank Lender',
+      notes: 'Working capital loan',
+    });
+
+    await postWebCashbookVoucher({
+      idempotency_key: 'fix-base-4',
+      account_id: mainCash.id,
+      direction: 'inflow',
+      classification: 'operating_income',
+      payment_method: 'cash',
+      amount_minor: 30000,
+      business_date: '2026-10-21',
+      party_name: 'Customer Future',
+      notes: 'Future day sales',
+    });
+
+    // Full period query for 2026-10-20
+    const todayLedger = await getWebCashbookLedger({
+      start_date: '2026-10-20',
+      end_date: '2026-10-20',
+      include_archived: false,
+    });
+
+    expect(todayLedger.summary.opening_balance_minor).toBe(10000);
+    expect(todayLedger.summary.period_inflows_minor).toBe(25000);
+    expect(todayLedger.summary.period_outflows_minor).toBe(0);
+    expect(todayLedger.summary.net_operating_cash_flow_minor).toBe(5000);
+    expect(todayLedger.summary.closing_balance_minor).toBe(35000);
+    expect(todayLedger.summary.total_cash_minor).toBe(65000);
+    expect(todayLedger.summary.active_cash_minor).toBe(65000);
+    expect(todayLedger.summary.matching_inflows_minor).toBeNull();
+    expect(todayLedger.summary.matching_outflows_minor).toBeNull();
+
+    // Query 2026-10-20 with non-matching search filter
+    const searchLedger = await getWebCashbookLedger({
+      start_date: '2026-10-20',
+      end_date: '2026-10-20',
+      search: 'NonExistentTerm',
+      include_archived: false,
+    });
+
+    // Period financial totals must remain identical!
+    expect(searchLedger.summary.opening_balance_minor).toBe(10000);
+    expect(searchLedger.summary.period_inflows_minor).toBe(25000);
+    expect(searchLedger.summary.period_outflows_minor).toBe(0);
+    expect(searchLedger.summary.net_operating_cash_flow_minor).toBe(5000);
+    expect(searchLedger.summary.closing_balance_minor).toBe(35000);
+    // Display filter matching metrics:
+    expect(searchLedger.summary.matching_inflows_minor).toBe(0);
+    expect(searchLedger.summary.matching_outflows_minor).toBe(0);
+    expect(searchLedger.summary.matching_count).toBe(0);
+
+    // 2. Test fixture_cross_period_reversal
+    const revCash = await createWebMoneyAccount({
+      account_name: 'Cross Period Drawer',
+      account_type: 'cash',
+      opening_balance_minor: 0,
+      allow_negative_balance: true,
+    });
+
+    const vchDay1 = await postWebCashbookVoucher({
+      idempotency_key: 'fix-rev-1',
+      account_id: revCash.id,
+      direction: 'inflow',
+      classification: 'operating_income',
+      payment_method: 'cash',
+      amount_minor: 100000,
+      business_date: '2026-10-10',
+      party_name: 'Walk-in Customer',
+      notes: 'Day 1 receipt',
+    });
+    expect(vchDay1.status).toBe('posted');
+
+    // Reversal posted on Day 2: 2026-10-11
+    const revDay2 = await reverseWebCashbookVoucher((vchDay1 as any).id, true, '2026-10-11');
+    expect(revDay2.status).toBe('posted');
+
+    // Day 1 query: closing balance is 100000 despite future reversal
+    const day1Ledger = await getWebCashbookLedger({
+      account_id: revCash.id,
+      start_date: '2026-10-10',
+      end_date: '2026-10-10',
+    });
+    expect(day1Ledger.summary.opening_balance_minor).toBe(0);
+    expect(day1Ledger.summary.period_inflows_minor).toBe(100000);
+    expect(day1Ledger.summary.period_outflows_minor).toBe(0);
+    expect(day1Ledger.summary.net_operating_cash_flow_minor).toBe(100000);
+    expect(day1Ledger.summary.closing_balance_minor).toBe(100000);
+
+    // Day 2 query: opening is 100000, period outflow 100000, closing 0
+    const day2Ledger = await getWebCashbookLedger({
+      account_id: revCash.id,
+      start_date: '2026-10-11',
+      end_date: '2026-10-11',
+    });
+    expect(day2Ledger.summary.opening_balance_minor).toBe(100000);
+    expect(day2Ledger.summary.period_inflows_minor).toBe(0);
+    expect(day2Ledger.summary.period_outflows_minor).toBe(100000);
+    expect(day2Ledger.summary.net_operating_cash_flow_minor).toBe(-100000);
+    expect(day2Ledger.summary.closing_balance_minor).toBe(0);
+  });
 });
+
 

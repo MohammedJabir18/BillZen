@@ -951,7 +951,8 @@ export async function postWebCashbookVoucher(input: CreateVoucherInput): Promise
 
 export async function reverseWebCashbookVoucher(
   voucherId: string,
-  confirmedNegativeBalance: boolean = false
+  confirmedNegativeBalance: boolean = false,
+  businessDate?: string
 ): Promise<PostVoucherResult> {
   const settings = getCompanySettings();
   const db = await openWebDb();
@@ -991,8 +992,8 @@ export async function reverseWebCashbookVoucher(
     }
 
     const now = Date.now();
-    const todayStr = getTodayBusinessDate(settings.timezone);
-    const ym = todayStr.replace(/-/g, '').substring(0, 6);
+    const effectiveBusinessDate = businessDate || getTodayBusinessDate(settings.timezone);
+    const ym = effectiveBusinessDate.replace(/-/g, '').substring(0, 6);
     const prefix = orig.direction === 'inflow' ? 'RCP-REV' : 'PAY-REV';
     const seqKey = `${prefix}-${ym}`;
     const seqRecord = inMemStore.cashbook_sequences.get(seqKey);
@@ -1015,7 +1016,7 @@ export async function reverseWebCashbookVoucher(
       is_reversed: false,
       reversed_by_voucher_id: null,
       reversed_at: null,
-      business_date: todayStr,
+      business_date: effectiveBusinessDate,
       notes: `Reversal of voucher ${orig.voucher_number}`,
       created_at: now,
       posted_at: now,
@@ -1032,7 +1033,7 @@ export async function reverseWebCashbookVoucher(
       voucher_id: revId,
       account_id: orig.account_id,
       amount_minor: revDelta,
-      business_date: todayStr,
+      business_date: effectiveBusinessDate,
       sequence_number: movs.length + 1,
       created_at: now,
     });
@@ -1112,8 +1113,8 @@ export async function reverseWebCashbookVoucher(
   }
 
   const now = Date.now();
-  const todayStr = getTodayBusinessDate(settings.timezone);
-  const ym = todayStr.replace(/-/g, '').substring(0, 6);
+  const effectiveBusinessDate = businessDate || getTodayBusinessDate(settings.timezone);
+  const ym = effectiveBusinessDate.replace(/-/g, '').substring(0, 6);
   const prefix = orig.direction === 'inflow' ? 'RCP-REV' : 'PAY-REV';
   const seqKey = `${prefix}-${ym}`;
   const seqRecord: CashbookSequenceRecord | undefined = await reqToPromise(seqStore.get(seqKey));
@@ -1136,7 +1137,7 @@ export async function reverseWebCashbookVoucher(
     is_reversed: false,
     reversed_by_voucher_id: null,
     reversed_at: null,
-    business_date: todayStr,
+    business_date: effectiveBusinessDate,
     notes: `Reversal of voucher ${orig.voucher_number}`,
     created_at: now,
     posted_at: now,
@@ -1154,7 +1155,7 @@ export async function reverseWebCashbookVoucher(
     voucher_id: revId,
     account_id: orig.account_id,
     amount_minor: revDelta,
-    business_date: todayStr,
+    business_date: effectiveBusinessDate,
     sequence_number: existingMovs.length + 1,
     created_at: now,
   });
@@ -1205,22 +1206,70 @@ export async function getWebCashbookLedger(
     await txToPromise(tx);
   }
 
-  // Filter vouchers
-  let filtered = [...allVouchers];
+  // Relevant accounts based on filter.account_id and filter.include_archived
+  const relevantAccounts = allAccounts.filter((a) =>
+    filter.account_id ? a.id === filter.account_id : filter.include_archived ? true : !a.is_archived
+  );
+  const relevantAccountIds = new Set(relevantAccounts.map((a) => a.id));
 
-  if (filter.account_id) {
-    filtered = filtered.filter((v) => v.account_id === filter.account_id);
-  } else if (!filter.include_archived) {
-    const archivedIds = new Set(allAccounts.filter((a) => a.is_archived).map((a) => a.id));
-    filtered = filtered.filter((v) => !archivedIds.has(v.account_id));
-  }
-
+  // 1. Period vouchers (scoped to relevant accounts and date range, but NOT display-filtered)
+  let periodVouchers = allVouchers.filter((v) => relevantAccountIds.has(v.account_id));
   if (filter.start_date) {
-    filtered = filtered.filter((v) => v.business_date >= filter.start_date!);
+    periodVouchers = periodVouchers.filter((v) => v.business_date >= filter.start_date!);
   }
   if (filter.end_date) {
-    filtered = filtered.filter((v) => v.business_date <= filter.end_date!);
+    periodVouchers = periodVouchers.filter((v) => v.business_date <= filter.end_date!);
   }
+
+  // 2. Period financial summary figures across all period vouchers
+  const periodInflows = periodVouchers
+    .filter((v) => v.direction === 'inflow')
+    .reduce((sum, v) => sum + v.amount_minor, 0);
+
+  const periodOutflows = periodVouchers
+    .filter((v) => v.direction === 'outflow')
+    .reduce((sum, v) => sum + v.amount_minor, 0);
+
+  const netOperating = periodVouchers
+    .filter((v) => v.classification === 'operating_income' || v.classification === 'operating_expense')
+    .reduce((sum, v) => sum + (v.direction === 'inflow' ? v.amount_minor : -v.amount_minor), 0);
+
+  // 3. Opening balance calculation (account base opening + movements strictly prior to start_date)
+  const baseOpening = relevantAccounts.reduce((sum, a) => sum + a.opening_balance_minor, 0);
+  const priorMovements = filter.start_date
+    ? allMovements
+        .filter((m) => relevantAccountIds.has(m.account_id) && m.business_date < filter.start_date!)
+        .reduce((sum, m) => sum + m.amount_minor, 0)
+    : 0;
+  const periodOpeningBalance = baseOpening + priorMovements;
+  const periodClosingBalance = periodOpeningBalance + periodInflows - periodOutflows;
+
+  // 4. Total Cash & Active Cash (overall or account-specific)
+  let totalCash: number;
+  let activeCash: number;
+  if (filter.account_id) {
+    const targetAcc = allAccounts.find((a) => a.id === filter.account_id);
+    const movSum = allMovements
+      .filter((m) => m.account_id === filter.account_id)
+      .reduce((s, m) => s + m.amount_minor, 0);
+    const bal = (targetAcc?.opening_balance_minor || 0) + movSum;
+    totalCash = bal;
+    activeCash = targetAcc && !targetAcc.is_archived ? bal : 0;
+  } else {
+    totalCash = allAccounts.reduce((sum, a) => {
+      const movs = allMovements.filter((m) => m.account_id === a.id).reduce((s, m) => s + m.amount_minor, 0);
+      return sum + a.opening_balance_minor + movs;
+    }, 0);
+    activeCash = allAccounts
+      .filter((a) => !a.is_archived)
+      .reduce((sum, a) => {
+        const movs = allMovements.filter((m) => m.account_id === a.id).reduce((s, m) => s + m.amount_minor, 0);
+        return sum + a.opening_balance_minor + movs;
+      }, 0);
+  }
+
+  // 5. Display filtering for ledger entries & matching metrics
+  let filtered = [...periodVouchers];
   if (filter.classification) {
     filtered = filtered.filter((v) => v.classification === filter.classification);
   }
@@ -1243,7 +1292,7 @@ export async function getWebCashbookLedger(
     return a.created_at - b.created_at;
   });
 
-  // Calculate Running Balance partitioned by account_id: opening_balance_minor + sum(movements up to this one)
+  // Calculate Running Balance partitioned by account_id
   const accountRunningTotals = new Map<string, number>();
   for (const acc of allAccounts) {
     accountRunningTotals.set(acc.id, acc.opening_balance_minor);
@@ -1289,35 +1338,22 @@ export async function getWebCashbookLedger(
     };
   });
 
-  // Authoritative Overall Financial Balances
-  const totalCash = allAccounts.reduce((sum, a) => {
-    const movs = allMovements.filter((m) => m.account_id === a.id).reduce((s, m) => s + m.amount_minor, 0);
-    return sum + a.opening_balance_minor + movs;
-  }, 0);
-
-  const activeCash = allAccounts.filter((a) => !a.is_archived).reduce((sum, a) => {
-    const movs = allMovements.filter((m) => m.account_id === a.id).reduce((s, m) => s + m.amount_minor, 0);
-    return sum + a.opening_balance_minor + movs;
-  }, 0);
-
-  const inflows = filtered.filter((v) => v.direction === 'inflow').reduce((s, v) => s + v.amount_minor, 0);
-  const outflows = filtered.filter((v) => v.direction === 'outflow').reduce((s, v) => s + v.amount_minor, 0);
-
   const isDisplayFiltered = Boolean(filter.search || filter.classification);
 
   const summary: CashbookSummary = {
     total_cash_minor: totalCash,
     active_cash_minor: activeCash,
-    period_inflows_minor: inflows,
-    period_outflows_minor: outflows,
-    net_operating_cash_flow_minor: inflows - outflows,
-    opening_balance_minor: 0,
-    closing_balance_minor: filter.account_id
-      ? (allAccounts.find((a) => a.id === filter.account_id)?.opening_balance_minor || 0) +
-        allMovements.filter((m) => m.account_id === filter.account_id).reduce((s, m) => s + m.amount_minor, 0)
-      : totalCash,
-    matching_inflows_minor: isDisplayFiltered ? inflows : null,
-    matching_outflows_minor: isDisplayFiltered ? outflows : null,
+    period_inflows_minor: periodInflows,
+    period_outflows_minor: periodOutflows,
+    net_operating_cash_flow_minor: netOperating,
+    opening_balance_minor: periodOpeningBalance,
+    closing_balance_minor: periodClosingBalance,
+    matching_inflows_minor: isDisplayFiltered
+      ? filtered.filter((v) => v.direction === 'inflow').reduce((sum, v) => sum + v.amount_minor, 0)
+      : null,
+    matching_outflows_minor: isDisplayFiltered
+      ? filtered.filter((v) => v.direction === 'outflow').reduce((sum, v) => sum + v.amount_minor, 0)
+      : null,
     matching_count: isDisplayFiltered ? filtered.length : null,
   };
 
