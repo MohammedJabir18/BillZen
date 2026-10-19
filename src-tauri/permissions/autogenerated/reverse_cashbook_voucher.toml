@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reverse-cashbook-voucher"
+description = "Enables the reverse_cashbook_voucher command without any pre-configured scope."
+commands.allow = ["reverse_cashbook_voucher"]
+
+[[permission]]
+identifier = "deny-reverse-cashbook-voucher"
+description = "Denies the reverse_cashbook_voucher command without any pre-configured scope."
+commands.deny = ["reverse_cashbook_voucher"]

@@ -27,6 +27,7 @@ pub const V3_MIGRATION_SQL: &str = include_str!("migrations/v3_protect_currency_
 pub const V4_MIGRATION_SQL: &str = include_str!("migrations/v4_catalog.sql");
 pub const V5_MIGRATION_SQL: &str = include_str!("migrations/v5_category_nocase.sql");
 pub const V6_MIGRATION_SQL: &str = include_str!("migrations/v6_setup_and_onboarding.sql");
+pub const V7_MIGRATION_SQL: &str = include_str!("migrations/v7_cashbook_foundation.sql");
 pub const INITIAL_V5_CHECKSUM: &str = "04d82447f839b02a0cc09c20534fa5f6d5688a1a79fb96e17b6a4bbe4d544a46";
 pub const INTERMEDIATE_V5_CHECKSUM: &str = "0d748aafb38054e1e01f260dd3bbc486e6e378a7bd97db6545d4ab4f9e166d36";
 pub const INITIAL_V6_CHECKSUM: &str = "c454f1673814b4ad7cd05f766f71f1bea165b3924fbb1d62c1fdf1292f34b944";
@@ -329,6 +330,40 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
         }
     }
 
+    // Migration 7: Offline Company Cashbook Foundation
+    let mut hasher7 = Sha256::new();
+    hasher7.update(V7_MIGRATION_SQL.as_bytes());
+    let current_checksum7 = format!("{:x}", hasher7.finalize());
+
+    let existing_checksum7: Option<String> = conn
+        .query_row(
+            "SELECT checksum FROM schema_migrations WHERE version = 7;",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match existing_checksum7 {
+        Some(stored_checksum) => {
+            if stored_checksum != current_checksum7 {
+                return Err(DbError::ChecksumMismatch {
+                    version: 7,
+                    expected: stored_checksum,
+                    found: current_checksum7,
+                });
+            }
+        }
+        None => {
+            let tx = conn.transaction()?;
+            tx.execute_batch(V7_MIGRATION_SQL)?;
+            let now = chrono::Utc::now().timestamp_millis();
+            tx.execute(
+                "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
+                params![7, "v7_cashbook_foundation", now, current_checksum7],
+            )?;
+            tx.commit()?;
+        }
+    }
 
     Ok(())
 }
@@ -1769,6 +1804,93 @@ mod tests {
             }
             other => panic!("Expected ChecksumMismatch for version 6, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_upgrade_v6_database_to_v7_cashbook_and_triggers() {
+        let mut conn = Connection::open_in_memory().expect("In-memory db failed");
+        run_migrations(&mut conn).expect("Migrations failed");
+
+        // Verify version 7 is recorded
+        let v7_applied: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 7);",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert!(v7_applied, "Migration 7 must be marked applied");
+
+        // Verify default categories seeded
+        let cat_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM cashbook_categories;",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(cat_count, 9, "9 default categories must be seeded");
+
+        // Insert business settings row
+        let now = chrono::Utc::now().timestamp_millis();
+        conn.execute(
+            "INSERT INTO business_settings (id, business_name, phone, address_line1, city, state, postal_code, currency_code, currency_exponent, created_at, updated_at)
+             VALUES ('default', 'Test Store', '9999999999', 'Road 1', 'City', 'State', '123456', 'INR', 2, ?1, ?1);",
+            params![now],
+        ).unwrap();
+
+        // Create an account
+        conn.execute(
+            "INSERT INTO money_accounts (id, account_name, account_type, opening_balance_minor, allow_negative_balance, currency_code, currency_exponent, created_at, updated_at)
+             VALUES ('acc-cash-1', 'Main Cash Drawer', 'cash', 500000, 0, 'INR', 2, 1000, 1000);",
+            [],
+        ).unwrap();
+
+        // Base currency change should be rejected because opening_balance_minor != 0
+        let cur_change = conn.execute(
+            "UPDATE business_settings SET currency_code = 'AED' WHERE id = 'default';",
+            [],
+        );
+        assert!(cur_change.is_err(), "Currency change must be rejected when non-zero account exists");
+
+        // Post a voucher
+        conn.execute(
+            "INSERT INTO cashbook_vouchers (
+                id, voucher_number, idempotency_key, payload_hash, account_id, direction,
+                classification, payment_method, amount_minor, business_date, status,
+                created_at, posted_at
+            ) VALUES (
+                'vch-1', 'RCP-202610-00001', 'key-1', 'hash-1', 'acc-cash-1', 'inflow',
+                'operating_income', 'cash', 100000, '2026-10-19', 'posted', 1000, 1000
+            );",
+            [],
+        ).unwrap();
+
+        // Create movement
+        conn.execute(
+            "INSERT INTO cashbook_movements (id, voucher_id, account_id, amount_minor, business_date, sequence_number, created_at)
+             VALUES ('mov-1', 'vch-1', 'acc-cash-1', 100000, '2026-10-19', 1, 1000);",
+            [],
+        ).unwrap();
+
+        // Attempting to update opening balance now must be rejected
+        let update_opening = conn.execute(
+            "UPDATE money_accounts SET opening_balance_minor = 600000 WHERE id = 'acc-cash-1';",
+            [],
+        );
+        assert!(update_opening.is_err(), "Updating opening balance when movements exist must fail");
+
+        // Attempting to delete posted voucher must be rejected
+        let delete_voucher = conn.execute("DELETE FROM cashbook_vouchers WHERE id = 'vch-1';", []);
+        assert!(delete_voucher.is_err(), "Deleting posted voucher must fail");
+
+        // Attempting to update movement must be rejected
+        let update_movement = conn.execute("UPDATE cashbook_movements SET amount_minor = 200000 WHERE id = 'mov-1';", []);
+        assert!(update_movement.is_err(), "Updating movement must fail");
+
+        // Attempting to delete movement must be rejected
+        let delete_movement = conn.execute("DELETE FROM cashbook_movements WHERE id = 'mov-1';", []);
+        assert!(delete_movement.is_err(), "Deleting movement must fail");
+
+        // Attempting to alter financial fields of posted voucher must be rejected
+        let update_amount = conn.execute("UPDATE cashbook_vouchers SET amount_minor = 999 WHERE id = 'vch-1';", []);
+        assert!(update_amount.is_err(), "Altering financial fields of posted voucher must fail");
     }
 }
 

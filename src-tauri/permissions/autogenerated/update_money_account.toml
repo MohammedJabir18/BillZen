@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-money-account"
+description = "Enables the update_money_account command without any pre-configured scope."
+commands.allow = ["update_money_account"]
+
+[[permission]]
+identifier = "deny-update-money-account"
+description = "Denies the update_money_account command without any pre-configured scope."
+commands.deny = ["update_money_account"]

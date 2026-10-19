@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-cashbook-category"
+description = "Enables the create_cashbook_category command without any pre-configured scope."
+commands.allow = ["create_cashbook_category"]
+
+[[permission]]
+identifier = "deny-create-cashbook-category"
+description = "Denies the create_cashbook_category command without any pre-configured scope."
+commands.deny = ["create_cashbook_category"]

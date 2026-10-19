@@ -201,6 +201,18 @@
           "markdownDescription": "Enables the complete_business_setup command without any pre-configured scope."
         },
         {
+          "description": "Enables the create_cashbook_category command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-cashbook-category",
+          "markdownDescription": "Enables the create_cashbook_category command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the create_cashbook_party command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-cashbook-party",
+          "markdownDescription": "Enables the create_cashbook_party command without any pre-configured scope."
+        },
+        {
           "description": "Enables the create_category command without any pre-configured scope.",
           "type": "string",
           "const": "allow-create-category",
@@ -211,6 +223,12 @@
           "type": "string",
           "const": "allow-create-customer",
           "markdownDescription": "Enables the create_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the create_money_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-money-account",
+          "markdownDescription": "Enables the create_money_account command without any pre-configured scope."
         },
         {
           "description": "Enables the create_product command without any pre-configured scope.",
@@ -225,6 +243,24 @@
           "markdownDescription": "Enables the get_business_settings command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_cashbook_categories command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-cashbook-categories",
+          "markdownDescription": "Enables the get_cashbook_categories command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_cashbook_ledger command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-cashbook-ledger",
+          "markdownDescription": "Enables the get_cashbook_ledger command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_cashbook_parties command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-cashbook-parties",
+          "markdownDescription": "Enables the get_cashbook_parties command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_categories command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-categories",
@@ -235,6 +271,12 @@
           "type": "string",
           "const": "allow-get-customers",
           "markdownDescription": "Enables the get_customers command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_money_accounts command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-money-accounts",
+          "markdownDescription": "Enables the get_money_accounts command without any pre-configured scope."
         },
         {
           "description": "Enables the get_products command without any pre-configured scope.",
@@ -249,6 +291,12 @@
           "markdownDescription": "Enables the ping command without any pre-configured scope."
         },
         {
+          "description": "Enables the post_cashbook_voucher command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-post-cashbook-voucher",
+          "markdownDescription": "Enables the post_cashbook_voucher command without any pre-configured scope."
+        },
+        {
           "description": "Enables the restore_customer command without any pre-configured scope.",
           "type": "string",
           "const": "allow-restore-customer",
@@ -259,6 +307,12 @@
           "type": "string",
           "const": "allow-restore-product",
           "markdownDescription": "Enables the restore_product command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reverse_cashbook_voucher command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reverse-cashbook-voucher",
+          "markdownDescription": "Enables the reverse_cashbook_voucher command without any pre-configured scope."
         },
         {
           "description": "Enables the update_appearance_preference command without any pre-configured scope.",
@@ -291,6 +345,12 @@
           "markdownDescription": "Enables the update_guide_status command without any pre-configured scope."
         },
         {
+          "description": "Enables the update_money_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-money-account",
+          "markdownDescription": "Enables the update_money_account command without any pre-configured scope."
+        },
+        {
           "description": "Enables the update_product command without any pre-configured scope.",
           "type": "string",
           "const": "allow-update-product",
@@ -321,6 +381,18 @@
           "markdownDescription": "Denies the complete_business_setup command without any pre-configured scope."
         },
         {
+          "description": "Denies the create_cashbook_category command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-cashbook-category",
+          "markdownDescription": "Denies the create_cashbook_category command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_cashbook_party command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-cashbook-party",
+          "markdownDescription": "Denies the create_cashbook_party command without any pre-configured scope."
+        },
+        {
           "description": "Denies the create_category command without any pre-configured scope.",
           "type": "string",
           "const": "deny-create-category",
@@ -331,6 +403,12 @@
           "type": "string",
           "const": "deny-create-customer",
           "markdownDescription": "Denies the create_customer command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_money_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-money-account",
+          "markdownDescription": "Denies the create_money_account command without any pre-configured scope."
         },
         {
           "description": "Denies the create_product command without any pre-configured scope.",
@@ -345,6 +423,24 @@
           "markdownDescription": "Denies the get_business_settings command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_cashbook_categories command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-cashbook-categories",
+          "markdownDescription": "Denies the get_cashbook_categories command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_cashbook_ledger command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-cashbook-ledger",
+          "markdownDescription": "Denies the get_cashbook_ledger command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_cashbook_parties command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-cashbook-parties",
+          "markdownDescription": "Denies the get_cashbook_parties command without any pre-configured scope."
+        },
+        {
           "description": "Denies the get_categories command without any pre-configured scope.",
           "type": "string",
           "const": "deny-get-categories",
@@ -355,6 +451,12 @@
           "type": "string",
           "const": "deny-get-customers",
           "markdownDescription": "Denies the get_customers command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_money_accounts command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-money-accounts",
+          "markdownDescription": "Denies the get_money_accounts command without any pre-configured scope."
         },
         {
           "description": "Denies the get_products command without any pre-configured scope.",
@@ -369,6 +471,12 @@
           "markdownDescription": "Denies the ping command without any pre-configured scope."
         },
         {
+          "description": "Denies the post_cashbook_voucher command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-post-cashbook-voucher",
+          "markdownDescription": "Denies the post_cashbook_voucher command without any pre-configured scope."
+        },
+        {
           "description": "Denies the restore_customer command without any pre-configured scope.",
           "type": "string",
           "const": "deny-restore-customer",
@@ -379,6 +487,12 @@
           "type": "string",
           "const": "deny-restore-product",
           "markdownDescription": "Denies the restore_product command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reverse_cashbook_voucher command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reverse-cashbook-voucher",
+          "markdownDescription": "Denies the reverse_cashbook_voucher command without any pre-configured scope."
         },
         {
           "description": "Denies the update_appearance_preference command without any pre-configured scope.",
@@ -409,6 +523,12 @@
           "type": "string",
           "const": "deny-update-guide-status",
           "markdownDescription": "Denies the update_guide_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_money_account command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-money-account",
+          "markdownDescription": "Denies the update_money_account command without any pre-configured scope."
         },
         {
           "description": "Denies the update_product command without any pre-configured scope.",

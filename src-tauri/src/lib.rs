@@ -143,6 +143,17 @@ pub fn run() {
             commands::catalog::restore_customer,
             commands::catalog::get_categories,
             commands::catalog::create_category,
+
+            commands::cashbook::get_money_accounts,
+            commands::cashbook::create_money_account,
+            commands::cashbook::update_money_account,
+            commands::cashbook::get_cashbook_categories,
+            commands::cashbook::create_cashbook_category,
+            commands::cashbook::get_cashbook_parties,
+            commands::cashbook::create_cashbook_party,
+            commands::cashbook::post_cashbook_voucher,
+            commands::cashbook::reverse_cashbook_voucher,
+            commands::cashbook::get_cashbook_ledger,
         ])
         .run(tauri::generate_context!())
         .expect("error while running BillZen application");
@@ -259,6 +270,16 @@ mod tests {
         assert!(main_perms_str.contains(&"allow-restore-customer"));
         assert!(main_perms_str.contains(&"allow-get-categories"));
         assert!(main_perms_str.contains(&"allow-create-category"));
+        assert!(main_perms_str.contains(&"allow-get-money-accounts"));
+        assert!(main_perms_str.contains(&"allow-create-money-account"));
+        assert!(main_perms_str.contains(&"allow-update-money-account"));
+        assert!(main_perms_str.contains(&"allow-get-cashbook-categories"));
+        assert!(main_perms_str.contains(&"allow-create-cashbook-category"));
+        assert!(main_perms_str.contains(&"allow-get-cashbook-parties"));
+        assert!(main_perms_str.contains(&"allow-create-cashbook-party"));
+        assert!(main_perms_str.contains(&"allow-post-cashbook-voucher"));
+        assert!(main_perms_str.contains(&"allow-reverse-cashbook-voucher"));
+        assert!(main_perms_str.contains(&"allow-get-cashbook-ledger"));
 
         // 2. Verify unprivileged window is DENIED custom app-commands
         let unpriv_windows = unpriv_cap["windows"]

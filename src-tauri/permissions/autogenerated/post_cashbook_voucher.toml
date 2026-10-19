@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-post-cashbook-voucher"
+description = "Enables the post_cashbook_voucher command without any pre-configured scope."
+commands.allow = ["post_cashbook_voucher"]
+
+[[permission]]
+identifier = "deny-post-cashbook-voucher"
+description = "Denies the post_cashbook_voucher command without any pre-configured scope."
+commands.deny = ["post_cashbook_voucher"]

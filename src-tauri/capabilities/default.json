@@ -26,6 +26,16 @@
     "allow-archive-customer",
     "allow-restore-customer",
     "allow-get-categories",
-    "allow-create-category"
+    "allow-create-category",
+    "allow-get-money-accounts",
+    "allow-create-money-account",
+    "allow-update-money-account",
+    "allow-get-cashbook-categories",
+    "allow-create-cashbook-category",
+    "allow-get-cashbook-parties",
+    "allow-create-cashbook-party",
+    "allow-post-cashbook-voucher",
+    "allow-reverse-cashbook-voucher",
+    "allow-get-cashbook-ledger"
   ]
 }

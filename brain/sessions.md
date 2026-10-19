@@ -710,7 +710,77 @@
   - Repository documentation and plans checked against codebase invariants.
   - Zero code regression: Existing 53 Rust tests, 14 Vitest unit tests, and production build remain clean.
 - **Unfinished Tasks / Immediate Next Steps**:
-  - Milestone C1A: Implement `v7_cashbook_foundation.sql`, Rust domain entities, checked arithmetic, sequence generator, native Tauri commands, and transaction integrity tests.
+  - [Completed in Session 8] Milestone C1A: Implement `v7_cashbook_foundation.sql`, Rust domain entities, checked arithmetic, sequence generator, native Tauri commands, and transaction integrity tests.
+  - Milestone C1B: React Cashbook UI, entry modal, running balance ledger, and printable voucher PDF engine.
+
+## 2026-10-19 — Milestone C1A: Cashbook Schema, Domain Rules, Native Posting Service & Integrity Tests
+- **Goals**: Deliver Milestone C1A of the offline company cashbook: SQLite schema migration `v7_cashbook_foundation.sql`, Rust domain models and arithmetic helpers, background database worker methods with two-step negative balance confirmation and zero double-cancellation reversal semantics, Tauri command registration with window capabilities, and comprehensive integration tests.
+- **Completed Tasks**:
+  - **1. Database Migration `v7_cashbook_foundation.sql` & Integrity Triggers**:
+    - Created tables: `money_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_sequences`, and `cashbook_audit_events`.
+    - Seeded 9 default categories across income, expense, and both.
+    - Implemented triggers:
+      - `trg_prevent_posted_voucher_update`: strictly forbids editing financial/snapshot fields; permits only narrow reversal linkage updates (`is_reversed`, `reversed_by_voucher_id`, `reversed_at`).
+      - `trg_prevent_posted_voucher_delete`: blocks row deletion of posted vouchers.
+      - `trg_prevent_cashbook_movement_update` & `trg_prevent_cashbook_movement_delete`: guarantees append-only immutability of ledger movements.
+      - `trg_cashbook_prevent_opening_balance_update_when_movements_exist`: blocks modifying account opening balance or currency once movements exist.
+      - `trg_business_settings_prevent_currency_change_when_cashbook_records_exist`: protects base currency from being altered when posted vouchers or non-zero accounts exist.
+    - Registered `V7_MIGRATION_SQL` in `src-tauri/src/db/mod.rs` with forward runner and SHA-256 verification.
+  - **2. Rust Domain Arithmetic & Idempotency Engine**:
+    - Created `src-tauri/src/domain/cashbook.rs` with `MAX_MONEY_MINOR` ($10^{11}$), `MAX_TOTAL_MINOR` ($10^{14}$), checked math (`calculate_running_balance`), `validate_money_amount`, `compute_client_intent_hash` (excluding timestamps/live profiles), and `format_voucher_number` (`{PREFIX}-{YYYYMM}-{SEQUENCE:05d}`).
+    - Added unit tests for amount validation, running balance math, voucher numbering, and hash stability.
+  - **3. Native Database Worker Operations**:
+    - Added request variants and async `DbWorkerHandle` methods:
+      - `get_money_accounts`, `create_money_account`, `update_money_account`
+      - `get_cashbook_categories`, `create_cashbook_category`
+      - `get_cashbook_parties`, `create_cashbook_party`
+      - `post_cashbook_voucher`, `reverse_cashbook_voucher`, `get_cashbook_ledger`
+    - Implemented Two-Step Negative Balance Confirmation:
+      - Returns `RequiresConfirmation` without mutating rows or consuming sequence numbers when unconfirmed.
+      - When confirmed (`confirmed_negative_balance = true`), rechecks atomically inside immediate transaction and logs `negative_balance_confirmed` audit event.
+    - Implemented Reversal Workflow:
+      - Generates equal and opposite movement (+ for reversed outflow, - for reversed inflow).
+      - Reversal sequence format `RCP-REV-...` / `PAY-REV-...`.
+      - Updates original voucher with narrow reversal linkage.
+      - Reversals of reversals strictly forbidden.
+    - Implemented Windowed CTE Ledger & Cashbook Summary:
+      - Calculates running balance per movement via window function `SUM(m.amount_minor) OVER (PARTITION BY m.account_id ORDER BY m.business_date ASC, m.sequence_number ASC, m.id ASC) + a.opening_balance_minor`.
+      - Calculates summary: `total_cash_minor`, `period_inflows_minor`, `period_outflows_minor`, and `net_operating_cash_flow_minor` (excluding capital, loan, advance, and transfer).
+  - **4. Tauri Commands & Window Capability Boundaries**:
+    - Created `src-tauri/src/commands/cashbook.rs`.
+    - Registered commands in `src-tauri/src/commands/mod.rs` and `src-tauri/src/lib.rs`.
+    - Added commands to app manifest in `src-tauri/build.rs`.
+    - Granted permissions in `src-tauri/capabilities/default.json` and verified `unprivileged-window` denial in unit tests.
+  - **5. Comprehensive Integration Tests**:
+    - Authored `src-tauri/tests/cashbook_worker_tests.rs` with 7 integration tests:
+      - Mathematical invariant: Opening 5,000 + Inflow 1,000 = 6,000.
+      - Payment & Reversal lifecycle: Opening 0 + Inflow 10,000 - Outflow 2,500 = 7,500; Reversal of payment restores balance to 10,000.
+      - Negative balance guard: Unconfirmed payment aborted with zero sequence/movement; confirmed payment succeeds and logs audit event.
+      - Idempotency replay & conflict: Identical payload returns original; altered payload produces 409 Conflict.
+      - Reversal constraints: Duplicate reversal rejected; reversing a reversal rejected.
+      - Trigger protections: Direct SQL update/delete of movements, posted vouchers, and opening balance aborted by triggers; base currency change rejected.
+      - Net operating cash flow: Capital injection excluded from operating flow; expense reversal neutralizes expense.
+- **Files Modified / Added**:
+  - `src-tauri/src/db/migrations/v7_cashbook_foundation.sql` (Added)
+  - `src-tauri/src/domain/cashbook.rs` (Added)
+  - `src-tauri/src/commands/cashbook.rs` (Added)
+  - `src-tauri/tests/cashbook_worker_tests.rs` (Added)
+  - `src-tauri/src/db/mod.rs` (Modified)
+  - `src-tauri/src/domain/mod.rs` (Modified)
+  - `src-tauri/src/db/worker.rs` (Modified)
+  - `src-tauri/src/commands/mod.rs` (Modified)
+  - `src-tauri/src/lib.rs` (Modified)
+  - `src-tauri/build.rs` (Modified)
+  - `src-tauri/capabilities/default.json` (Modified)
+  - `docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md` (Modified)
+  - `brain/sessions.md` (Modified)
+- **Verification Evidence**:
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 65 passed (58 unit tests + 7 integration tests), 0 failed.
+  - `npm test`: 14 passed (14 unit tests), 0 failed.
+  - `npm run build`: Production build passed (`tsc && vite build`).
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone C1B: React Cashbook UI (dashboard summary, entry modal with receipt/payment toggle, running balance ledger, filters) and printable voucher PDF engine (`RCP-`, `PAY-`).
+
 
 
 

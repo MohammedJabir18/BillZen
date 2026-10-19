@@ -144,9 +144,17 @@ Every voucher entry must be classified into one of the following business classe
    - Initial cash/bank balance established upon account creation.
    - Counted once in account balance. **Strictly excluded from operating income.**
 
-### Summary Formulation
-$$\text{Total Cash Balance} = \sum \text{All Inflows} - \sum \text{All Outflows} + \sum \text{Opening Balances}$$
-$$\text{Operating Net Margin} = \sum \text{Operating Inflows} - \sum \text{Operating Outflows} \quad (\neq \text{Cash Balance})$$
+### Summary Formulation & Ledger Distinctions
+$$\text{Account Balance} = \text{opening\_balance\_minor} + \sum_{\text{movements of account}} \text{movement\_minor}$$
+$$\text{Total Company Cash} = \sum_{\text{all accounts}} \text{Account Balance}$$
+$$\text{Net Operating Cash Flow} = \sum \text{Operating Inflows} - \sum \text{Operating Outflows}$$
+
+> [!IMPORTANT]
+> **Key Distinctions:**
+> 1. `Net Operating Cash Flow` measures operating cash generation over a period. It is strictly distinct from individual account balances and must **never** be used as an account closing balance.
+> 2. `Net Operating Cash Flow` is **never** labeled as "Operating Net Margin" or "Profit".
+> 3. Account balances include all movements (operating, capital, loans, advances, refunds, transfers, and reversals) plus the initial account opening balance.
+> 4. Internal transfers (`transfer`) and initial opening balances are strictly excluded from company operating cash flow totals.
 
 ---
 
@@ -157,28 +165,48 @@ $$\text{Operating Net Margin} = \sum \text{Operating Inflows} - \sum \text{Opera
 - **`posted`**: Transactionally committed. Generates immutable ledger movements. Generates a permanent sequential voucher number. Snapshot columns are frozen. **Direct UPDATE or DELETE of posted financial rows is prohibited by database triggers.**
 - **`reversed`**: A posted voucher that has been neutralized by a linked reversal voucher. Its original record and sequence number remain permanently visible in the audit trail.
 
-### 5.2 Zero Double-Cancellation Reversal Principle
+### 5.2 Zero Double-Cancellation Reversal Principle & Triggers
 To correct or void an errant posted voucher:
 1. The operator issues a **Reversal**.
-2. BillZen generates a linked **Reversal Voucher** (e.g. `RCP-REV-202610-00001` or `PAY-REV-202610-00001`).
+2. BillZen generates a linked **Reversal Voucher** (e.g. `RCP-REV-202610-00001` or `PAY-REV-202610-00001`) with flag `is_reversal = 1`.
 3. The reversal voucher posts **equal and opposite** movements to the ledger:
    - If original was `INFLOW` of $+10,000$, reversal movement is $-10,000$.
 4. **Single Source of Truth Invariant:**
-   - The query for an account's balance is simply:
-     $$\text{Balance} = \text{OpeningBalance} + \sum_{\text{all movements}} \text{movement\_minor}$$
-   - The original movement ($+10,000$) and reversal movement ($-10,000$) both exist in the ledger table. Their algebraic sum is $0$.
-   - **Critical Rule:** The original voucher is marked `is_reversed = 1` solely for UI badge display and preventing duplicate reversals. **The balance query does NOT filter out reversed vouchers**, preventing double deduction.
+   - The query for an account's balance is:
+     $$\text{Balance} = \text{opening\_balance\_minor} + \sum_{\text{all movements}} \text{movement\_minor}$$
+   - The original movement ($+10,000$) and reversal movement ($-10,000$) both exist in the `cashbook_movements` table. Their algebraic sum is $0$.
+   - **Critical Rule:** The original voucher is marked `is_reversed = 1` solely for UI badge display and audit linkage. **The balance query does NOT filter out reversed vouchers**, preventing double cancellation.
+   - In reporting, the reversal of an inflow neutralizes that inflow category (subtracting from inflows) rather than inflating outflows, ensuring category summaries reconcile.
 
-### 5.3 Idempotency & Conflict Prevention
-1. **Double-Tap / Retry Guard:**
-   - Every voucher creation request must supply a client-generated UUID `idempotency_key`.
-   - The server/worker computes a SHA-256 hash of the normalized request payload (`account_id`, `amount_minor`, `direction`, `business_date`, `classification`, `party_id`).
+5. **Reversal Immutability & Linkage Security:**
+   - **Movement Immutability**: Triggers `trg_prevent_cashbook_movement_update` and `trg_prevent_cashbook_movement_delete` strictly reject ANY modification or deletion of rows in `cashbook_movements`.
+   - **Narrow Linkage Update**: The trigger `trg_prevent_posted_voucher_update` permits updating ONLY `is_reversed`, `reversed_by_voucher_id`, and `reversed_at` on an unreversed posted voucher (`OLD.is_reversed = 0 AND NEW.is_reversed = 1`). Modifying amounts, accounts, dates, or snapshots is strictly aborted by trigger.
+   - **Reversal of Reversal Policy**: A voucher that is itself a reversal (`is_reversal = 1`) can **NEVER** be reversed. Attempting to reverse a reversal is rejected with `CannotReverseReversalVoucher`.
+   - **Single Reversal Invariant**: `reversed_by_voucher_id TEXT UNIQUE`. Attempting to reverse an already-reversed voucher is rejected with `VoucherAlreadyReversed`.
+
+### 5.3 Canonical Client-Intent Idempotency Hashing
+1. **Canonical Intent Hash:**
+   - Every creation request must supply a client-generated UUID `idempotency_key`.
+   - The worker computes a SHA-256 hash across a strictly normalized JSON string of **client-submitted persisted intent**:
+     ```json
+     {
+       "account_id": "acc-123",
+       "amount_minor": 1000000,
+       "business_date": "2026-10-19",
+       "category_id": "cat-456",
+       "classification": "operating_expense",
+       "direction": "outflow",
+       "notes": "Office rent",
+       "party_id": "party-789",
+       "payment_method": "bank_transfer",
+       "reference_note": "CHQ-9876"
+     }
+     ```
+   - **Strict Exclusion**: Server-generated voucher numbering, system timestamps (`created_at`, `posted_at`), and live business profile snapshots are **strictly excluded** from the payload hash. This guarantees that a legitimate retry after a network glitch or profile update will not trigger a false conflict.
+2. **Deterministic Conflict Resolution:**
    - If `idempotency_key` already exists in `cashbook_vouchers`:
      - If `payload_hash` matches: Return the existing voucher record (Idempotent replay success).
-     - If `payload_hash` differs: Abort immediately with error `IdempotencyKeyConflict` (HTTP 409 equivalent). Never return an unrelated voucher or overwrite existing data.
-2. **Duplicate Reversal Prevention:**
-   - Column `reversed_by_voucher_id TEXT UNIQUE` on `cashbook_vouchers`.
-   - Attempting to reverse a voucher that already has `reversed_by_voucher_id IS NOT NULL` is rejected with `VoucherAlreadyReversed`.
+     - If `payload_hash` differs: Abort immediately with `IdempotencyKeyConflict` (409 Conflict). Never overwrite existing data or return an unrelated voucher.
 
 ---
 
@@ -247,14 +275,35 @@ END;
 
 ## 8. Account & Date Policies
 
-### 8.1 Overdraft & Negative Balance Policy
-- Cash accounts (physical cash drawers) normally cannot be negative. However, real-world data entry lag (e.g. paying an expense before recording morning receipts) can cause temporary negative balances.
-- Column `allow_negative_balance INTEGER NOT NULL DEFAULT 0` on `money_accounts`:
-  - `0` (Strict/Cash Drawer): UI warns operator if transaction causes negative balance, with optional manager override flag.
-  - `1` (Bank Overdraft / Line of Credit): Account balance is permitted to be negative up to an optional credit limit.
+### 8.1 Overdraft & Explicit Negative Balance Confirmation Policy (Owner Approved)
+- Physical cash accounts have `allow_negative_balance = 0`.
+- **Two-Step Confirmation Invariant (Zero Premature Mutation)**:
+  - If a payment (or receipt reversal) would cause $\text{Account Balance} < 0$ on an account with `allow_negative_balance = 0`, an unconfirmed request (`confirmed_negative_balance = false` or omitted) is **rejected without mutation**:
+    - Zero money movements are written.
+    - Zero voucher sequence numbers are consumed or allocated.
+    - The server returns a structured response:
+      ```json
+      {
+        "status": "requires_confirmation",
+        "current_balance_minor": 200000,
+        "amount_minor": 250000,
+        "projected_balance_minor": -50000,
+        "message": "Payment will cause Cash balance to become negative (-500.00). Confirm override?"
+      }
+      ```
+  - When the operator explicitly confirms (`confirmed_negative_balance = true`):
+    - The transaction atomically rechecks the balance condition inside SQLite.
+    - The voucher is posted with standard numbering.
+    - An explicit event is appended to `cashbook_audit_events`:
+      `event_type = 'negative_balance_confirmed'`, recording projected balance and operator confirmation.
+  - Applies to all balance-reducing operations, including Payment posting and Receipt reversal.
 
-### 8.2 Opening Balance Immutability
-- An account's opening balance can only be established upon initial record creation.
+### 8.2 Opening Balance Representation & Immutability
+- **Single Representation Rule**: For C1, an account's initial opening balance is recorded **exclusively** in `money_accounts.opening_balance_minor`. It does **NOT** generate a duplicate row in `cashbook_movements`.
+- **Balance Calculation Invariant**:
+  $$\text{Account Balance} = \text{opening\_balance\_minor} + \sum_{\text{movements}} \text{movement\_minor}$$
+  - **Regression Test Invariant**: An account with opening balance ₹5,000.00 plus a posted receipt of ₹1,000.00 yields a balance of exactly ₹6,000.00.
+- **Audited Opening Adjustments**: Once any movements exist for an account, `opening_balance_minor` is strictly locked by database trigger `trg_cashbook_prevent_opening_balance_update_when_movements_exist`. Any subsequent correction to historical opening funds must be recorded via an explicit `opening_adjustment` audit record or adjustment voucher, preserving auditability.
 - Once posted vouchers exist for that account, direct modification of `opening_balance_minor` is rejected by trigger. Any subsequent opening adjustment must be posted as an explicit `Opening Balance Adjustment` audit voucher.
 
 ### 8.3 Account Archiving
@@ -293,15 +342,25 @@ Sequences are allocated atomically from `cashbook_sequences` within the posting 
 
 ## 9. Portable Backup & Safe Restore
 
-### 9.1 Format Specification (`billzen-cashbook-backup-v1.json`)
-A portable backup is a single versioned JSON document (or zipped JSON + media archive):
+### 9.1 Backup Scopes & Structure
+BillZen defines two explicit backup scopes for Milestone C1C:
+1. **Whole-Workspace Replacement Archive (`billzen-workspace-backup-v1.json`)**:
+   - Complete snapshot of all business data: business profile, products, customers, categories, stock movements, invoices, invoice items, money accounts, cashbook categories, cashbook parties, cashbook vouchers, cashbook movements, sequences, and audit events.
+   - Intended for full-device migration or complete catastrophic recovery.
+2. **Cashbook-Only Archive (`billzen-cashbook-backup-v1.json`)**:
+   - Contains exclusively cashbook tables (`money_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_sequences`, `cashbook_audit_events`).
+   - Restores/imports into an existing workspace without destroying catalog, customer, or invoice data.
+
 ```json
 {
   "format_version": "1.0",
+  "scope": "workspace",
   "app_version": "0.1.0",
   "generated_at": 1729337400000,
   "checksum_sha256": "...",
   "business_settings": { ... },
+  "products": [ ... ],
+  "customers": [ ... ],
   "money_accounts": [ ... ],
   "cashbook_categories": [ ... ],
   "cashbook_parties": [ ... ],
@@ -312,17 +371,23 @@ A portable backup is a single versioned JSON document (or zipped JSON + media ar
 }
 ```
 
-### 9.2 Safe Restore Protocol (Preventing Data Loss)
-1. **Never copy a live WAL database:** A running SQLite database with active WAL and shared memory (`-wal`, `-shm`) will corrupt if copied naively. Native backup uses SQLite Online Backup API (`sqlite3_backup_*`) or an exclusive transaction lock.
-2. **Pre-Restore Validation:**
-   - Verify `format_version == "1.0"`.
-   - Recompute SHA-256 payload checksum.
-   - Run financial integrity check: Verify that $\sum \text{movements} + \text{opening} == \text{balance}$ for all accounts in the payload.
-3. **Atomic Replacement & Recovery Copy:**
-   - Before applying the restore, the existing active database is copied to a timestamped backup: `billzen.db.recovery-{timestamp}`.
-   - On Native: Data is restored into a staging database `billzen.staging.db`, `PRAGMA integrity_check` is executed, and then files are atomically swapped.
-   - On Web: Executed inside an atomic multi-store IndexedDB readwrite transaction. If any record fails insertion, the transaction aborts and original data is untouched.
-4. **No Silent Merging:** Deliberate restore replaces the current workspace with the backup contents. Datasets from two independent devices are never silently merged without user direction.
+### 9.2 Safe Restore Protocol (Preventing Data Loss & Corruption)
+1. **Never copy a live WAL database:** A running SQLite database in WAL mode cannot be safely copied via raw file I/O. Native backup uses the SQLite Online Backup API (`sqlite3_backup_*`) or an exclusive worker lock.
+2. **Canonical Checksum Bytes:** SHA-256 checksum is computed over the canonical canonicalized UTF-8 JSON bytes of all table arrays sorted by primary keys.
+3. **Four-Tier Pre-Restore Validation:**
+   - *Tier 1: Format & Checksum Verification*: Validate `format_version == "1.0"` and verify canonical payload SHA-256 matches header `checksum_sha256`.
+   - *Tier 2: Referential Integrity*: Staged database must pass `PRAGMA foreign_key_check;` with zero violations.
+   - *Tier 3: Database Structural Integrity*: Staged database must pass `PRAGMA integrity_check;` returning `"ok"`.
+   - *Tier 4: Financial Balance Invariant*: For every account in the payload, verify:
+     $$\text{Account Balance} == \text{opening\_balance\_minor} + \sum_{\text{movements}} \text{movement\_minor}$$
+4. **Worker Connection Lifecycle & Atomic Staging:**
+   - Worker writes the incoming dataset into a temporary staging database: `billzen.staging.db`.
+   - Runs Tiers 2, 3, and 4 on `billzen.staging.db`.
+   - If validation passes, active connection checkpoints and pauses.
+   - Active database is copied to a timestamped backup: `billzen.db.recovery-{timestamp}`.
+   - Staging file is atomically renamed/swapped to `billzen.db`.
+   - Worker connection reopens and verifies `PRAGMA integrity_check;`.
+5. **No Silent Merging:** Datasets from two independent devices are never silently merged. A deliberate restore replaces data cleanly with an explicit recovery copy preserved.
 
 ---
 
@@ -330,7 +395,7 @@ A portable backup is a single versioned JSON document (or zipped JSON + media ar
 
 ```mermaid
 flowchart LR
-    C0["Slice C0<br/>Spec & Plan<br/>(Current)"] --> C1A["Slice C1A<br/>Schema & Native Engine<br/>(Integrity Tests)"]
+    C0["Slice C0<br/>Spec & Plan<br/>(Completed)"] --> C1A["Slice C1A<br/>Schema & Native Engine<br/>(In Progress)"]
     C1A --> C1B["Slice C1B<br/>Cashbook UI & PDF<br/>(Vouchers & Balances)"]
     C1B --> C1C["Slice C1C<br/>Web IDB & Backup/Restore<br/>(Cross-Platform Gate)"]
     C1C --> C2["Slice C2<br/>Transfers & Reports<br/>(Contra, XLSX)"]
@@ -339,8 +404,8 @@ flowchart LR
 ```
 
 ### Milestone C1 Breakdown (Internal Sections of One Usable Release)
-- **Slice C1A (Backend & Domain Engine):**
-  - SQLite migration `v7_cashbook_foundation.sql`.
+- **Slice C1A (Backend & Domain Engine - Current Focus):**
+  - Migration `v7_cashbook_foundation.sql` registered in `src-tauri/src/db/mod.rs`.
   - Rust domain entities, checked arithmetic, sequence generator, and idempotency engine.
   - Rust Tauri commands for accounts, categories, parties, and voucher posting/reversal.
   - Integration tests for rollback, negative balances, and double-reversal rejection.
@@ -366,17 +431,17 @@ Before Milestone C1 is declared complete, the following empirical checks must pa
 
 ---
 
-## 11. Unresolved Owner Decisions
+## 11. Owner Decisions (Resolved & Locked)
 
-The following architectural questions are explicitly surfaced for the business owner:
+1. **Physical Cash Overdraft Action:** **RESOLVED**  
+   - If a Payment would make Cash balance negative, show a warning dialog and allow posting only after explicit owner confirmation (`confirmed_negative_balance: true`).
+   - Record confirmation in `cashbook_audit_events`.
+   - Initial unconfirmed request does not mutate ledger or consume sequence numbers.
+2. **Voucher Number Prefix:** **RESOLVED**  
+   - Fixed standard prefixes (`RCP` for receipts, `PAY` for payments, `RCP-REV` / `PAY-REV` for reversals, `TRF` for transfers in C2).
+3. **Party Credit Tracking:** **RESOLVED**  
+   - Keep party identity and transaction filtering in C1.
+   - Defer full credit/dues accounting to C2 (cash transactions alone do not establish receivables/payables).
+4. **Multi-User / Sync:** **RESOLVED**  
+   - Single operator on independent local device. No login, staff roles, cloud dependency, synchronization, or automatic dataset merging.
 
-1. **Physical Cash Overdraft Action:** When an operator enters a cash payment that exceeds physical cash in hand, should the default behavior be:
-   - **Option A (Warning with Continue):** Show a prominent warning dialog ("Cash in hand will become negative: -₹500.00. Proceed anyway?") allowing entry.
-   - **Option B (Strict Block):** Hard block with error ("Cannot disburse payment: insufficient cash in drawer") requiring an opening balance adjustment or prior receipt.
-   *(Recommendation: Option A, to avoid halting busy shop operations during data catch-up).*
-
-2. **Voucher Number Prefix Customization:** Should the voucher numbering prefixes (`RCP`, `PAY`, `TRF`) be fixed constants or configurable in Settings per company?
-   *(Recommendation: Fixed standard prefixes for C1, made customizable in Settings in C2).*
-
-3. **Party Credit Tracking:** Should ad-hoc parties (non-customers) track accumulated payable/receivable balances in C1, or should party running balances be deferred to C2?
-   *(Recommendation: Record party snapshots on vouchers in C1; full party ledger statements in C2).*
