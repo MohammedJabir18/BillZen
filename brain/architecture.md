@@ -399,3 +399,24 @@ flowchart TD
 - Full automated 27-assertion verification passed on headless Android 14 (API 34) emulator (`npm run test:android-update`), proving clean baseline install, seeding, 5 tampering rejections, permission flow, back-key cancellation, real in-place upgrade (v1005 → v1006), and zero data loss.
 - Signed ARM64 bootstrap APK generated at `dist-android/billzen-beta-v0.1.1-arm64-v8a.apk` (20,544,136 bytes, SHA-256 `495f086218303099edece69c2435106e36bf9072b2821085ea6f9f7897ab5d99`, 16 KB page alignment, 16 KB packaging alignment).
 - Production update manifest signed with Ed25519 private key at `dist-android/android-update.json`.
+
+## Dashboard, Reporting & Analytics Engine (v0.1.2 / versionCode 1007)
+- **Calculation Parity Contract**: Shared calculation logic implemented in both Rust SQLite worker (`src-tauri/src/db/worker.rs`) and TypeScript IndexedDB adapter (`src/adapters/web_cashbook_db.ts`):
+  - $\text{Opening Balance} = \sum \text{Opening Balances} + \sum_{\text{prior}} \text{Inflows} - \sum_{\text{prior}} \text{Outflows}$
+  - $\text{Closing Balance} = \text{Opening Balance} + \text{Period Inflows} - \text{Period Outflows}$
+  - $\text{Net Cash Change} = \text{Period Inflows} - \text{Period Outflows}$ (labeled as liquidity/change, never as "profit")
+  - $\text{Operating Cash Flow} = \sum_{\text{period}} \text{Operating Inflows} - \sum_{\text{period}} \text{Operating Outflows}$ (excludes loan/capital movements)
+  - Detail and search filters filter visible ledger rows without mutating full period opening, inflow, outflow, or closing balances.
+- **Dashboard Architecture (`DashboardView.tsx`)**:
+  - Default view is set to "Today" in configured business timezone.
+  - 4 primary cards: Money Received, Money Paid, Net Cash Change, and Closing Balance (featured card in `#ceeaa0`).
+  - Cash breakdown row displaying active account opening balances.
+  - Simple View: 5 most recent transactions with link to full view, plus visual cash movement equation and explicit non-profit disclaimer.
+  - Detailed Analytics View: Pure SVG/CSS period bar chart (grouped by day or month) and category spending breakdown with percentage share and loan/capital helper notice.
+- **Reporting & Export Subsystem (`ReportsView.tsx`)**:
+  - Period controls: Today, Month, Year, and Custom Date Range.
+  - Multi-factor filtering: search query, flow direction, category, classification, and payment method.
+  - Balance summary bar showing period totals alongside filter matching notification banner.
+  - Dedicated A4 printable document (`PrintableReportDocument.tsx`) with repeated table headers, business particulars, and strict CSS print isolation (`#printable-report-root`).
+  - RFC 4180 CSV export (`csv_export.ts`) with CWE-1236 spreadsheet formula injection defense (prepends `'` to cells starting with `=`, `+`, `-`, `@`, `\t`, `\r`).
+- **Data Flow**: Documented via Archify specification (`docs/diagrams/reporting-data-flow.spec.json`) and rendered diagram (`docs/diagrams/reporting-data-flow.html`).

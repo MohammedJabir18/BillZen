@@ -1144,3 +1144,59 @@
 - Artifacts: docs/reviews/2026-10-20-updates-and-reporting-readiness.md; docs/mockups/2026-10-20-dashboard-reports-v1.html; .gitignore ignores .superpowers scratch. Browser companion remains available for owner feedback; it is a design prototype, not the production report engine.
 - Next: get mockup feedback, finish an explicit reviewed reporting design/plan, resolve CI/updater authorization evidence, then implement native/web aggregation parity before report UI/PDF/CSV. Preserve integer money, business timezone, historical opening/closing, reversals and separate search-matching totals. No net-cash-as-profit labels, no extra cloud/AI services.
 - Owner feedback: accepted the shown dashboard/report mockup with “ok”. Visual direction is settled; prepare the Antigravity handoff for prerequisite corrections and real shared reporting implementation. Review/prototype checkpoint is local commit ae9b862; push failed because Git CLI could not obtain a username in noninteractive mode. No connector credentials were extracted or repurposed. Native runtime acceptance and public release must not be assumed from this design checkpoint.
+
+## 2026-10-20 — Milestone C1.5: Prerequisites, Calculation Parity, Dashboard & Reporting Engine (v0.1.2 / 1007)
+- **Goals**: Resolve responsive test navigation defect and updater unsigned fallback, establish complete Rust worker and TypeScript IndexedDB reporting calculation contract parity, implement owner-approved Today default dashboard and detailed analytics, deliver period/custom range reports with multi-factor filtering, A4 printable reports, and RFC 4180 CSV export with formula injection defenses, and package version 0.1.2 / versionCode 1007 release artifacts.
+- **Completed Tasks**:
+  - **Prerequisites & Defect Corrections (Commit `77be615`)**:
+    - `scripts/verify_responsive_playwright.js`: Navigated to products tab before opening modal, resolving previous CI failure on responsive verification.
+    - `src-tauri/src/commands/updates.rs`: Removed unsigned install-approved fallback from disk; restricted update installation exclusively to memory-verified signed release metadata.
+    - `docs/android-update-delivery.md`: Reconciled release documentation with actual recovered signing setup.
+    - `docs/superpowers/plans/2026-10-20-dashboard-reports.md`: Authored comprehensive implementation plan.
+  - **Reporting Parity Engine (Commit `33302c5`)**:
+    - Created shared oracle fixture `shared/fixtures/cashbook_reporting.json` covering review baseline (₹100 opening, ₹50 operating inflow, ₹200 loan inflow), 3-decimal KWD, and multi-period reversals.
+    - Implemented parity in `src/adapters/web_cashbook_db.ts`: cumulative opening balance before period start, independent period inflows/outflows, operating cash flow for operating classifications only, and separation of filter matching counts from balance summary.
+    - Verified parity across `src/adapters/web_cashbook_db.test.ts` (12/12 passing) and Rust worker integration test `test_cashbook_reporting_contract_parity` in `src-tauri/tests/cashbook_worker_tests.rs` (15/15 passing).
+  - **Dashboard, Reports & Exports Implementation (Commit `aa323fa`)**:
+    - Added multilingual translations (`en`, `ml`, `ar`) across all new reporting surfaces.
+    - `src/components/DashboardView.tsx`: Built default Today dashboard matching approved mockup (`#ceeaa0` featured closing card, 4 summary cards, cash breakdown row, simple recent transactions view, non-profit disclaimer, and detailed SVG bar chart analytics view).
+    - `src/components/ReportsView.tsx`: Built comprehensive reports screen with period switches (Today, Month, Year, Custom), date navigation, search and multi-factor filters (direction, category, classification, payment method), balance summary bar, and filter matching notification banner.
+    - `src/components/PrintableReportDocument.tsx`: Built dedicated A4 printable report document with repeated table headers and print media isolation.
+    - `src/utils/csv_export.ts`: Built RFC 4180 CSV exporter with CWE-1236 spreadsheet formula injection defenses (prepending `'` to `=`, `+`, `-`, `@`, `\t`, `\r`).
+    - `docs/diagrams/reporting-data-flow.spec.json` & `.html`: Rendered Archify reporting data-flow specification and diagram.
+    - `scripts/verify_dashboard_reports.js`: Playwright acceptance suite verifying all 25 assertions across 9 scenarios.
+  - **Version Alignment & Release Packaging (v0.1.2 / versionCode 1007)**:
+    - Bumped `release/version.json`, `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` to version `0.1.2` and Android `versionCode: 1007`.
+    - Verified version alignment via `node scripts/release/version.mjs`.
+    - Built Linux standalone release executable: `src-tauri/target/release/billzen` (v0.1.2).
+    - Built and verified ARM64 release APK: `dist-android/billzen-beta-v0.1.2-arm64-v8a.apk` (20,535,944 bytes, SHA-256: `949551401f8a4fba919dd9e6381310cef38d97a8b0774a796658f412b9ffeb34`, 16 KB ELF load alignment, 16 KB packaging alignment, production v2+v3 signature).
+    - Generated Ed25519 signed production manifest: `dist-android/android-update.json` using pinned key `pNYmOtwIbds59TbdaplsW2JVTXoYl/piCQSu/crdg60=`.
+- **Files Modified / Added**:
+  - `package.json`
+  - `src/App.tsx`
+  - `src/adapters/web_cashbook_db.ts`, `src/adapters/web_cashbook_db.test.ts`
+  - `src/components/CashbookView.tsx`
+  - `src/components/DashboardView.tsx`, `src/components/DashboardView.test.tsx`
+  - `src/components/ReportsView.tsx`, `src/components/ReportsView.test.tsx`
+  - `src/components/PrintableReportDocument.tsx`, `src/components/PrintableReportDocument.test.tsx`
+  - `src/i18n/index.ts`
+  - `src/styles/globals.css`
+  - `src/types/cashbook.ts`, `src/types/index.ts`
+  - `src/utils/csv_export.ts`, `src/utils/csv_export.test.ts`
+  - `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`, `release/version.json`
+  - `src-tauri/src/commands/updates.rs`, `src-tauri/tests/cashbook_worker_tests.rs`
+  - `scripts/verify_dashboard_reports.js`, `scripts/verify_responsive_playwright.js`
+  - `dist-android/billzen-beta-v0.1.2-arm64-v8a.apk`, `dist-android/manifest-payload-v0.1.2.json`, `dist-android/android-update.json`
+  - `docs/diagrams/reporting-data-flow.spec.json`, `docs/diagrams/reporting-data-flow.html`
+  - `docs/verification-status.md`, `brain/architecture.md`, `brain/sessions.md`
+- **Verification Summary**:
+  - Frontend Vitest: 53/53 tests passed across 11 files.
+  - Rust Backend: 90/90 tests passed across unit, worker, recovery, and update suites.
+  - Release Script Tests: 7/7 tests passed.
+  - Playwright Dashboard & Reports Suite: 25/25 assertions passed across 9 scenarios (`test_artifacts/dashboard_reports/dashboard_reports_verification_report.json`).
+  - Playwright Responsive Suite: All 6 viewports passed with zero horizontal scroll (`test_artifacts/responsive/responsive_verification_report.json`).
+  - Theme Contrast Suite: All 104 desktop & mobile checks passed cleanly.
+  - PDF Isolation Suite: All 3 A4/80mm voucher and invoice scenarios passed.
+- **Unfinished Tasks / Next Steps**:
+  - Push commits to GitHub repository `MohammedJabir18/BillZen`.
+  - Proceed with Milestone C2: Transfers, Statements & Workbooks.
