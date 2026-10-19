@@ -19,6 +19,7 @@
     "test:native-probe": "node scripts/run_native_probe.js",
     "test:android-runtime": "node scripts/verify_android_runtime.js",
     "test:android-update": "node scripts/verify_android_update_flow.js",
+    "test:dashboard": "node scripts/verify_dashboard_reports.js",
     "tauri": "tauri",
     "icons:generate": "node scripts/generate_icons.mjs"
   },

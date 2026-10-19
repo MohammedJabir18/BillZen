@@ -209,3 +209,19 @@ export interface CashbookLedgerFilter {
   search?: string | null;
   include_archived?: boolean | null;
 }
+
+export interface ReportPrintData {
+  summary: CashbookSummary;
+  entries: CashbookLedgerEntry[];
+  periodTitle: string;
+  dateRangeText: string;
+  accountName?: string;
+  filterSummary?: string;
+  businessName?: string;
+  taxIdentifier?: string | null;
+  phone?: string | null;
+  currencyCode?: string;
+  currencyExponent?: number;
+  timezone?: string;
+  generatedAt?: string;
+}

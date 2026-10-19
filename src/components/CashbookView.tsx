@@ -51,9 +51,16 @@ interface CashbookViewProps {
   settings: BusinessSettings;
   language: Language;
   onSetActivePrintDocument?: (doc: ActivePrintDocument) => void;
+  initialModal?: 'inflow' | 'outflow' | null;
+  onClearInitialModal?: () => void;
 }
 
-export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActivePrintDocument }) => {
+export const CashbookView: React.FC<CashbookViewProps> = ({
+  settings,
+  onSetActivePrintDocument,
+  initialModal,
+  onClearInitialModal,
+}) => {
   const queryClient = useQueryClient();
   const currencyExponent = settings.currency_exponent ?? 2;
   const currencyCode = settings.currency_code ?? 'INR';
@@ -76,6 +83,14 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
   const [viewingVoucher, setViewingVoucher] = useState<CashbookVoucher | null>(null);
   const [voucherPrintFormat, setVoucherPrintFormat] = useState<'a4' | 'thermal80'>('a4');
   const [reversingVoucher, setReversingVoucher] = useState<CashbookVoucher | null>(null);
+
+  React.useEffect(() => {
+    if (initialModal) {
+      setEntryDirection(initialModal);
+      setIsEntryModalOpen(true);
+      if (onClearInitialModal) onClearInitialModal();
+    }
+  }, [initialModal, onClearInitialModal]);
 
   // State: Reversal Negative Balance Confirmation Dialog
   const [reversalNegativeBalancePrompt, setReversalNegativeBalancePrompt] = useState<{
