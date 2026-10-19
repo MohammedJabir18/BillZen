@@ -67,21 +67,11 @@ pub async fn prepare_android_update(app:tauri::AppHandle,service:State<'_,Arc<Up
  let directory=app.path().app_cache_dir().map_err(|e|e.to_string())?.join("updates");
  let apk=directory.join("update.apk");
  let release_opt = { service.release.lock().map_err(|_|"Update state unavailable")?.clone() };
- let (version_code, sha256, size_bytes) = if let Some(release) = release_opt {
-  let artifact=release.artifact.clone();
-  tauri::async_runtime::spawn_blocking(move||updates::transport::verify_file(&apk,&artifact)).await.map_err(|e|e.to_string())??;
-  (release.version_code, release.artifact.sha256, release.artifact.size_bytes)
- } else if let Ok(content) = std::fs::read_to_string(directory.join("install-approved")) {
-  let v: serde_json::Value = serde_json::from_str(&content).map_err(|_| "Invalid staged approval")?;
-  let code = v["versionCode"].as_u64().ok_or("Missing versionCode")?;
-  let hash = v["sha256"].as_str().ok_or("Missing sha256")?.to_string();
-  let sz = v["sizeBytes"].as_u64().ok_or("Missing sizeBytes")?;
-  (code, hash, sz)
- } else {
-  return Err("Download and verify the update first".into());
- };
+ let release = release_opt.ok_or_else(|| "Download and verify the update first".to_string())?;
+ let artifact = release.artifact.clone();
+ tauri::async_runtime::spawn_blocking(move||updates::transport::verify_file(&apk,&artifact)).await.map_err(|e|e.to_string())??;
  worker.prepare_update().await?;
- let approval=serde_json::json!({"approvedAt":chrono::Utc::now().timestamp_millis(),"versionCode":version_code,"sha256":sha256,"sizeBytes":size_bytes});
+ let approval=serde_json::json!({"approvedAt":chrono::Utc::now().timestamp_millis(),"versionCode":release.version_code,"sha256":release.artifact.sha256,"sizeBytes":release.artifact.size_bytes});
  let result=std::fs::write(directory.join("install-approved"),approval.to_string()).map_err(|_|"Cannot authorize installer".to_string());
  if result.is_err(){worker.resume_after_update().await?;} else {
   if let Ok(mut info)=service.info.lock(){info.status="installing".into();info.message="Waiting for the Android installer. Return to BillZen to continue.".into();}
