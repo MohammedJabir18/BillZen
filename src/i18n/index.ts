@@ -2,6 +2,7 @@ export type Language = 'en' | 'ml' | 'ar';
 
 export interface Translations {
   // Navigation / Tabs
+  tab_cashbook: string;
   tab_products: string;
   tab_customers: string;
   tab_settings: string;
@@ -105,6 +106,7 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   en: {
+    tab_cashbook: 'Cashbook',
     tab_products: 'Products',
     tab_customers: 'Customers',
     tab_settings: 'Settings',
@@ -202,6 +204,7 @@ export const translations: Record<Language, Translations> = {
     settings_view_guide: 'View Getting-Started Guide',
   },
   ml: {
+    tab_cashbook: 'ക്യാഷ്ബുക്ക്',
     tab_products: 'ഉൽപന്നങ്ങൾ',
     tab_customers: 'ഉപഭോക്താക്കൾ',
     tab_settings: 'ക്രമീകരണങ്ങൾ',
@@ -299,6 +302,7 @@ export const translations: Record<Language, Translations> = {
     settings_view_guide: 'മാർഗ്ഗനിർദ്ദേശം കാണുക',
   },
   ar: {
+    tab_cashbook: 'دفتر النقدية',
     tab_products: 'المنتجات',
     tab_customers: 'العملاء',
     tab_settings: 'الإعدادات',

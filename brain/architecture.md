@@ -277,6 +277,25 @@ flowchart TD
    - `closing_balance_minor`: `opening_balance_minor + period_inflows - period_outflows`.
    - `net_operating_cash_flow_minor`: Excludes capital injections, loans, advances, and transfers from operating cash flow.
 
+## 19. Milestone C1B Cashbook UI, Voucher Lifecycle & Dedicated Printable Documents
+1. **Interactive Dashboard & Ledger UI (`src/components/CashbookView.tsx`)**:
+   - 4-Card Summary Bar: Total Cash (all accounts), Active Cash (excluding archived), Period Inflows, Period Outflows, Closing Balance.
+   - Non-Accounting Terminology Protection: Cash movements are strictly labeled as Inflow / Outflow / Net Operating Cash Flow, and are **never** labeled as "Profit".
+   - Responsive Layout: Full financial ledger table on desktop (`md` and above); dense voucher cards on mobile (< `md`) with touch-friendly 48px tap targets.
+   - Independent Financial Balances vs Display Filters: Text search and classification filters narrow visible ledger rows and compute separate `matching_inflows_minor`, `matching_outflows_minor`, and `matching_count` in a prominent filter banner, while core financial statement balances (Opening, Total Cash, Closing Balance) remain strictly decoupled and accurate.
+2. **Voucher Entry & Two-Step Negative Balance Confirmation**:
+   - Receipt (`RCP-`) and Payment (`PAY-`) voucher creation with account selector, classification, category, party, payment method, reference, and notes.
+   - Negative Balance Guard: If an account has `allow_negative_balance = false` and a payment would cause the projected balance to fall below zero, the native/browser engine rejects direct posting and returns `status: 'requires_confirmation'`.
+   - The UI presents a dedicated two-step warning modal requiring explicit operator confirmation before re-posting with the identical idempotency key and `confirmed_negative_balance = true`.
+3. **Dedicated Printable Voucher Engine (`src/components/PrintableVoucherDocument.tsx`)**:
+   - Dual Layouts:
+     - **A4 Portrait Voucher**: Professional company header, frozen business snapshots, counterparty particulars, tabular amount breakdown, deterministic amount in words, dual signature lines (Prepared By, Receiver/Authorized Signatory), and void watermarks for reversed vouchers.
+     - **80mm Thermal Receipt**: Compact thermal format with centered company header, dashed section dividers, monospace typography, amount in words, and receipt signature blocks.
+   - Zero DOM Duplication Print Isolation: Modal preview renders with inline styles while print media output renders under `#printable-voucher-root` with strict print isolation (`body * { visibility: hidden !important; }`, `#printable-voucher-root { visibility: visible !important; position: absolute; top: 0; left: 0; }`).
+4. **Deterministic Number-to-Words Converter (`src/domain/number_to_words.ts`)**:
+   - Converts integer minor units into deterministic English currency words.
+   - Supports 2-decimal currencies (INR: Rupees & Paise, AED: Dirhams & Fils, SAR: Riyals & Halalas, USD: Dollars & Cents, EUR: Euros & Cents, GBP: Pounds & Pence) and 3-decimal currencies (KWD: Dinars & Fils, BHD: Dinars & Fils, OMR: Rials & Baisa).
+
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.
 
