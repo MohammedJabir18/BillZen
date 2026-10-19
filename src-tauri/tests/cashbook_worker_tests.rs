@@ -1590,4 +1590,147 @@ async fn test_cashbook_display_filters_and_financial_balance_separation() {
     assert_eq!(window_summary.closing_balance_minor, 22_500);
 }
 
+#[tokio::test]
+async fn test_cashbook_reporting_contract_parity() {
+    let dir = tempdir().expect("tempdir failed");
+    let db_path = dir.path().join("cashbook_reporting_parity.db");
+    let worker = DbWorkerHandle::new(db_path).expect("worker should spawn");
+
+    let account = worker
+        .create_money_account(CreateMoneyAccountDto {
+            account_name: "Main Cash Till".to_string(),
+            account_type: "cash".to_string(),
+            opening_balance_minor: 0,
+            allow_negative_balance: true,
+            currency_code: Some("INR".to_string()),
+            currency_exponent: Some(2),
+            bank_name: None,
+            account_number: None,
+            ifsc_or_routing: None,
+        })
+        .await
+        .unwrap();
+
+    // 1. Post Baseline review fixture
+    // Day prior (2026-10-19): Inflow 10,000
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 10_000,
+            business_date: "2026-10-19".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: Some("Prior day sales".to_string()),
+            idempotency_key: "parity-base-1".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Day selected (2026-10-20): Operating Inflow 5,000
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 5_000,
+            business_date: "2026-10-20".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: Some("Today operating receipt".to_string()),
+            idempotency_key: "parity-base-2".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Day selected (2026-10-20): Loan Inflow 20,000
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::Loan,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 20_000,
+            business_date: "2026-10-20".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: Some("Working capital loan".to_string()),
+            idempotency_key: "parity-base-3".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Day future (2026-10-21): Inflow 30,000
+    worker
+        .post_cashbook_voucher(CreateVoucherInput {
+            account_id: account.id.clone(),
+            direction: MovementDirection::Inflow,
+            classification: CashbookClassification::OperatingIncome,
+            payment_method: PaymentMethod::Cash,
+            amount_minor: 30_000,
+            business_date: "2026-10-21".to_string(),
+            party_id: None,
+            category_id: None,
+            reference_note: None,
+            notes: Some("Future day sales".to_string()),
+            idempotency_key: "parity-base-4".to_string(),
+            confirmed_negative_balance: false,
+        })
+        .await
+        .unwrap();
+
+    // Query 2026-10-20 to 2026-10-20
+    let (entries, summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            start_date: Some("2026-10-20".to_string()),
+            end_date: Some("2026-10-20".to_string()),
+            include_archived: Some(false),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(entries.len(), 2);
+    assert_eq!(summary.opening_balance_minor, 10_000);
+    assert_eq!(summary.period_inflows_minor, 25_000);
+    assert_eq!(summary.period_outflows_minor, 0);
+    assert_eq!(summary.net_operating_cash_flow_minor, 5_000);
+    assert_eq!(summary.closing_balance_minor, 35_000);
+    assert_eq!(summary.total_cash_minor, 65_000);
+    assert_eq!(summary.active_cash_minor, 65_000);
+    assert!(summary.matching_inflows_minor.is_none());
+    assert!(summary.matching_outflows_minor.is_none());
+
+    // Query 2026-10-20 with non-matching search term
+    let (search_entries, search_summary) = worker
+        .get_cashbook_ledger(CashbookLedgerFilter {
+            start_date: Some("2026-10-20".to_string()),
+            end_date: Some("2026-10-20".to_string()),
+            search: Some("NonExistentTerm".to_string()),
+            include_archived: Some(false),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(search_entries.len(), 0);
+    assert_eq!(search_summary.opening_balance_minor, 10_000);
+    assert_eq!(search_summary.period_inflows_minor, 25_000);
+    assert_eq!(search_summary.period_outflows_minor, 0);
+    assert_eq!(search_summary.net_operating_cash_flow_minor, 5_000);
+    assert_eq!(search_summary.closing_balance_minor, 35_000);
+    assert_eq!(search_summary.matching_inflows_minor, Some(0));
+    assert_eq!(search_summary.matching_outflows_minor, Some(0));
+    assert_eq!(search_summary.matching_count, Some(0));
+}
+
 
