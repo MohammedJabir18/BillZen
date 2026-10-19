@@ -609,6 +609,69 @@
 - **Unfinished Tasks / Immediate Next Steps**:
   - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, stock decrements, payment allocations, thermal/A4 receipt printing.
 
+## 2026-10-19 — WebView Debugging Restriction, Runtime Hardening, M4A Spec & Android Beta v1004 Delivery
+- **Goals**: Restrict WebView debugging by default in distribution builds with explicit test build opt-in, harden Android runtime verification suite (`scripts/verify_android_runtime.js`) with non-swallowing ADB diagnostics and multi-factor offline assertions, author Milestone 4A specification (`docs/m4a-invoice-drafts-spec.md`), advance authoritative `versionCode` to 1004, build signed release ARM64 APK and test x86_64 APK, and verify all 14 runtime stages on Android emulator.
+- **Completed Tasks**:
+  - **1. WebView Debugging Restriction & Build Variant Architecture**:
+    - Replaced unconditional `WebView.setWebContentsDebuggingEnabled(true)` in `MainActivity.kt` with `if (BuildConfig.ENABLE_WEBVIEW_DEBUGGING) { WebView.setWebContentsDebuggingEnabled(true) }` in both `onCreate` and `onWebViewCreate`.
+    - Integrated `buildConfigField("boolean", "ENABLE_WEBVIEW_DEBUGGING", resolvedWebviewDebugging.toString())` in `app/build.gradle.kts`.
+    - Configured `scripts/build_android_apk.sh` to set `BILLZEN_ENABLE_WEBVIEW_DEBUGGING="false"` by default for release and distribution builds, and `"true"` for test builds.
+    - Verified via `dexdump` that `setWebContentsDebuggingEnabled` calls are completely eliminated via R8 dead-code optimization in distribution builds (`ZERO_MATCHES`).
+  - **2. Hardened Android Runtime Verification Suite (`scripts/verify_android_runtime.js`)**:
+    - **Stage 0 Added**: Empirically audits bytecode via `dexdump` confirming distribution APK has 0 debugging calls while test build includes them, records OS-level userdebug behavior, and proves clean launch.
+    - Added structured error reporting `runAdbDetailed` capturing exit status, stdout, and stderr without swallowing failures.
+    - Hardened Stage 11 offline assertions with independent OS checks (airplane mode, disabled Wi-Fi, disabled mobile data, blocked ping) and Web API assertion (`!navigator.onLine`).
+    - Fixed launch wait with `-W` and condition-based polling for process PID.
+    - Ensured safe teardown in `finally` restoring network, theme, and port forwards.
+  - **3. Authoritative Versioning & Release Delivery (versionCode 1004)**:
+    - Synchronized `versionCode = 1004` across `src-tauri/tauri.conf.json`, `build.gradle.kts`, `tauri.properties`, and `scripts/build_android_apk.sh`.
+    - Built signed Release ARM64 APK: `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk` (15M, SHA-256: `fb9f2d170afe535132a24329b5c5b5e6d6ce1b60b9adc0de39cbcf2a4d282279`, `versionCode = 1004`, `ZERO_MATCHES` for debugging in dexdump).
+    - Built signed Test x86_64 APK: `dist-android/billzen-test-v0.1.0-x86_64.apk` (14M, SHA-256: `adeda77f1ea88e64c6d9689f13fd0f1904b6da023dfa91732024e9dea51f5024`, `versionCode = 1004`).
+    - Built signed Distribution x86_64 APK: `dist-android/billzen-dist-v0.1.0-x86_64.apk` (14M, SHA-256: `f0d17778062f34a9b286eac685c9d65ec8096d1af26ba495b7d919d78e849aa8`, `versionCode = 1004`).
+    - Verified 16 KB page-size ELF LOAD alignment (`0x4000`), 16 KB packaging alignment (`zipalign -P 16 4`), and v2/v3 signatures.
+  - **4. Milestone 4A Specification Authored (`docs/m4a-invoice-drafts-spec.md`)**:
+    - Authored comprehensive specification covering draft invoice CRUD lifecycle, draft-to-finalization boundary, optimistic concurrency via `draft_version`, non-negative tracked stock invariants, line-item commercial snapshots, and exact integer half-up financial arithmetic.
+  - **5. Native Android Runtime Suite Execution (14/14 Stages Passed)**:
+    - Executed `scripts/verify_android_runtime.js` on Android 14 API 34 emulator (`emulator-5554`):
+      1. Stage 0: WebView debugging security verification (distribution build bytecode audit vs test build CDP automation)
+      2. Stage 1: Baseline clean installation (v1003)
+      3. Stage 2: Cold launch & onboarding wizard with interrupted draft recovery
+      4. Stage 3: Getting-started guide presentation & skip
+      5. Stage 4: Baseline catalog creation (Product with leading zeros & Customer)
+      6. Stage 5: In-place upgrade to v1004 test APK (zero data loss verified)
+      7. Stage 6: Appearance Dark, Light, and System following via `cmd uimode night yes/no` on v1004
+      8. Stage 7: Native Android Back keyevent 4 modal dismissal on Customer & Product modals
+      9. Stage 8: Customer modal Back dismissal and clean reopen
+      10. Stage 9: Guide replay from Settings & back dismissal
+      11. Stage 10: Process force-stop, cold restart & persistence
+      12. Stage 11: 100% offline mode product creation & SQLite indexing (`airplane-mode enable && svc wifi/data disable`)
+      13. Stage 12: Post-offline cold restart persistence
+      14. Stage 13: Scoped logcat audit (7,984 lines audited): zero fatal exceptions / panics
+    - Generated structured report: `test_artifacts/android_runtime/runtime_verification_report.json` ("overallResult": "ALL PASSED").
+- **Files Modified / Added**:
+  - `src-tauri/gen/android/app/src/main/java/com/billzen/desktop/MainActivity.kt`
+  - `src-tauri/gen/android/app/build.gradle.kts`
+  - `src-tauri/tauri.conf.json`
+  - `scripts/verify_android_runtime.js`
+  - `scripts/build_android_apk.sh`
+  - `docs/m4a-invoice-drafts-spec.md`
+  - `docs/verification-status.md`
+  - `brain/architecture.md`
+  - `brain/sessions.md`
+- **Verification Evidence**:
+  - `npm run test:android-runtime`: 14/14 stages, 32 assertions PASSED on Android 14 (API 34).
+  - `npm test`: 14/14 unit tests passed.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 53/53 passed.
+  - `npm run build`: Production build passed.
+  - `npm run test:responsive`: 6/6 viewports passed (zero document overflow).
+  - `npm run test:onboarding`: 34/34 tests passed.
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 print scenarios passed.
+  - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 15M, SHA-256: `fb9f2d170afe535132a24329b5c5b5e6d6ce1b60b9adc0de39cbcf2a4d282279`, `versionCode = 1004`.
+  - `dist-android/billzen-test-v0.1.0-x86_64.apk`: 14M, SHA-256: `adeda77f1ea88e64c6d9689f13fd0f1904b6da023dfa91732024e9dea51f5024`, `versionCode = 1004`.
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone 4A/4B (M4): Implement draft invoice management and finalized commercial snapshots following `docs/m4a-invoice-drafts-spec.md`.
+
 
 
 

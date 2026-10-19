@@ -34,7 +34,9 @@ class MainActivity : TauriActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
-    WebView.setWebContentsDebuggingEnabled(true)
+    if (BuildConfig.ENABLE_WEBVIEW_DEBUGGING) {
+      WebView.setWebContentsDebuggingEnabled(true)
+    }
     super.onCreate(savedInstanceState)
 
     ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { _, insets ->
@@ -79,6 +81,9 @@ class MainActivity : TauriActivity() {
 
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
+    if (BuildConfig.ENABLE_WEBVIEW_DEBUGGING) {
+      WebView.setWebContentsDebuggingEnabled(true)
+    }
     webViewInstance = webView
     webView.addJavascriptInterface(NativeBridge(this), "BillZenNative")
     setupNetworkMonitoring(webView)
