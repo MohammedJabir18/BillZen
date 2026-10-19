@@ -14,6 +14,16 @@ val tauriProperties = Properties().apply {
     }
 }
 
+val resolvedVersionCode = System.getenv("BILLZEN_VERSION_CODE")?.toIntOrNull()
+    ?: (project.findProperty("versionCode") as? String)?.toIntOrNull()
+    ?: tauriProperties.getProperty("tauri.android.versionCode")?.toIntOrNull()
+    ?: 1001
+
+val resolvedVersionName = System.getenv("BILLZEN_VERSION_NAME")
+    ?: (project.findProperty("versionName") as? String)
+    ?: tauriProperties.getProperty("tauri.android.versionName")
+    ?: "0.1.0"
+
 android {
     compileSdk = 36
     buildToolsVersion = "36.0.0"
@@ -23,8 +33,8 @@ android {
         applicationId = "com.billzen.desktop"
         minSdk = 24
         targetSdk = 34
-        versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1001").toInt()
-        versionName = tauriProperties.getProperty("tauri.android.versionName", "0.1.0")
+        versionCode = resolvedVersionCode
+        versionName = resolvedVersionName
     }
     buildTypes {
         getByName("debug") {

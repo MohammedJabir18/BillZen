@@ -439,7 +439,56 @@
   - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
   - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 16 KB page alignment confirmed, zipalign confirmed, apksigner verified, versionCode 1001 confirmed.
 - **Unfinished Tasks / Immediate Next Steps**:
-  - Provision physical Android device or AVD to complete native runtime verification.
+  - [Completed in Session 2026-10-19 Part 2] Android emulator provisioning, authoritative versionCode 1001, 16 KB packaging alignment, automated native runtime verification, in-place upgrade test, and offline verification.
   - Milestone 4: Invoice draft/finalize transactions, stock decrement allocations, payment allocation, thermal/A4 receipt printing.
+
+## 2026-10-19 — Android Native Runtime Verification & Beta Handoff
+- **Goals**: Resolve versionCode divergence (ensure built APK actually contains `versionCode 1001`), configure 16 KB page-aligned zipalign (`-P 16 4`), assert APK badging metadata directly from package (`aapt dump badging`), provision an Android test environment (AVD with API 34), build x86_64 test APK alongside ARM64 release APK, automate native runtime verification on Android emulator (cold launch, setup wizard, product creation with leading-zero barcode, customer record, appearance switching & persistence, process termination recovery, in-place upgrade from v1000 without data loss, offline operation, and logcat audit), and deliver verified beta handoff.
+- **Completed Tasks**:
+  - **1. Authoritative Versioning & Metadata Configuration**:
+    - Identified that `npx tauri android build` regenerates `tauri.properties` based on semver unless overridden.
+    - Updated `src-tauri/gen/android/app/build.gradle.kts` to prioritize `BILLZEN_VERSION_CODE` env var and Gradle `versionCode` property over `tauriProperties`.
+    - Added `"android": { "versionCode": 1001 }` to `src-tauri/tauri.conf.json`.
+    - Confirmed `aapt dump badging` outputs `versionCode='1001'` and `versionName='0.1.0'`.
+  - **2. 16 KB Page-Aligned Packaging & Build Script Hardening**:
+    - Hardened `scripts/build_android_apk.sh` with 16 KB page-aligned zipalign (`zipalign -v -f -P 16 4`) and verification (`zipalign -c -v -P 16 4`).
+    - Added target architecture parameter (`scripts/build_android_apk.sh [aarch64|x86_64]`) generating `billzen-beta-v0.1.0-arm64-v8a.apk` (for friend) and `billzen-test-v0.1.0-x86_64.apk` (for emulator testing).
+    - Verified 16 KB ELF LOAD segment alignment (`0x4000`), certificate identity (`CN=BillZen Beta`), and offline asset inclusion in both APKs.
+  - **3. Android Test Environment Provisioning**:
+    - Installed Android SDK `emulator` (37.2.12) and `system-images;android-34;google_apis;x86_64`.
+    - Created AVD `billzen_test_avd` (Pixel 4, Android 14.0 API 34, Google APIs x86_64) with KVM hardware acceleration.
+  - **4. Automated Native Android Runtime Verification Suite**:
+    - Developed `scripts/verify_android_runtime.js` (`npm run test:android-runtime`) integrating Chrome DevTools Protocol over forwarded abstract socket (`adb forward tcp:9222 localabstract:webview_devtools_remote_<PID>`) and ADB OS commands.
+    - Built and installed baseline v1000 APK (`versionCode = 1000`).
+    - Verified cold launch and completed 3-step setup wizard (Regional settings for India -> Business profile -> Review & commit).
+    - Verified getting-started guide presentation and skip handling.
+    - Created product with leading-zero barcode (`0012345678905`), SKU `BASMATI-5KG`, opening stock `25.000`, selling price `₹ 450.00`; verified leading zeros strictly preserved in DOM and SQLite.
+    - Created customer record (`Jabir`, `+91 9999888877`).
+    - Verified Appearance settings: switched to Dark (class `.dark` added to html), switched to Light (class `.dark` removed), set back to Dark.
+    - Tested Android back button (`keyevent 4`) on modal drawer.
+    - Verified process force-stop (`am force-stop`) and cold restart: confirmed setup wizard does not re-appear, dark theme remains active, and products/customers are intact in SQLite.
+    - Executed in-place upgrade to v1001 (`adb install -r dist-android/billzen-test-v0.1.0-x86_64.apk`): confirmed package upgraded to `versionCode = 1001` and all catalog/business data preserved without data loss.
+    - Verified 100% offline operation: disabled WiFi and mobile data (`svc wifi disable && svc data disable`), created second product (`Offline Pure Coconut Oil`, barcode `0098765432104`), confirmed transaction committed to local SQLite while offline, and re-enabled network.
+    - Inspected logcat: confirmed zero fatal crashes or panics.
+    - Captured and archived 10 native Android screenshots in `test_artifacts/android_runtime/`.
+- **Files Modified / Added**:
+  - `src-tauri/gen/android/app/build.gradle.kts`, `src-tauri/tauri.conf.json`, `package.json`
+  - `scripts/build_android_apk.sh`, `scripts/verify_android_runtime.js`
+  - `docs/verification-status.md`, `brain/architecture.md`, `brain/sessions.md`
+- **Verification Evidence**:
+  - `npm run test:android-runtime`: 12/12 native runtime checks PASSED on Android 14.
+  - `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`: 15M, SHA-256: `809a6a3c428dbb32775d81d9640fae044cba3c24a22ef6d906b7d35fddff561e`, `versionCode = 1001`.
+  - `dist-android/billzen-test-v0.1.0-x86_64.apk`: 14M, SHA-256: `4eaa0ec361636d2bad7f8eed95ea116d63e149d63a2224e979fdb8852b0baf04`, `versionCode = 1001`.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 53/53 passed.
+  - `npm test`: 14/14 passed.
+  - `npm run build`: Passed cleanly (`tsc && vite build`).
+  - `npm run test:responsive`: 6/6 viewports passed.
+  - `npm run test:onboarding`: 34/34 tests passed.
+  - `npm run test:catalog`: All 6 steps passed.
+  - `npm run test:matrix`: All 4 A4 print scenarios passed.
+  - `npm run test:native-probe`: Cross-process persistence verified with clean temp DB.
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone 4 (M4): Draft invoice management, finalized commercial snapshots, stock decrements, payment allocations, thermal/A4 receipt printing.
+
 
 
