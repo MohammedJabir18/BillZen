@@ -382,3 +382,9 @@ flowchart TD
 
 
 
+
+## Appearance contrast and native form controls (2026-10-19)
+- Screen surfaces and muted text have explicit light/dark pairs, including the print diagnostics UI, cashbook summaries, warning dialogs, catalog placeholders and onboarding badges.
+- `html.dark` declares `color-scheme: dark`; the default is light. Native date/select controls follow the chosen theme, while print media explicitly uses light paper styling.
+- `scripts/verify_theme_contrast.js` audits computed solid-color text contrast, placeholders, resolved theme and horizontal page overflow across desktop/mobile dark/light states. It uses isolated synthetic browser contexts, excludes disabled controls and background content behind dialogs, and does not constitute a full accessibility certification.
+- `npm run test:theme` builds the frontend before running the regression matrix. Native WebKitGTK theme checks also run in `test:native-cashbook`.

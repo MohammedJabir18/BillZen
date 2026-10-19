@@ -364,7 +364,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     {opt.icon}
                   </div>
                   {isSelected && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-lime-500/20 text-lime-700 dark:text-lime-300 rounded-full">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-lime-500/20 text-lime-800 dark:text-lime-300 rounded-full">
                       Active
                     </span>
                   )}

@@ -455,7 +455,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
       {successMessage && (
         <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 rounded-lg flex items-center justify-between text-emerald-800 dark:text-emerald-200 text-xs sm:text-sm animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
             <span>{successMessage}</span>
           </div>
           <button onClick={() => setSuccessMessage(null)} className="p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900 rounded">
@@ -467,7 +467,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
       {/* Browser Mode Ephemeral In-Memory Banner */}
       {!isTauriEnvironment() && (
         <div data-testid="browser-mode-banner" className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl flex items-start gap-2.5 text-amber-800 dark:text-amber-200 text-xs">
-          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
           <div className="flex-1">
             <strong>Browser Preview Mode:</strong> Transactions, accounts, and running balances are maintained in memory for preview and testing. Data will reset upon page reload. For permanent offline SQLite durability, launch BillZen Desktop or Android.
           </div>
@@ -513,7 +513,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
           <button
             onClick={() => handleOpenEntry('inflow')}
             data-testid="action-receive-money"
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
           >
             <ArrowDownLeft className="w-4 h-4" />
             <span>Receive Money</span>
@@ -557,23 +557,23 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
               {currencySymbol} {formatMinorUnits(summary.total_cash_minor, currencyExponent)}
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 block">
+          <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 block">
             Active: {currencySymbol} {formatMinorUnits(summary.active_cash_minor, currencyExponent)}
           </span>
         </div>
 
         {/* Period Inflows Card */}
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl p-3.5 sm:p-4 shadow-sm">
-          <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block flex items-center gap-1">
+          <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block flex items-center gap-1">
             <ArrowDownLeft className="w-3.5 h-3.5" />
             <span>Money Received</span>
           </span>
           <div className="mt-1">
-            <span className="text-lg sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+            <span className="text-lg sm:text-2xl font-bold font-mono text-emerald-700 dark:text-emerald-400">
               + {currencySymbol} {formatMinorUnits(summary.period_inflows_minor, currencyExponent)}
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 block truncate">
+          <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 block truncate">
             {startDate || endDate ? 'Filtered Period' : 'All-time total'}
           </span>
         </div>
@@ -589,7 +589,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
               - {currencySymbol} {formatMinorUnits(summary.period_outflows_minor, currencyExponent)}
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 block truncate">
+          <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 block truncate">
             {startDate || endDate ? 'Filtered Period' : 'All-time total'}
           </span>
         </div>
@@ -604,7 +604,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
               {currencySymbol} {formatMinorUnits(summary.closing_balance_minor, currencyExponent)}
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 block truncate">
+          <span className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 block truncate">
             Opening: {currencySymbol} {formatMinorUnits(summary.opening_balance_minor, currencyExponent)}
           </span>
         </div>
@@ -688,7 +688,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
               Search
             </label>
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
               <input
                 type="text"
                 placeholder="Voucher #, party, note..."
@@ -770,7 +770,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
               <div className="flex justify-center gap-3">
                 <button
                   onClick={() => handleOpenEntry('inflow')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700"
                 >
                   <ArrowDownLeft className="w-4 h-4" />
                   <span>Receive Money</span>
@@ -839,7 +839,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                             {voucher.party_name_snap || 'Direct Counterparty'}
                           </div>
                           {voucher.reference_note && (
-                            <div className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-xs">
+                            <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate max-w-xs">
                               Ref: {voucher.reference_note}
                             </div>
                           )}
@@ -847,7 +847,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                         <td className="py-3 px-3.5 text-slate-600 dark:text-zinc-400 capitalize">
                           {voucher.classification.replace(/_/g, ' ')}
                         </td>
-                        <td className="py-3 px-3.5 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        <td className="py-3 px-3.5 text-right font-mono font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
                           {isInflow ? `+${formatMinorUnits(movement.amount_minor, currencyExponent)}` : '-'}
                         </td>
                         <td className="py-3 px-3.5 text-right font-mono font-semibold text-rose-600 dark:text-rose-400 whitespace-nowrap">
@@ -874,7 +874,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                                 onClick={() => setReversingVoucher(voucher)}
                                 data-testid="btn-reverse-voucher"
                                 title="Reverse Voucher"
-                                className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-colors"
+                                className="p-1 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-colors"
                               >
                                 <RotateCcw className="w-3.5 h-3.5" />
                               </button>
@@ -918,11 +918,11 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
 
                       <div className="text-right">
                         <span className={`font-mono text-sm font-bold ${
-                          isInflow ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                          isInflow ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                         }`}>
                           {isInflow ? '+' : '-'}{currencySymbol} {formatMinorUnits(Math.abs(movement.amount_minor), currencyExponent)}
                         </span>
-                        <div className="text-[10px] text-slate-400 dark:text-zinc-500">
+                        <div className="text-[10px] text-slate-500 dark:text-zinc-400">
                           Bal: {currencySymbol} {formatMinorUnits(running_balance_minor, currencyExponent)}
                         </div>
                       </div>
@@ -931,7 +931,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                     <div className="flex items-center justify-between text-xs text-slate-600 dark:text-zinc-300 pt-1 border-t border-slate-50 dark:border-zinc-800/60">
                       <div>
                         <span>{voucher.party_name_snap || 'Direct Counterparty'}</span>
-                        <span className="text-slate-400 text-[10px] ml-1.5">({voucher.classification.replace(/_/g, ' ')})</span>
+                        <span className="text-slate-500 dark:text-zinc-400 text-[10px] ml-1.5">({voucher.classification.replace(/_/g, ' ')})</span>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -979,7 +979,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
             }`}>
               <div className="flex items-center gap-2">
                 {entryDirection === 'inflow' ? (
-                  <ArrowDownLeft className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <ArrowDownLeft className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
                 ) : (
                   <ArrowUpRight className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                 )}
@@ -989,7 +989,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
               </div>
               <button
                 onClick={() => setIsEntryModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 rounded-lg cursor-pointer"
+                className="p-1 text-slate-500 hover:text-slate-600 dark:hover:text-zinc-200 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1008,7 +1008,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                   }}
                   className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
                     entryDirection === 'inflow'
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                      ? 'bg-emerald-700 text-white shadow-xs'
                       : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900'
                   } ${(isSubmittingVoucher || submitVoucherMutation.isPending) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
@@ -1262,7 +1262,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                   data-testid="btn-submit-voucher"
                   className={`px-5 py-2 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer ${
                     entryDirection === 'inflow'
-                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      ? 'bg-emerald-700 hover:bg-emerald-800'
                       : 'bg-rose-600 hover:bg-rose-700'
                   } ${(isSubmittingVoucher || submitVoucherMutation.isPending) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
@@ -1293,7 +1293,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
           className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
         >
           <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-3 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-base font-bold">Negative Balance Confirmation Required</h3>
             </div>
@@ -1340,7 +1340,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                 type="button"
                 onClick={handleConfirmNegativeBalance}
                 data-testid="btn-confirm-negative-balance"
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs"
+                className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-semibold shadow-xs"
               >
                 Confirm & Post Payment
               </button>
@@ -1372,17 +1372,17 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
 
             <div className="p-3 bg-slate-50 dark:bg-zinc-800/80 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-slate-500">Original Amount:</span>
+                <span className="text-slate-500 dark:text-zinc-400">Original Amount:</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-zinc-100">
                   {currencySymbol} {formatMinorUnits(reversingVoucher.amount_minor, currencyExponent)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Direction:</span>
+                <span className="text-slate-500 dark:text-zinc-400">Direction:</span>
                 <span className="capitalize">{reversingVoucher.direction}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Account:</span>
+                <span className="text-slate-500 dark:text-zinc-400">Account:</span>
                 <span>{reversingVoucher.account_name_snap}</span>
               </div>
             </div>
@@ -1423,7 +1423,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
           className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
         >
           <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-3 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
                 Negative Cash Balance Warning (Reversal)
@@ -1449,13 +1449,13 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-zinc-400">Reversal Deduction:</span>
-                <span className="font-mono text-rose-600 font-semibold">
+                <span className="font-mono text-rose-600 dark:text-rose-300 font-semibold">
                   -{currencySymbol} {formatMinorUnits(reversalNegativeBalancePrompt.amountMinor, currencyExponent)}
                 </span>
               </div>
               <div className="flex justify-between pt-1 border-t border-amber-200 dark:border-amber-900/40 font-bold">
                 <span className="text-slate-700 dark:text-zinc-200">Projected Balance:</span>
-                <span className="font-mono text-rose-600">
+                <span className="font-mono text-rose-600 dark:text-rose-300">
                   {currencySymbol} {formatMinorUnits(reversalNegativeBalancePrompt.projectedBalanceMinor, currencyExponent)}
                 </span>
               </div>
@@ -1483,7 +1483,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                 onClick={handleConfirmNegativeBalanceReversal}
                 disabled={reverseMutation.isPending}
                 data-testid="btn-confirm-reversal-negative-balance"
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
               >
                 {reverseMutation.isPending && (
                   <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1514,7 +1514,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                 type="button"
                 onClick={() => setIsAccountModalOpen(false)}
                 data-testid="btn-close-account-modal"
-                className="p-1 text-slate-400 hover:text-slate-600 rounded"
+                className="p-1 text-slate-500 hover:text-slate-600 rounded"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1523,7 +1523,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
             <div className="py-4 space-y-4 overflow-y-auto flex-1">
               {/* Existing Accounts List */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Existing Accounts</h3>
+                <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Existing Accounts</h3>
                 <div className="divide-y divide-slate-100 dark:divide-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden">
                   {accounts.map((a) => (
                     <div key={a.id} className="p-3 flex items-center justify-between bg-white dark:bg-zinc-900">
@@ -1539,7 +1539,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
                           Opening: {currencySymbol} {formatMinorUnits(a.opening_balance_minor, currencyExponent)} •{' '}
                           {a.allow_negative_balance ? 'Negative balance permitted' : 'Protected (no negative)'}
                         </p>
@@ -1801,7 +1801,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                     className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
                       voucherPrintFormat === 'a4'
                         ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-xs'
-                        : 'text-slate-500'
+                        : 'text-slate-600 dark:text-zinc-400'
                     }`}
                   >
                     A4 Voucher
@@ -1812,7 +1812,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                     className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
                       voucherPrintFormat === 'thermal80'
                         ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-xs'
-                        : 'text-slate-500'
+                        : 'text-slate-600 dark:text-zinc-400'
                     }`}
                   >
                     80mm Thermal
@@ -1832,7 +1832,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({ settings, onSetActiv
                 <button
                   onClick={() => setViewingVoucher(null)}
                   data-testid="btn-close-voucher-dialog"
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 rounded cursor-pointer"
+                  className="p-1 text-slate-500 hover:text-slate-600 dark:hover:text-zinc-200 rounded cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
