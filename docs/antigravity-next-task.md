@@ -1,36 +1,25 @@
-# Antigravity handoff · Milestone C2: Transfers, Statements & Workbooks
+# Next priority — Release delivery and in-app updates (U0)
 
-Copy the following task into Antigravity. The GitHub delivery rule is also persisted in the repository's `AGENTS.md`.
+Status: researched design proposed; implementation approval pending. C2 remains deferred behind the owner's update-delivery priority.
 
----
+Read AGENTS.md, brain/sessions.md, brain/architecture.md, and `docs/superpowers/specs/2026-10-19-release-updates-design.md`.
 
-Read AGENTS.md, brain/architecture.md, brain/sessions.md, docs/cashbook-architecture-spec.md, docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md, and docs/roadmap.md before changing code.
+The owner wants recipients to discover/install later releases inside the installed app instead of repeatedly receiving installer files. Existing direct APK recipients are the first audience. An updater-enabled bootstrap must be installed once because current releases contain no updater code.
 
-Use the installed Superpowers systematic-debugging, test-driven-development and verification-before-completion skills. Use Karpathy Guidelines to keep changes surgical and focused, Harness Engineering for reproducible verification, Archify for updated documentation, and frontend-design/impeccable for accessible and responsive financial UI.
+Use installed brainstorming guidance to obtain approval of the complete proposed design, then writing-plans, test-driven-development, systematic-debugging and verification-before-completion. Apply Karpathy Guidelines and Harness Engineering. Do not invent skill/plugin availability or require every installed skill on every step.
 
-## Objective
+The concrete design separates:
+- Android direct APK discovery + authenticated manifest + existing certificate + OS installer consent.
+- Desktop Tauri signed updates, using AppImage rather than the existing loose Linux executable.
+- CI on ordinary pushes, draft releases on version-tag/manual runs, and owner-controlled stable promotion.
+- Database recovery before migrations, including the bootstrap/external-upgrade path.
 
-Deliver Milestone C2: Transfers, Statements & Workbooks, extending the verified Milestone C1 offline Cashbook foundation.
+After design approval, deliver U1–U4 in order with Android and Linux first. Prepare a concrete implementation plan with small verified sections. Windows/macOS are advertised only after their own release gates pass. No release/visibility changes, production key generation, secret changes or live publication are authorized by this handoff alone.
 
-## Concrete Implementation Deliverables
+Connected GitHub metadata confirms that the source repository is private. Keep it private; obtain approval for the proposed public artifact-only repository or website endpoint. Do not point anonymous clients directly at private release assets.
 
-1. **Atomic Two-Legged Account Transfers**:
-   - Transfer voucher numbering sequence: `TRF-YYYYMM-XXXXX`.
-   - Single atomic transaction creating source outflow movement and destination inflow movement.
-   - Dual-account balance invariant validation (source account negative balance check).
-   - Atomic reversal of transfer vouchers voiding both movement legs simultaneously.
+Key prerequisites to verify securely: GitHub CLI push/release access, anonymous download availability, continuity of the existing Android signing certificate, updater signing keys/public keys, monotonically increasing Android versionCode, and portable Android CI toolchain configuration. Never request secret values in chat or replace the existing Android signing identity.
 
-2. **Multi-Sheet XLSX Workbooks & Statement Export**:
-   - Tabular export generating `.xlsx` workbooks: Summary Sheet, Account Ledgers, and Audit Trail.
-   - Period date-range PDF statements with formal opening balance, period movements, running balance column, and closing reconciliation.
+Acceptance requires a real two-version native upgrade with populated local data preserved, plus offline, cancellation, invalid signature, wrong package/certificate, partial release and migration failure tests. A successful build or mocked Update button is insufficient.
 
-3. **Receipt Attachment Storage & Metadata**:
-   - Local offline attachment management (image/PDF vouchers).
-   - Content hashing and path metadata stored in SQLite without external cloud dependencies.
-
-4. **Automated Cross-Platform Verification**:
-   - Rust unit & integration tests covering transfer atomicity and multi-account invariants.
-   - Vitest contract tests for transfer DTOs and calculations.
-   - Automated browser and native desktop Playwright tests verifying transfer UI and export downloads.
-
-
+Commit and push coherent verified sections per AGENTS.md. Preserve local commits and report exact authentication blockers. Do not label this feature complete before an installed bootstrap actually receives and installs a newer signed version.
