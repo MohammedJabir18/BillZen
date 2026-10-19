@@ -411,6 +411,12 @@ pub struct CashbookSummary {
     pub net_operating_cash_flow_minor: i64,
     pub opening_balance_minor: i64,
     pub closing_balance_minor: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matching_inflows_minor: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matching_outflows_minor: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matching_count: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -583,6 +589,43 @@ pub fn validate_direction_and_category(
     }
 }
 
+pub fn resolve_timezone_offset(tz_str: &str) -> chrono::FixedOffset {
+    let trimmed = tz_str.trim();
+    match trimmed {
+        "Asia/Kolkata" | "Asia/Calcutta" | "IST" => {
+            chrono::FixedOffset::east_opt(5 * 3600 + 30 * 60).unwrap()
+        }
+        "Asia/Dubai" | "Asia/Muscat" | "GST" => {
+            chrono::FixedOffset::east_opt(4 * 3600).unwrap()
+        }
+        "Asia/Riyadh" | "Asia/Qatar" | "Asia/Kuwait" | "Asia/Bahrain" | "AST" => {
+            chrono::FixedOffset::east_opt(3 * 3600).unwrap()
+        }
+        "UTC" | "Etc/UTC" | "GMT" => {
+            chrono::FixedOffset::east_opt(0).unwrap()
+        }
+        _ => {
+            if let Ok(offset) = trimmed.parse::<chrono::FixedOffset>() {
+                offset
+            } else {
+                chrono::FixedOffset::east_opt(5 * 3600 + 30 * 60).unwrap()
+            }
+        }
+    }
+}
+
+pub fn format_business_date_and_year_month(
+    instant_utc: chrono::DateTime<chrono::Utc>,
+    tz_str: &str,
+) -> (String, String) {
+    let offset = resolve_timezone_offset(tz_str);
+    let local_dt = instant_utc.with_timezone(&offset);
+    (
+        local_dt.format("%Y-%m-%d").to_string(),
+        local_dt.format("%Y%m").to_string(),
+    )
+}
+
 pub fn format_voucher_number(prefix: &str, year_month: &str, seq: i64) -> String {
     format!("{}-{}-{:05}", prefix, year_month, seq)
 }
@@ -718,5 +761,41 @@ mod tests {
         assert!(validate_direction_and_category(MovementDirection::Outflow, CategoryType::Expense).is_ok());
         assert!(validate_direction_and_category(MovementDirection::Outflow, CategoryType::Both).is_ok());
         assert!(validate_direction_and_category(MovementDirection::Outflow, CategoryType::Income).is_err());
+    }
+
+    #[test]
+    fn test_timezone_resolution_and_midnight_month_boundary() {
+        use chrono::TimeZone;
+
+        // Instant: 2026-10-31 20:00:00 UTC
+        let instant = chrono::Utc.with_ymd_and_hms(2026, 10, 31, 20, 0, 0).unwrap();
+
+        // Asia/Kolkata (+05:30) -> 2026-11-01 01:30:00
+        let (kolkata_date, kolkata_ym) = format_business_date_and_year_month(instant, "Asia/Kolkata");
+        assert_eq!(kolkata_date, "2026-11-01");
+        assert_eq!(kolkata_ym, "202611");
+
+        // Asia/Dubai (+04:00) -> 2026-11-01 00:00:00 (exact midnight!)
+        let (dubai_date, dubai_ym) = format_business_date_and_year_month(instant, "Asia/Dubai");
+        assert_eq!(dubai_date, "2026-11-01");
+        assert_eq!(dubai_ym, "202611");
+
+        // Asia/Riyadh (+03:00) -> 2026-10-31 23:00:00 (still October!)
+        let (riyadh_date, riyadh_ym) = format_business_date_and_year_month(instant, "Asia/Riyadh");
+        assert_eq!(riyadh_date, "2026-10-31");
+        assert_eq!(riyadh_ym, "202610");
+
+        // Instant: 2026-10-31 21:00:00 UTC
+        let instant_2 = chrono::Utc.with_ymd_and_hms(2026, 10, 31, 21, 0, 0).unwrap();
+        // Asia/Riyadh (+03:00) -> 2026-11-01 00:00:00 (midnight rolls to November)
+        let (riyadh_date_2, riyadh_ym_2) = format_business_date_and_year_month(instant_2, "Asia/Riyadh");
+        assert_eq!(riyadh_date_2, "2026-11-01");
+        assert_eq!(riyadh_ym_2, "202611");
+
+        // Year boundary: 2026-12-31 19:00:00 UTC -> 2027-01-01 00:30:00 in Asia/Kolkata
+        let instant_new_year = chrono::Utc.with_ymd_and_hms(2026, 12, 31, 19, 0, 0).unwrap();
+        let (ny_date, ny_ym) = format_business_date_and_year_month(instant_new_year, "Asia/Kolkata");
+        assert_eq!(ny_date, "2027-01-01");
+        assert_eq!(ny_ym, "202701");
     }
 }
