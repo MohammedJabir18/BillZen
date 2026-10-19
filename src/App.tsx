@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import { SettingsView } from './components/SettingsView';
 import { PrintFeasibilityProbe } from './components/PrintFeasibilityProbe';
 import { PrintableInvoiceDocument } from './components/PrintableInvoiceDocument';
+import { PrintableVoucherDocument } from './components/PrintableVoucherDocument';
 import { ProductCatalogView } from './components/ProductCatalogView';
 import { CustomerCatalogView } from './components/CustomerCatalogView';
 import { CashbookView } from './components/CashbookView';
@@ -12,7 +13,8 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { pingBackend, getBusinessSettings, isTauriEnvironment } from './adapters/tauri';
 import { getInvoiceForScenario } from './domain/test_scenarios';
 import { translations, Language } from './i18n';
-import type { BusinessSettings } from './types';
+import type { BusinessSettings, ActivePrintDocument } from './types';
+import { preparePrintStyles, cleanupPrintStyles } from './utils/print';
 import {
   Building2,
   Printer,
@@ -38,6 +40,7 @@ type ActiveTab = 'cashbook' | 'products' | 'customers' | 'settings' | 'print';
 
 const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('cashbook');
+  const [activePrintDocument, setActivePrintDocument] = useState<ActivePrintDocument>(null);
   const [language, setLanguageState] = useState<Language>(() => {
     try {
       const stored = localStorage.getItem('billzen_ui_language');
@@ -77,6 +80,16 @@ const AppContent: React.FC = () => {
   }, [tabParam]);
 
   const activeInvoice = React.useMemo(() => getInvoiceForScenario(scenario), [scenario]);
+ 
+  React.useEffect(() => {
+    if (activeTab === 'print') {
+      setActivePrintDocument({ type: 'invoice', invoice: activeInvoice, format: 'a4' });
+      preparePrintStyles('a4');
+    } else {
+      setActivePrintDocument((prev) => (prev?.type === 'invoice' ? null : prev));
+      cleanupPrintStyles();
+    }
+  }, [activeTab, activeInvoice]);
 
   const { data: pingStatus } = useQuery({
     queryKey: ['backend_ping'],
@@ -295,7 +308,11 @@ const AppContent: React.FC = () => {
         }}
       >
         {activeTab === 'cashbook' && (
-          <CashbookView settings={activeSettings} language={language} />
+          <CashbookView
+            settings={activeSettings}
+            language={language}
+            onSetActivePrintDocument={setActivePrintDocument}
+          />
         )}
         {activeTab === 'products' && (
           <ProductCatalogView settings={activeSettings} language={language} />
@@ -401,10 +418,21 @@ const AppContent: React.FC = () => {
         onClose={() => setShowGuide(false)}
       />
 
-      {/* Global Printable Document Container: Isolated and formatted exclusively for print media */}
-      <div className="hidden print:block">
-        <PrintableInvoiceDocument invoice={activeInvoice} />
-      </div>
+      {/* Global Active Printable Document Container: Isolated and formatted exclusively for print media */}
+      {activePrintDocument && (
+        <div id="active-printable-container" className="hidden print:block">
+          {activePrintDocument.type === 'invoice' && (
+            <PrintableInvoiceDocument invoice={activePrintDocument.invoice} />
+          )}
+          {activePrintDocument.type === 'voucher' && (
+            <PrintableVoucherDocument
+              voucher={activePrintDocument.voucher}
+              format={activePrintDocument.format}
+              isPrintTarget={true}
+            />
+          )}
+        </div>
+      )}
 
       {/* Desktop Bottom Status Bar (no-print, hidden on mobile) */}
       <footer className="hidden md:block bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 dark:text-zinc-400 no-print">

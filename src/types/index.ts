@@ -234,3 +234,11 @@ export interface CustomerFilter {
   search?: string | null;
   is_active?: boolean | null;
 }
+
+import type { CashbookVoucher } from './cashbook';
+
+export type ActivePrintDocument =
+  | { type: 'invoice'; invoice: InvoiceDTO; format?: 'a4' }
+  | { type: 'voucher'; voucher: CashbookVoucher; format: 'a4' | 'thermal80' }
+  | null;
+

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateLineItem, calculateInvoiceTotals, formatMinorUnits, parseToMinorUnits } from './financial';
+import { calculateLineItem, calculateInvoiceTotals, formatMinorUnits, parseToMinorUnits, getTodayBusinessDate } from './financial';
 import fixtures from '../../shared/fixtures/calculations.json';
 
 describe('Financial Calculation Parity Tests', () => {
@@ -93,4 +93,20 @@ describe('Financial Calculation Parity Tests', () => {
     expect(() => parseToMinorUnits('100,.00', 2)).toThrow();
     expect(() => parseToMinorUnits('1,,000.00', 2)).toThrow();
   });
+
+  it('determines the correct business date across timezones and midnight boundaries', () => {
+    // 2026-10-19 19:30:00 UTC = 2026-10-20 01:00:00 IST
+    const lateUtcDate = new Date('2026-10-19T19:30:00.000Z');
+    expect(getTodayBusinessDate('Asia/Kolkata', lateUtcDate)).toBe('2026-10-20');
+    expect(getTodayBusinessDate('UTC', lateUtcDate)).toBe('2026-10-19');
+
+    // GCC Timezone (UTC+4): 2026-10-19 20:30:00 UTC = 2026-10-20 00:30:00 Dubai
+    const gccBoundary = new Date('2026-10-19T20:30:00.000Z');
+    expect(getTodayBusinessDate('Asia/Dubai', gccBoundary)).toBe('2026-10-20');
+
+    // Gracefully handle undefined, null or invalid timezone
+    expect(getTodayBusinessDate(null, lateUtcDate)).toBe('2026-10-20'); // falls back to Asia/Kolkata
+    expect(getTodayBusinessDate('Invalid/Timezone', lateUtcDate)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
 });
+

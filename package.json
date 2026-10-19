@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:catalog": "node scripts/verify_catalog_playwright.js",
     "test:cashbook": "node scripts/verify_cashbook_playwright.js",
+    "test:cashbook-pdf": "node scripts/verify_cashbook_pdf.js",
     "test:responsive": "node scripts/verify_responsive_playwright.js",
     "test:onboarding": "node scripts/verify_onboarding_appearance.js",
     "test:matrix": "node scripts/verify_matrix_playwright.js",
