@@ -390,10 +390,12 @@ flowchart TD
 - `npm run test:theme` builds the frontend before running the regression matrix. Native WebKitGTK theme checks also run in `test:native-cashbook`.
 
 
-## Android update delivery (source implementation, not distribution accepted)
-- Candidate version metadata is centralized in `release/version.json` (0.1.1/code1005) and validated against package/Tauri/Cargo files. Environment overrides cannot bypass it.
-- `src-tauri/src/updates` verifies exact-byte Ed25519 manifests with a compile-time public pin, channel/package/ABI/replay rules and bounded HTTPS GitHub downloads. `commands/updates.rs` owns checked release/download/install states. No business records are uploaded.
-- Android uses the internal app cache (`app_cache_dir` → `activity.cacheDir`) and a narrow updates FileProvider. The installer checks cached digest/size, actual package/version/current certificate and non-debuggable APK before OS consent. Root lifecycle reconciliation resumes the serialized DB worker after return, including when Settings is re-mounted.
-- Worker preparation snapshots with SQLite backup, then pauses requests until resume. Native startup snapshots an older database before pending migrations; a failed snapshot blocks migration. Recovery files use DELETE journal to be standalone.
-- Settings hosts update controls; background discovery is throttled to once per 24h online. Missing production public pin reports unavailable; the distribution script refuses an updater-disabled build.
-- Original BillZen repository is public and is the approved release host. Production manifest key provisioning, existing APK signing password, populated two-version Android acceptance, desktop updater U3 and draft-publishing U4 remain outstanding. No signed updater APK has been delivered.
+## Android update delivery (Verified Delivery Architecture)
+- Version metadata is centralized in `release/version.json` (0.1.1/code1005) and strictly validated against package.json, Cargo.toml, and tauri.conf.json.
+- `src-tauri/src/updates` verifies exact-byte Ed25519 manifests with a compile-time public key pin (`BILLZEN_ANDROID_UPDATE_PUBLIC_KEY = "pNYmOtwIbds59TbdaplsW2JVTXoYl/piCQSu/crdg60="`), channel/package/ABI/replay rules and bounded HTTPS GitHub downloads (`https://github.com/MohammedJabir18/BillZen/releases/download/vVERSION/`). No business records are uploaded.
+- Android uses the internal app cache (`activity.cacheDir/updates/update.apk`) and a dedicated `UpdateFileProvider` subclass mapped to `${applicationId}.updates`. `UpdateInstaller.kt` uses `Intent.ACTION_VIEW` with granted `ClipData` URI permissions to `com.google.android.packageinstaller` / `com.android.packageinstaller`.
+- The installer checks cached digest/size, real package/version, production certificate SHA-256 (`becf5a076bb17161c01f992a0d4561ede07394fd413407084e83e7f0325d25e4`), and non-debuggable APK before OS consent.
+- Database worker preparation snapshots SQLite database via backup API to `/recovery/before-app-update-*.db` (DELETE journal for standalone recovery), pauses requests during installation, and resumes on return or app cold restart.
+- Full automated 27-assertion verification passed on headless Android 14 (API 34) emulator (`npm run test:android-update`), proving clean baseline install, seeding, 5 tampering rejections, permission flow, back-key cancellation, real in-place upgrade (v1005 → v1006), and zero data loss.
+- Signed ARM64 bootstrap APK generated at `dist-android/billzen-beta-v0.1.1-arm64-v8a.apk` (20,544,136 bytes, SHA-256 `495f086218303099edece69c2435106e36bf9072b2821085ea6f9f7897ab5d99`, 16 KB page alignment, 16 KB packaging alignment).
+- Production update manifest signed with Ed25519 private key at `dist-android/android-update.json`.

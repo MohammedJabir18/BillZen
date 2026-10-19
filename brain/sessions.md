@@ -1085,3 +1085,51 @@
 - Owner now requests an Antigravity prompt to locate its original signing setup and continue. Handoff must preserve current uncommitted/committed changes, avoid duplicate implementation, never disclose passwords in chat/logs, and never uninstall/clear data/change signing identity as a shortcut. Restore signing access first; do not advertise updates as active from source tests.
 - Graphify: full update requires an absent LLM API key; code-only fallback run separately. Git push authentication and remote CI remain separate delivery gates.
 - Final rendered theme regression: all 104 checks passed. Graphify code-only extraction completed: 1209 nodes, 2454 edges, 75 communities; SQL extraction dependency remains unavailable. No external LLM service or API key was configured.
+
+## 2026-10-19 / 2026-10-20 — Android In-App Update Empirical Verification & Bootstrap Release Delivery
+- **Goals**: Recover signing setup securely, complete remaining Android updater integration gaps, execute full automated empirical verification gate on Android 14 emulator (`billzen_test_avd`), build signed ARM64 bootstrap distribution release APK (v0.1.1 / versionCode 1005), and produce signed production Ed25519 update manifest.
+- **Completed Tasks**:
+  - **1. Signing & Credential Recovery**:
+    - Securely resolved original keystore password from local historical session metadata without printing secrets or generating a replacement key.
+    - Verified production certificate SHA-256 matches expected fingerprint: `becf5a076bb17161c01f992a0d4561ede07394fd413407084e83e7f0325d25e4`.
+    - Maintained decoupled production manifest key pair (`billzen-manifest-v1.pem`) outside Git; verified public key pin `pNYmOtwIbds59TbdaplsW2JVTXoYl/piCQSu/crdg60=`.
+  - **2. Core Gaps & Defect Resolutions**:
+    - *FileProvider Collision*: Resolved manifest authority collision by introducing dedicated `UpdateFileProvider` subclass mapped to `${applicationId}.updates`.
+    - *ClipData Permission Forwarding*: In `UpdateInstaller.kt`, configured `intent.clipData = ClipData.newRawUri(null, uri)` and direct permission grants to `com.google.android.packageinstaller` and `com.android.packageinstaller` to satisfy Android 14 `InstallStart` → `InstallStaging` sub-activity delegation.
+    - *Staging Authorization Race*: Removed racing 1000ms polling interval from `useUpdateStartupCheck.ts`; reconciled state naturally via `billzen-update-returned` event.
+    - *Rust Mutex across Await*: Scoped `service.release` lock block in `prepare_android_update` before invoking asynchronous worker snapshots.
+    - *Pre-Migration Snapshot Support*: Enabled `prepare_android_update` to authorize from staged metadata when memory release state is absent.
+  - **3. Automated Empirical Verification Gate (`npm run test:android-update`)**:
+    - Executed `scripts/verify_android_update_flow.js` on headless Android 14 (API 34) emulator (`emulator-5554`): **ALL 27/27 ASSERTIONS PASSED**.
+    - Verified: clean baseline v1005 install, certificate verification, cold launch, setup wizard, seeded business data (leading-zero barcode `0012345678905`, customer, cashbook ₹65,000.00, dark theme), all 5 tampering guards, permission flow, back-key cancellation with worker resumption, genuine OS PackageInstaller in-place upgrade to v1006, cold restart, zero data loss, and pre-migration SQLite snapshots in `/data/user/0/com.billzen.desktop/recovery/`.
+  - **4. Production Bootstrap Release Packaging**:
+    - Built signed standalone ARM64 release APK: `dist-android/billzen-beta-v0.1.1-arm64-v8a.apk` (20,544,136 bytes, SHA-256: `495f086218303099edece69c2435106e36bf9072b2821085ea6f9f7897ab5d99`).
+    - Verified 16 KB packaging alignment (`zipalign -P 16 4`) and 16 KB page-size ELF LOAD alignment (`0x4000` via `llvm-readelf -l`).
+    - Verified v2 + v3 signatures with production certificate.
+    - Generated and verified Ed25519 signed production manifest `dist-android/android-update.json`.
+- **Files Modified / Added**:
+  - `src-tauri/gen/android/app/src/main/java/com/billzen/desktop/UpdateFileProvider.kt` (Added)
+  - `src-tauri/gen/android/app/src/main/AndroidManifest.xml` (Modified)
+  - `src-tauri/gen/android/app/src/main/java/com/billzen/desktop/UpdateInstaller.kt` (Modified)
+  - `src-tauri/src/commands/updates.rs` (Modified)
+  - `src/hooks/useUpdateStartupCheck.ts` (Modified)
+  - `scripts/verify_android_update_flow.js` (Added)
+  - `package.json` (Modified)
+  - `release/version.json` (Modified)
+  - `src-tauri/tauri.conf.json` (Modified)
+  - `docs/verification-status.md` (Modified)
+  - `docs/android-update-delivery.md` (Modified)
+  - `brain/architecture.md` (Modified)
+  - `brain/sessions.md` (Modified)
+- **Verification Evidence**:
+  - `npm test`: 43 passed across 7 files.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 89 passed (67 unit + 14 cashbook + 3 recovery + 5 update manifest tests).
+  - `node --test scripts/release/tests/*.mjs`: 7 passed across 7 tests.
+  - `npm run test:cashbook-pdf`: 3/3 passed.
+  - `npm run test:theme`: 104/104 passed.
+  - `npm run test:android-update`: 27/27 assertions passed (`test_artifacts/android_update/android_update_verification_report.json`).
+- **Unfinished Tasks / Next Steps**:
+  - Push commits to GitHub repository `MohammedJabir18/BillZen`.
+  - Distribute `billzen-beta-v0.1.1-arm64-v8a.apk` as the updater-enabled bootstrap installation for friends' devices.
+  - Upload `billzen-beta-v0.1.1-arm64-v8a.apk` and `android-update.json` to GitHub draft release v0.1.1.
+  - Proceed with Milestone C2: Transfers, Statements & Workbooks.

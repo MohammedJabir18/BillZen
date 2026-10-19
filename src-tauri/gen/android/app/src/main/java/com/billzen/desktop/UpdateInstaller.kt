@@ -67,8 +67,19 @@ class UpdateInstaller(private val activity: MainActivity) {
         val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.updates", apk)
         activity.updateInstallerActive = true
         activity.runOnUiThread {
-          val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(uri, "application/vnd.android.package-archive")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION).putExtra(Intent.EXTRA_RETURN_RESULT, true)
+          val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            clipData = android.content.ClipData.newRawUri(null, uri)
+          }
+          val resolved = activity.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+          for (info in resolved) {
+            try { activity.grantUriPermission(info.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
+          }
+          for (pkg in listOf("com.google.android.packageinstaller", "com.android.packageinstaller")) {
+            try { activity.grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
+          }
           try { activity.startActivityForResult(intent, REQUEST_CODE) } catch (_: Exception) { activity.updateInstallerReturned() }
         }
         "installer"
