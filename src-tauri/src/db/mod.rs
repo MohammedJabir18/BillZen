@@ -267,43 +267,55 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
 
     match existing_checksum6 {
         Some(stored_checksum) => {
-            if stored_checksum != current_checksum6 && stored_checksum != INITIAL_V6_CHECKSUM {
+            if stored_checksum == current_checksum6 {
+                // Database is already on current V6 migration; preserve all existing settings and guide states.
+            } else if stored_checksum == INITIAL_V6_CHECKSUM {
+                // One-time upgrade from early initial V6:
+                // Repair legacy customized business settings if setup was not marked completed,
+                // and advance stored checksum to current_checksum6.
+                let tx = conn.transaction()?;
+                tx.execute(
+                    "UPDATE business_settings
+                    SET is_setup_completed = 1,
+                        guide_status = 'completed'
+                    WHERE is_setup_completed = 0 AND (
+                        business_name != 'My Retail Store'
+                        OR legal_name IS NOT NULL
+                        OR tax_identifier IS NOT NULL
+                        OR phone != '+91 9876543210'
+                        OR email IS NOT NULL
+                        OR address_line1 != '123 Market Road'
+                        OR address_line2 IS NOT NULL
+                        OR city != 'Kochi'
+                        OR state != 'Kerala'
+                        OR postal_code != '682001'
+                        OR (country != 'IND' AND country != 'India')
+                        OR currency_code != 'INR'
+                        OR timezone != 'Asia/Kolkata'
+                        OR invoice_prefix != 'INV'
+                        OR locale != 'en-IN'
+                        OR (terms_and_conditions IS NOT NULL AND terms_and_conditions != 'Thank you for your business!')
+                        OR EXISTS (SELECT 1 FROM products LIMIT 1)
+                        OR EXISTS (SELECT 1 FROM customers LIMIT 1)
+                        OR EXISTS (SELECT 1 FROM invoices LIMIT 1)
+                        OR EXISTS (SELECT 1 FROM categories LIMIT 1)
+                        OR EXISTS (SELECT 1 FROM payments LIMIT 1)
+                        OR EXISTS (SELECT 1 FROM expenses LIMIT 1)
+                    );",
+                    [],
+                )?;
+                tx.execute(
+                    "UPDATE schema_migrations SET checksum = ?1 WHERE version = 6;",
+                    params![current_checksum6],
+                )?;
+                tx.commit()?;
+            } else {
                 return Err(DbError::ChecksumMismatch {
                     version: 6,
                     expected: stored_checksum,
                     found: current_checksum6,
                 });
             }
-            // Conservative upgrade policy for existing installations even if migrated with initial V6
-            conn.execute_batch(
-                "UPDATE business_settings
-                SET is_setup_completed = 1,
-                    guide_status = 'completed'
-                WHERE (
-                    business_name != 'My Retail Store'
-                    OR legal_name IS NOT NULL
-                    OR tax_identifier IS NOT NULL
-                    OR phone != '+91 9876543210'
-                    OR email IS NOT NULL
-                    OR address_line1 != '123 Market Road'
-                    OR address_line2 IS NOT NULL
-                    OR city != 'Kochi'
-                    OR state != 'Kerala'
-                    OR postal_code != '682001'
-                    OR (country != 'IND' AND country != 'India')
-                    OR currency_code != 'INR'
-                    OR timezone != 'Asia/Kolkata'
-                    OR invoice_prefix != 'INV'
-                    OR locale != 'en-IN'
-                    OR (terms_and_conditions IS NOT NULL AND terms_and_conditions != 'Thank you for your business!')
-                    OR EXISTS (SELECT 1 FROM products LIMIT 1)
-                    OR EXISTS (SELECT 1 FROM customers LIMIT 1)
-                    OR EXISTS (SELECT 1 FROM invoices LIMIT 1)
-                    OR EXISTS (SELECT 1 FROM categories LIMIT 1)
-                    OR EXISTS (SELECT 1 FROM payments LIMIT 1)
-                    OR EXISTS (SELECT 1 FROM expenses LIMIT 1)
-                );",
-            )?;
         }
         None => {
             let tx = conn.transaction()?;
@@ -1575,6 +1587,188 @@ mod tests {
 
         assert_eq!(setup_done, 1, "Conservative repair must mark setup completed for customized business");
         assert_eq!(app_pref, "dark", "User's dark appearance must be preserved");
+
+        // Verify checksum advanced to current_checksum6
+        let mut hasher6 = Sha256::new();
+        hasher6.update(V6_MIGRATION_SQL.as_bytes());
+        let current_chk6 = format!("{:x}", hasher6.finalize());
+        let stored_chk: String = conn.query_row(
+            "SELECT checksum FROM schema_migrations WHERE version = 6;",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(stored_chk, current_chk6, "Migration checksum must advance to current V6 checksum");
+
+        // Second run must be idempotent and preserve state
+        run_migrations(&mut conn).expect("Second run of migrations must succeed");
+        let (setup_done2, guide_st): (i32, String) = conn.query_row(
+            "SELECT is_setup_completed, guide_status FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).unwrap();
+        assert_eq!(setup_done2, 1);
+        assert_eq!(guide_st, "completed");
+    }
+
+    #[test]
+    fn test_fresh_setup_preserves_unseen_guide_status_across_restarts() {
+        let mut conn = Connection::open_in_memory().expect("In-memory db failed");
+        run_migrations(&mut conn).expect("Initial migration must succeed");
+
+        let now = chrono::Utc::now().timestamp_millis();
+        // Simulate user completing onboarding wizard with custom business details, but guide is still unseen
+        conn.execute(
+            "INSERT INTO business_settings (
+                id, business_name, legal_name, phone, address_line1, city, state, postal_code, country,
+                currency_code, currency_symbol, currency_exponent, locale, timezone, invoice_prefix,
+                is_setup_completed, appearance_preference, guide_status, guide_version,
+                created_at, updated_at
+            ) VALUES (
+                'default', 'Zen Fresh Mart', 'Zen Fresh Retail LLC', '+971 50 999 8888', 'Al Wasl Road', 'Abu Dhabi', 'Abu Dhabi', '00000', 'United Arab Emirates',
+                'AED', 'AED', 2, 'en-AE', 'Asia/Dubai', 'INV',
+                1, 'system', 'unseen', 1,
+                ?1, ?1
+            );",
+            params![now],
+        ).unwrap();
+
+        // Verify state prior to restart
+        let guide_status_before: String = conn.query_row(
+            "SELECT guide_status FROM business_settings WHERE id = 'default';",
+            [],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(guide_status_before, "unseen");
+
+        // Simulate app restart by running migrations again on existing database
+        run_migrations(&mut conn).expect("Restart migration check must succeed");
+
+        // Crucial regression check: guide_status MUST remain 'unseen' so first-launch auto-prompt works!
+        let (is_completed, guide_status_after): (i32, String) = conn.query_row(
+            "SELECT is_setup_completed, guide_status FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        ).unwrap();
+        assert_eq!(is_completed, 1, "Setup completed flag must be preserved");
+        assert_eq!(
+            guide_status_after, "unseen",
+            "guide_status MUST NOT be forcefully changed to 'completed' on subsequent restarts!"
+        );
+    }
+
+    #[test]
+    fn test_skipped_and_completed_guide_states_preserved_across_repeated_restarts() {
+        let mut conn = Connection::open_in_memory().expect("In-memory db failed");
+        run_migrations(&mut conn).expect("Initial migration must succeed");
+
+        let now = chrono::Utc::now().timestamp_millis();
+        // 1. Test skipped state preservation across restarts
+        conn.execute(
+            "INSERT INTO business_settings (
+                id, business_name, phone, address_line1, city, state, postal_code,
+                currency_code, currency_symbol, currency_exponent, locale, timezone, invoice_prefix,
+                is_setup_completed, appearance_preference, guide_status, guide_version,
+                created_at, updated_at
+            ) VALUES (
+                'default', 'Skipped Guide Store', '+91 9876543210', '123 Market Road', 'Kochi', 'Kerala', '682001',
+                'INR', '₹', 2, 'en-IN', 'Asia/Kolkata', 'INV',
+                1, 'system', 'skipped', 1,
+                ?1, ?1
+            );",
+            params![now],
+        ).unwrap();
+
+        for _ in 0..3 {
+            run_migrations(&mut conn).expect("Restart must succeed");
+            let st: String = conn.query_row(
+                "SELECT guide_status FROM business_settings WHERE id = 'default';",
+                [],
+                |r| r.get(0),
+            ).unwrap();
+            assert_eq!(st, "skipped", "Skipped guide status must survive restarts");
+        }
+
+        // 2. Test completed state preservation across restarts
+        conn.execute(
+            "UPDATE business_settings SET guide_status = 'completed' WHERE id = 'default';",
+            [],
+        ).unwrap();
+
+        for _ in 0..3 {
+            run_migrations(&mut conn).expect("Restart must succeed");
+            let st: String = conn.query_row(
+                "SELECT guide_status FROM business_settings WHERE id = 'default';",
+                [],
+                |r| r.get(0),
+            ).unwrap();
+            assert_eq!(st, "completed", "Completed guide status must survive restarts");
+        }
+    }
+
+    #[test]
+    fn test_repeat_migration_execution_without_unintended_state_changes() {
+        let mut conn = Connection::open_in_memory().expect("In-memory db failed");
+        run_migrations(&mut conn).expect("Initial migration must succeed");
+
+        let now = chrono::Utc::now().timestamp_millis();
+        // Customize settings
+        conn.execute(
+            "INSERT INTO business_settings (
+                id, business_name, phone, address_line1, city, state, postal_code,
+                currency_code, currency_symbol, currency_exponent, locale, timezone, invoice_prefix,
+                is_setup_completed, appearance_preference, guide_status, guide_version,
+                created_at, updated_at
+            ) VALUES (
+                'default', 'Immutable Test Enterprise', '+91 9876543210', '123 Market Road', 'Kochi', 'Kerala', '682001',
+                'INR', '₹', 2, 'en-IN', 'Asia/Kolkata', 'INV',
+                1, 'dark', 'unseen', 1,
+                ?1, ?1
+            );",
+            params![now],
+        ).unwrap();
+
+        // Run migrations 5 times in a loop
+        for _ in 0..5 {
+            run_migrations(&mut conn).expect("Repeat migration execution must succeed");
+        }
+
+        let (name, appearance, guide): (String, String, String) = conn.query_row(
+            "SELECT business_name, appearance_preference, guide_status FROM business_settings WHERE id = 'default';",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        ).unwrap();
+
+        assert_eq!(name, "Immutable Test Enterprise");
+        assert_eq!(appearance, "dark");
+        assert_eq!(guide, "unseen");
+    }
+
+    #[test]
+    fn test_unknown_v6_checksum_rejected() {
+        let mut conn = Connection::open_in_memory().expect("In-memory db failed");
+        let now = chrono::Utc::now().timestamp_millis();
+        let chk1 = test_checksum(V1_MIGRATION_SQL);
+        let chk2 = test_checksum(V2_MIGRATION_SQL);
+        let chk3 = test_checksum(V3_MIGRATION_SQL);
+        let chk4 = test_checksum(V4_MIGRATION_SQL);
+        let chk5 = test_checksum(V5_MIGRATION_SQL);
+        conn.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL, checksum TEXT NOT NULL);", []).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (1, 'v1', ?1, ?2);", params![now, chk1]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (2, 'v2', ?1, ?2);", params![now, chk2]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (3, 'v3', ?1, ?2);", params![now, chk3]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (4, 'v4', ?1, ?2);", params![now, chk4]).unwrap();
+        conn.execute("INSERT INTO schema_migrations VALUES (5, 'v5', ?1, ?2);", params![now, chk5]).unwrap();
+        // Insert with unknown / corrupt checksum
+        conn.execute("INSERT INTO schema_migrations VALUES (6, 'v6', ?1, 'corrupted_or_tampered_v6_hash');", params![now]).unwrap();
+
+        let result = run_migrations(&mut conn);
+        match result {
+            Err(DbError::ChecksumMismatch { version, expected, .. }) => {
+                assert_eq!(version, 6);
+                assert_eq!(expected, "corrupted_or_tampered_v6_hash");
+            }
+            other => panic!("Expected ChecksumMismatch for version 6, got {:?}", other),
+        }
     }
 }
 

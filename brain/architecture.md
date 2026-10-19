@@ -173,14 +173,17 @@ flowchart TD
    - Auto-opens upon first launch if setup is completed and guide is unseen.
    - Skip, Back, Next controls with versioned persistence (`last_seen_guide_version`).
    - Replayable anytime from Settings -> Help & Getting Started.
-4. **Database Migration `v6_setup_and_onboarding.sql`**:
+4. **Database Migration `v6_setup_and_onboarding.sql` & Repair Scoping**:
    - Extends `business_settings` with `is_setup_completed BOOLEAN NOT NULL DEFAULT 0`, `appearance_preference TEXT NOT NULL DEFAULT 'system'`, and `last_seen_guide_version INTEGER NOT NULL DEFAULT 0`.
-   - Verified with SHA-256 migration checksum runner.
+   - Migration repair scoping: The one-time legacy business repair UPDATE is strictly executed only when `stored_checksum == INITIAL_V6_CHECKSUM && is_setup_completed = 0`. Upon execution, `schema_migrations.checksum` advances to `current_checksum6`.
+   - For databases with `stored_checksum == current_checksum6`, no repair UPDATE is run, guaranteeing that `unseen`, `skipped`, and `completed` guide states persist indefinitely across repeated application restarts.
 5. **Android Standalone Packaging & Toolchain**:
    - Rootless OpenJDK 17 (`~/.android-toolchain/jdk`) + Android SDK (`android-36`, `build-tools/36.0.0`) & NDK 26.1 (`~/.android-toolchain/android-sdk/ndk/26.1.10909125`).
-   - 16 KB page-size ELF alignment for Android 15+ native libraries (`RUSTFLAGS="-C link-arg=-z -C link-arg=max-page-size=16384"`, verified `0x4000` segment alignment via `readelf -l`).
-   - Self-contained packaging: SQLite, bundled Noto Sans offline fonts, and Vite assets bundled directly into APK (`dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`, 15M).
-   - Signed with BillZen Beta Keystore (`v2` + `v3` APK signature schemes, verified via `apksigner`).
+   - Hardened APK Selection & Assembly: `scripts/build_android_apk.sh` strictly selects release variants (`*universal*release*.apk`, `*arm64*release*.apk`) and immediately aborts if no release variant was produced, rejecting debug fallbacks.
+   - 16 KB page-size ELF alignment for Android 15+ native libraries (`RUSTFLAGS="-C link-arg=-z -C link-arg=max-page-size=16384"`, verified `0x4000` segment alignment via `llvm-readelf -l`).
+   - Self-contained packaging: SQLite, bundled Noto Sans offline fonts, and Vite assets bundled directly into APK (`dist-android/billzen-beta-v0.1.0-arm64-v8a.apk`, 15M, `versionCode = 1001`).
+   - Signed with BillZen Beta Keystore (`v2` + `v3` APK signature schemes, verified certificate identity `CN=BillZen Beta` and SHA-256 fingerprint matching keystore via `apksigner`).
+   - Automated 4-byte `zipalign -c -v 4` check and embedded resource verification.
 
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.

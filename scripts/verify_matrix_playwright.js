@@ -135,7 +135,22 @@ async function run() {
   console.log('=== Step 2: Starting Vite preview server on port 4173 ===');
   const preview = spawn('npx', ['vite', 'preview', '--port', '4173'], {
     stdio: 'ignore',
+    detached: true,
   });
+
+  const killPreviewGroup = () => {
+    if (preview && preview.pid) {
+      try {
+        process.kill(-preview.pid, 'SIGTERM');
+      } catch {
+        // Already dead
+      }
+    }
+  };
+
+  process.on('SIGINT', () => { killPreviewGroup(); process.exit(130); });
+  process.on('SIGTERM', () => { killPreviewGroup(); process.exit(143); });
+  process.on('exit', () => killPreviewGroup());
 
   try {
     await waitForServer('http://localhost:4173/');
@@ -254,7 +269,7 @@ async function run() {
     console.log(`\n=== ALL SCENARIOS PASSED SUCCESSFULLY ===`);
     console.log(`Summary report written to ${REPORT_PATH}`);
   } finally {
-    preview.kill('SIGTERM');
+    killPreviewGroup();
   }
 }
 

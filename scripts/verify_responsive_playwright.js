@@ -25,7 +25,22 @@ async function main() {
   const previewProcess = spawn('npx', ['vite', 'preview', '--port', '4177', '--strictPort'], {
     cwd: process.cwd(),
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
   });
+
+  const killPreviewGroup = () => {
+    if (previewProcess && previewProcess.pid) {
+      try {
+        process.kill(-previewProcess.pid, 'SIGTERM');
+      } catch {
+        // Already dead
+      }
+    }
+  };
+
+  process.on('SIGINT', () => { killPreviewGroup(); process.exit(130); });
+  process.on('SIGTERM', () => { killPreviewGroup(); process.exit(143); });
+  process.on('exit', () => killPreviewGroup());
 
   let serverReady = false;
   previewProcess.stdout.on('data', (d) => {
@@ -196,8 +211,10 @@ async function main() {
     console.log(`Overall Responsive Result: ${report.allPassed ? 'ALL PASSED' : 'FAILURES DETECTED'}`);
 
   } finally {
-    await browser.close();
-    previewProcess.kill();
+    if (browser) {
+      await browser.close();
+    }
+    killPreviewGroup();
   }
 
   if (!report.allPassed) {

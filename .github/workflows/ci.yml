@@ -80,6 +80,12 @@ jobs:
       - name: Run Playwright Catalog Verification
         run: npm run test:catalog
 
+      - name: Run Playwright Responsive Verification
+        run: npm run test:responsive
+
+      - name: Run Playwright Onboarding & Appearance Verification
+        run: npm run test:onboarding
+
       - name: Run Playwright Invoice Matrix Verification
         run: npm run test:matrix
 
