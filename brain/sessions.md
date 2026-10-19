@@ -943,7 +943,46 @@
   - `node scripts/verify_cashbook_pdf.js`: 3/3 passed (`test_artifacts/pdf_cashbook/cashbook_pdf_report.json`).
   - `node scripts/verify_cashbook_playwright.js`: 10/10 passed (`test_artifacts/cashbook/cashbook_verification_report.json`).
 - **Unfinished Tasks / Immediate Next Steps**:
+  - [Completed in Session 12] Native Linux Desktop Application Rebuild & Automated Cashbook Verification Suite.
   - Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine (versioned JSON with SHA-256 and pre-validation), and cross-platform acceptance suite.
+
+## 2026-10-19 — Native Linux Desktop Cashbook Rebuild & Automated Isolated Verification
+- **Goals**: Rebuild the Linux desktop application using `npm run tauri -- build --no-bundle`, verify that `src-tauri/target/release/billzen` is freshly generated, launch it, and automatically test the full native Cashbook workflow without modifying real user business data (`~/.local/share/billzen`).
+- **Completed Tasks**:
+  - **1. Native Linux Release Build (`npm run tauri -- build --no-bundle`)**:
+    - Vite frontend build succeeded in 1.76s.
+    - Rust release profile build succeeded in 1m 20s.
+    - Verified standalone binary `src-tauri/target/release/billzen` freshly generated (15.49 MB, 16,240,056 bytes).
+  - **2. Automated Native Desktop Remote Control & Verification (`scripts/verify_native_cashbook.js`)**:
+    - Leveraged WebKitGTK HTTP inspector server (`WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9235`) and WebSocket target protocol (`/socket/1/1/WebPage`).
+    - Handled WebKit Remote Inspector primitive result mapping and React controlled form input synchronization via prototype property setters for both `HTMLInputElement` and `HTMLTextAreaElement`.
+    - Automated full end-to-end native cashbook lifecycle:
+      1. Native Tauri environment verification (`tauri://localhost`, `window.__TAURI_INTERNALS__`).
+      2. Automated first-run onboarding setup wizard on clean isolated database (India / INR preset, business profile submission).
+      3. Native Cashbook dashboard mounting with non-profit terminology invariants and zero ephemeral browser preview banner.
+      4. Money account creation ("Petty Cash Desk" with initial opening balance ₹20,000.00).
+      5. Money received receipt voucher posting (₹15,000.00, sequence `RCP-202610-00001`, running balance ₹35,000.00).
+      6. Money paid expense voucher posting (₹4,000.00, sequence `PAY-202610-00001`, running balance ₹31,000.00).
+      7. Negative-balance payment guard enforcement (₹100,000.00: Cancel cancels cleanly; Confirm posts `PAY-202610-00002` with projected balance -₹69,000.00).
+      8. Receipt voucher reversal with negative balance warning (`btn-confirm-reversal` and `btn-confirm-reversal-negative-balance` confirmed, posting `RCP-REV-202610-00001` and voiding original voucher).
+      9. Printable voucher document preview & print isolation verification (zero invoice text contamination).
+      10. Database isolation verification (`BILLZEN_DATA_DIR` temp directory contains isolated `billzen.db`; real user business database in `~/.local/share/billzen` verified 100% untouched).
+  - **3. Package Script Integration**:
+    - Added `"test:native-cashbook": "node scripts/verify_native_cashbook.js"` to `package.json`.
+- **Files Modified / Added**:
+  - `scripts/verify_native_cashbook.js` (Added)
+  - `package.json` (Modified)
+  - `brain/sessions.md` (Modified)
+  - `brain/architecture.md` (Modified)
+- **Verification Evidence**:
+  - `npm run test:native-cashbook`: 10/10 passed (`test_artifacts/native_cashbook/native_cashbook_verification_report.json`).
+  - `npm test`: 26 passed across 4 files, 0 failed.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 77 passed (63 unit tests + 14 integration tests), 0 failed.
+  - `npm run test:cashbook`: 10/10 passed (`test_artifacts/cashbook/cashbook_verification_report.json`).
+  - `npm run test:cashbook-pdf`: 3/3 passed (`test_artifacts/pdf_cashbook/cashbook_pdf_report.json`).
+- **Unfinished Tasks / Immediate Next Steps**:
+  - Milestone C1C: Persistent Web IndexedDB adapter, portable backup/restore engine (versioned JSON with SHA-256 and pre-validation), and cross-platform acceptance suite.
+
 
 
 
