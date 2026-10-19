@@ -209,15 +209,22 @@ flowchart TD
    - Added `ACCESS_NETWORK_STATE` in `AndroidManifest.xml` and defensive try-catch in network monitoring.
 4. **Compact Mobile Navigation Localization**:
    - Added `tab_print_probe_short` to `src/i18n/index.ts` (`'Print Probe'` in EN, `'പ്രിന്റ് ടെസ്റ്റ്'` in ML, `'فحص الطباعة'` in AR) with full `aria-label={t.tab_print_probe}`, preventing mobile bottom nav crowding on narrow screens.
-5. **Authoritative Release Packaging (versionCode 1003)**:
-   - Synchronized across `tauri.conf.json` (`"android": { "versionCode": 1003 }`), `build.gradle.kts`, `tauri.properties`, and `scripts/build_android_apk.sh`. Tested and verified via `apksigner`, `zipalign -P 16 4`, and `readelf -l`.
-6. **Hardened Native Android Verification Suite (`scripts/verify_android_runtime.js`)**:
-   - Condition-based waits replacing fixed sleeps: `waitForRecordInDom` queries both DOM text and all input/textarea values (`inputs`) with a bounded 15-second condition wait.
-   - Deep failure diagnostics: on timeout, records actual DOM snippet, loading states, and direct Tauri IPC invocation results (`get_products`, `get_business_settings`).
-   - Genuine interrupted setup-draft recovery: checks `localStorage` key `billzen_setup_draft` with Chromium LevelDB flush timing before `am force-stop`.
-   - Rigorous Back keyevent 4 dismissal without exit and clean drawer reopening.
-   - 100% offline creation asserting true disconnected state via blocked pings and `!navigator.onLine`.
-   - Run-scoped logcat capture asserting 0 fatal crashes or panics.
+## 15. Milestone 4A Architecture: Draft Invoices & Zero-Stock Decrement Invariant
+- **Specification**: Complete specification documented in `docs/m4a-invoice-drafts-spec.md`.
+- **Draft Lifecycle**: Invoices are created in `status = 'draft'` with draft line items stored directly in SQLite tables `invoices` and `invoice_items`.
+- **Zero-Stock Decrement Invariant**: Drafting or editing an invoice **never decrements stock**. Tracked physical stock movements (`stock_movements`) and inventory deductions occur strictly upon finalization in Milestone 4B.
+- **Optimistic Concurrency**: Draft updates require matching `draft_version` to prevent concurrent POS overwrites.
+- **Exact Financial Arithmetic**: Reuses `src/domain/financial.ts` and `src-tauri/src/domain/financial.rs` with `round_half_up_128` and checked integer arithmetic across 2-decimal and 3-decimal currencies.
+
+## 16. WebView Debugging Restriction & Build Variant Architecture (versionCode 1004)
+1. **Security Isolation & WebView Debugging Boundary**:
+   - `src-tauri/gen/android/app/src/main/java/com/billzen/desktop/MainActivity.kt` guards `WebView.setWebContentsDebuggingEnabled(true)` strictly with `if (BuildConfig.ENABLE_WEBVIEW_DEBUGGING)`.
+   - In distribution release builds (`BILLZEN_ENABLE_WEBVIEW_DEBUGGING=false`), R8 dead-code elimination completely purges `setWebContentsDebuggingEnabled` calls from `classes.dex`, verified via `dexdump`.
+   - In test builds (`BILLZEN_ENABLE_WEBVIEW_DEBUGGING=true`), debugging is enabled for CDP automation on port 9222.
+2. **Authoritative Versioning (versionCode 1004)**:
+   - Synchronized across `tauri.conf.json`, `build.gradle.kts`, `tauri.properties`, and `scripts/build_android_apk.sh`.
+   - Signed distribution release APK: `dist-android/billzen-beta-v0.1.0-arm64-v8a.apk` (15M, SHA-256: `fb9f2d170afe535132a24329b5c5b5e6d6ce1b60b9adc0de39cbcf2a4d282279`).
+   - Signed test APK: `dist-android/billzen-test-v0.1.0-x86_64.apk` (14M, SHA-256: `adeda77f1ea88e64c6d9689f13fd0f1904b6da023dfa91732024e9dea51f5024`).
 
 ## Application brand assets (2026-10-18)
 `public/brand/billzen-icon.svg` is the canonical README-derived mark. `npm run icons:generate` regenerates desktop/mobile icon assets, browser icons and the README hero mark. The app header uses the source SVG; native bundle icons are explicit in tauri.conf.json. Mobile assets do not imply mobile runtime verification.

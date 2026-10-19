@@ -17,7 +17,8 @@
         "width": 1280,
         "height": 820,
         "minWidth": 980,
-        "minHeight": 640
+        "minHeight": 640,
+        "devtools": false
       }
     ],
     "security": {
@@ -35,7 +36,7 @@
       "icons/icon.ico"
     ],
     "android": {
-      "versionCode": 1003
+      "versionCode": 1004
     }
   }
 }

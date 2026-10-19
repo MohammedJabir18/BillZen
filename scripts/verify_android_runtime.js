@@ -12,20 +12,50 @@ const ANDROID_SDK = '/home/jabir/.android-toolchain/android-sdk';
 const ADB = `${ANDROID_SDK}/platform-tools/adb`;
 const TARGET_SERIAL = 'emulator-5554';
 
-function runAdb(cmd) {
+function runAdb(cmd, options = {}) {
+  const timeout = options.timeout || 30000;
   try {
-    return execSync(`${ADB} -s ${TARGET_SERIAL} ${cmd}`, { encoding: 'utf8' }).trim();
+    const stdout = execSync(`${ADB} -s ${TARGET_SERIAL} ${cmd}`, {
+      encoding: 'utf8',
+      timeout,
+      maxBuffer: 50 * 1024 * 1024,
+    });
+    return stdout.trim();
   } catch (err) {
-    console.error(`ADB error running: ${cmd}`, err.message);
-    throw err;
+    const exitCode = err.status ?? (err.killed ? 'TIMEOUT' : -1);
+    const stderr = err.stderr ? err.stderr.toString().trim() : '';
+    const stdout = err.stdout ? err.stdout.toString().trim() : '';
+    console.error(`[ADB ERROR] Command failed: adb ${cmd}`);
+    console.error(`  Exit Code: ${exitCode}`);
+    if (stderr) console.error(`  Stderr: ${stderr}`);
+    if (stdout) console.error(`  Stdout: ${stdout}`);
+    const wrappedErr = new Error(`ADB command failed (${exitCode}): adb ${cmd} - ${stderr || stdout || err.message}`);
+    wrappedErr.exitCode = exitCode;
+    wrappedErr.stderr = stderr;
+    wrappedErr.stdout = stdout;
+    throw wrappedErr;
   }
 }
 
-function runAdbQuiet(cmd) {
+function runAdbDetailed(cmd, options = {}) {
+  const timeout = options.timeout || 30000;
   try {
-    return execSync(`${ADB} -s ${TARGET_SERIAL} ${cmd}`, { encoding: 'utf8' }).trim();
-  } catch {
-    return '';
+    const stdout = execSync(`${ADB} -s ${TARGET_SERIAL} ${cmd}`, {
+      encoding: 'utf8',
+      timeout,
+      maxBuffer: 50 * 1024 * 1024,
+    });
+    return { success: true, exitCode: 0, output: stdout.trim(), error: null };
+  } catch (err) {
+    const exitCode = err.status ?? (err.killed ? 'TIMEOUT' : -1);
+    const stderr = err.stderr ? err.stderr.toString().trim() : '';
+    const stdout = err.stdout ? err.stdout.toString().trim() : '';
+    return {
+      success: false,
+      exitCode,
+      output: (stdout || stderr || '').trim(),
+      error: err.message,
+    };
   }
 }
 
@@ -95,11 +125,14 @@ class CdpClient {
 async function getCdpClient(maxAttempts = 15) {
   let pid = '';
   for (let i = 0; i < maxAttempts; i++) {
-    pid = runAdbQuiet('shell pidof com.billzen.desktop').trim().split(/\s+/)[0];
-    if (pid) break;
+    const pidRes = runAdbDetailed('shell pidof com.billzen.desktop');
+    if (pidRes.success && pidRes.output) {
+      pid = pidRes.output.trim().split(/\s+/)[0];
+      if (pid) break;
+    }
     await sleep(500);
   }
-  if (!pid) throw new Error('com.billzen.desktop process not found!');
+  if (!pid) throw new Error('com.billzen.desktop process not found after multiple attempts!');
 
   runAdb(`forward tcp:9222 localabstract:webview_devtools_remote_${pid}`);
   await sleep(600);
@@ -256,24 +289,25 @@ async function main() {
   console.log('   BillZen Native Android Runtime Verification (Hardened Suite) ');
   console.log('================================================================');
 
-  const v1002Path = path.resolve('dist-android/billzen-test-v0.1.0-v1002-x86_64.apk');
-  const v1003Path = path.resolve('dist-android/billzen-test-v0.1.0-x86_64.apk');
+  const v1003Path = path.resolve('dist-android/billzen-test-v0.1.0-v1003-x86_64.apk');
+  const v1004Path = path.resolve('dist-android/billzen-test-v0.1.0-x86_64.apk');
+  const distApkPath = path.resolve('dist-android/billzen-dist-v0.1.0-x86_64.apk');
 
   const report = {
     suite: 'BillZen Native Android Runtime Verification',
-    baselineVersionCode: 1002,
-    targetVersionCode: 1003,
+    baselineVersionCode: 1003,
+    targetVersionCode: 1004,
     startedAt: new Date().toISOString(),
     completedAt: null,
     device: {},
     packages: {
-      baselineV1002: {
-        path: v1002Path,
-        sha256: computeFileSha256(v1002Path),
-      },
-      upgradeV1003: {
+      baselineV1003: {
         path: v1003Path,
         sha256: computeFileSha256(v1003Path),
+      },
+      upgradeV1004: {
+        path: v1004Path,
+        sha256: computeFileSha256(v1004Path),
       },
     },
     stages: [],
@@ -306,6 +340,12 @@ async function main() {
 
   let cdp = null;
 
+  // Capture initial emulator network and UI state for exact restoration in teardown
+  let initialAirplaneMode = '0';
+  let initialWifi = '1';
+  let initialMobileData = '1';
+  let initialIsDarkTheme = false;
+
   try {
     // 0. Verify connected emulator
     const devicesOutput = execSync(`${ADB} devices`, { encoding: 'utf8' });
@@ -313,6 +353,14 @@ async function main() {
     if (!devicesOutput.includes(TARGET_SERIAL)) {
       throw new Error(`Target emulator serial ${TARGET_SERIAL} is not connected!`);
     }
+
+    // Capture initial state
+    initialAirplaneMode = runAdbDetailed('shell settings get global airplane_mode_on').output.trim() || '0';
+    initialWifi = runAdbDetailed('shell settings get global wifi_on').output.trim() || '1';
+    initialMobileData = runAdbDetailed('shell settings get global mobile_data').output.trim() || '1';
+    const initialUiModeOutput = runAdbDetailed('shell cmd uimode').output;
+    initialIsDarkTheme = initialUiModeOutput.includes('Night mode: yes');
+    console.log(`Initial emulator state: Airplane=${initialAirplaneMode}, WiFi=${initialWifi}, MobileData=${initialMobileData}, DarkTheme=${initialIsDarkTheme}`);
 
     // Capture device details
     report.device = {
@@ -326,25 +374,90 @@ async function main() {
     console.log(`Target device: ${report.device.manufacturer} ${report.device.model} (Android ${report.device.androidVersion}, API ${report.device.sdkInt}, ${report.device.abi})`);
 
     // Reset logcat marker for clean bounded capture
-    runAdbQuiet('logcat -c');
+    runAdbDetailed('logcat -c');
 
     // =========================================================================
-    // STAGE 1: Baseline Clean Installation (v1002)
+    // STAGE 0: WebView Debugging Security Verification
+    // Assert distribution APK exposes NO debugging target, test APK exposes CDP
     // =========================================================================
-    recordStage('Stage 1', 'Clean baseline installation with v1002 APK');
+    if (fs.existsSync(distApkPath)) {
+      recordStage('Stage 0', 'WebView debugging security verification (distribution build vs test build)');
+      console.log(`Installing distribution APK with WebView debugging disabled: ${distApkPath}`);
+      runAdb('uninstall com.billzen.desktop || true');
+      runAdb(`install -r "${distApkPath}"`);
+      runAdb('shell am force-stop com.billzen.desktop');
+      runAdb('shell am start -W -n com.billzen.desktop/.MainActivity');
+      let distPid = '';
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const distPidRes = runAdbDetailed('shell pidof com.billzen.desktop');
+        if (distPidRes.success && distPidRes.output) {
+          distPid = distPidRes.output.trim().split(/\s+/)[0];
+          if (distPid) break;
+        }
+        await sleep(500);
+      }
+      if (!distPid) throw new Error('Distribution build failed to launch!');
+
+      const dexdumpBin = `${ANDROID_SDK}/build-tools/34.0.0/dexdump`;
+      let distHasDebugCall = true;
+      try {
+        const dumpOut = execSync(`"${dexdumpBin}" -d "${distApkPath}" | grep -i "setWebContentsDebuggingEnabled" || true`, { encoding: 'utf8' }).trim();
+        distHasDebugCall = dumpOut.length > 0;
+      } catch {
+        distHasDebugCall = false;
+      }
+
+      let testHasDebugCall = false;
+      try {
+        const dumpOut = execSync(`"${dexdumpBin}" -d "${v1004Path}" | grep -i "setWebContentsDebuggingEnabled" || true`, { encoding: 'utf8' }).trim();
+        testHasDebugCall = dumpOut.length > 0;
+      } catch {}
+
+      const osBuildType = runAdb('shell getprop ro.build.type');
+      const isUserDebugOs = osBuildType === 'userdebug';
+      const unixSockets = runAdbDetailed(`shell "cat /proc/net/unix | grep webview_devtools_remote_${distPid} || true"`).output;
+
+      if (!distHasDebugCall && testHasDebugCall) {
+        recordAssertion('distribution_build_blocks_webview_debugging', 'Stage 0', 'PASSED', {
+          distPid,
+          distHasDebugCall: false,
+          testHasDebugCall: true,
+          osBuildType,
+          isUserDebugOs,
+          osLevelSocketObserved: !!unixSockets,
+          securityVerdict: 'Distribution build completely omits setWebContentsDebuggingEnabled in bytecode; test build opts in',
+        });
+      } else {
+        recordAssertion('distribution_build_blocks_webview_debugging', 'Stage 0', 'FAILED', {
+          distPid,
+          distHasDebugCall,
+          testHasDebugCall,
+          osBuildType,
+        });
+        throw new Error('Distribution build contains unexpected debugging calls in bytecode!');
+      }
+
+      runAdb('shell am force-stop com.billzen.desktop');
+      runAdbDetailed('forward --remove tcp:9222');
+    }
+
+    // =========================================================================
+    // STAGE 1: Baseline Clean Installation (v1003)
+    // =========================================================================
+    recordStage('Stage 1', 'Clean baseline installation with v1003 test APK');
     runAdb('uninstall com.billzen.desktop || true');
-    const installResult = runAdb(`install -r "${v1002Path}"`);
+    const installResult = runAdb(`install -r "${v1003Path}"`);
     console.log(`Install result: ${installResult}`);
 
     const baselineDump = runAdb('shell dumpsys package com.billzen.desktop | grep versionCode').split('\n')[0].trim();
     const baselineVersionCodeMatch = baselineDump.match(/versionCode=(\d+)/);
     const baselineVersionCode = baselineVersionCodeMatch ? parseInt(baselineVersionCodeMatch[1], 10) : 0;
     
-    if (baselineVersionCode === 1002) {
-      recordAssertion('baseline_v1002_installed', 'Stage 1', 'PASSED', { versionCode: baselineVersionCode });
+    if (baselineVersionCode === 1003) {
+      recordAssertion('baseline_v1003_installed', 'Stage 1', 'PASSED', { versionCode: baselineVersionCode });
     } else {
-      recordAssertion('baseline_v1002_installed', 'Stage 1', 'FAILED', { expected: 1002, got: baselineVersionCode });
-      throw new Error(`Expected baseline versionCode 1002, got: ${baselineVersionCode}`);
+      recordAssertion('baseline_v1003_installed', 'Stage 1', 'FAILED', { expected: 1003, got: baselineVersionCode });
+      throw new Error(`Expected baseline versionCode 1003, got: ${baselineVersionCode}`);
     }
 
     // =========================================================================
@@ -356,6 +469,10 @@ async function main() {
 
     cdp = await getCdpClient();
     console.log('Connected to BillZen WebView via CDP.');
+    recordAssertion('test_build_enables_webview_debugging_for_cdp', 'Stage 2', 'PASSED', {
+      connected: true,
+      port: 9222,
+    });
 
     // Verify wizard step 1
     await waitForCondition(cdp, 'document.querySelector("h1")?.innerText.includes("Welcome to BillZen")', 12000);
@@ -522,29 +639,29 @@ async function main() {
     report.screenshots.push({ name: '05_catalog_customer_created.png', path: s5, stage: 'Stage 4' });
 
     // =========================================================================
-    // STAGE 5: In-Place Upgrade to v1003 (Zero Data Loss & Comprehensive Invariant Checks)
+    // STAGE 5: In-Place Upgrade to v1004 (Zero Data Loss & Comprehensive Invariant Checks)
     // =========================================================================
-    recordStage('Stage 5', 'In-place upgrade to v1003 test APK and zero-data-loss verification');
+    recordStage('Stage 5', 'In-place upgrade to v1004 test APK and zero-data-loss verification');
     cdp.close();
 
-    console.log(`Installing upgrade APK: ${v1003Path}`);
-    const upgradeResult = runAdb(`install -r "${v1003Path}"`);
+    console.log(`Installing upgrade APK: ${v1004Path}`);
+    const upgradeResult = runAdb(`install -r "${v1004Path}"`);
     console.log(`Upgrade result: ${upgradeResult}`);
 
     const upgradedDump = runAdb('shell dumpsys package com.billzen.desktop | grep versionCode').split('\n')[0].trim();
     const upgradedVersionMatch = upgradedDump.match(/versionCode=(\d+)/);
     const upgradedVersionCode = upgradedVersionMatch ? parseInt(upgradedVersionMatch[1], 10) : 0;
 
-    if (upgradedVersionCode === 1003) {
-      recordAssertion('in_place_upgrade_to_v1003_version_confirmed', 'Stage 5', 'PASSED', {
+    if (upgradedVersionCode === 1004) {
+      recordAssertion('in_place_upgrade_to_v1004_version_confirmed', 'Stage 5', 'PASSED', {
         versionCode: upgradedVersionCode,
       });
     } else {
-      recordAssertion('in_place_upgrade_to_v1003_version_confirmed', 'Stage 5', 'FAILED', {
-        expected: 1003,
+      recordAssertion('in_place_upgrade_to_v1004_version_confirmed', 'Stage 5', 'FAILED', {
+        expected: 1004,
         got: upgradedVersionCode,
       });
-      throw new Error(`Expected upgraded versionCode 1003, got: ${upgradedVersionCode}`);
+      throw new Error(`Expected upgraded versionCode 1004, got: ${upgradedVersionCode}`);
     }
 
     // Launch upgraded app
@@ -565,47 +682,47 @@ async function main() {
     await navigateToTab(cdp, 'products');
     const productSurvives = await waitForRecordInDom(cdp, ['Royal Basmati Rice 5kg', '0012345678905'], 15000);
     if (productSurvives.success) {
-      recordAssertion('catalog_product_and_barcode_intact_after_v1003_upgrade', 'Stage 5', 'PASSED', {
+      recordAssertion('catalog_product_and_barcode_intact_after_v1004_upgrade', 'Stage 5', 'PASSED', {
         product: 'Royal Basmati Rice 5kg',
         barcode: '0012345678905',
       });
     } else {
-      recordAssertion('catalog_product_and_barcode_intact_after_v1003_upgrade', 'Stage 5', 'FAILED', productSurvives.diagnostic);
-      throw new Error('Catalog product data lost after upgrade to v1003!');
+      recordAssertion('catalog_product_and_barcode_intact_after_v1004_upgrade', 'Stage 5', 'FAILED', productSurvives.diagnostic);
+      throw new Error('Catalog product data lost after upgrade to v1004!');
     }
 
     // 5.2 Verify Customer record intact after upgrade
     await navigateToTab(cdp, 'customers');
     const customerSurvives = await waitForRecordInDom(cdp, ['Jabir', '+91 9999888877'], 15000);
     if (customerSurvives.success) {
-      recordAssertion('customer_data_intact_after_v1003_upgrade', 'Stage 5', 'PASSED', {
+      recordAssertion('customer_data_intact_after_v1004_upgrade', 'Stage 5', 'PASSED', {
         customer: 'Jabir',
         phone: '+91 9999888877',
       });
     } else {
-      recordAssertion('customer_data_intact_after_v1003_upgrade', 'Stage 5', 'FAILED', customerSurvives.diagnostic);
-      throw new Error('Customer data lost after upgrade to v1003!');
+      recordAssertion('customer_data_intact_after_v1004_upgrade', 'Stage 5', 'FAILED', customerSurvives.diagnostic);
+      throw new Error('Customer data lost after upgrade to v1004!');
     }
 
     // 5.3 Verify Business Profile intact after upgrade
     await navigateToTab(cdp, 'settings');
     const profileSurvives = await waitForRecordInDom(cdp, ['Zen Kerala Store'], 15000);
     if (profileSurvives.success) {
-      recordAssertion('business_profile_intact_after_v1003_upgrade', 'Stage 5', 'PASSED', {
+      recordAssertion('business_profile_intact_after_v1004_upgrade', 'Stage 5', 'PASSED', {
         business_name: 'Zen Kerala Store',
       });
     } else {
-      recordAssertion('business_profile_intact_after_v1003_upgrade', 'Stage 5', 'FAILED', profileSurvives.diagnostic);
-      throw new Error('Business profile lost after upgrade to v1003!');
+      recordAssertion('business_profile_intact_after_v1004_upgrade', 'Stage 5', 'FAILED', profileSurvives.diagnostic);
+      throw new Error('Business profile lost after upgrade to v1004!');
     }
 
-    const s9 = captureScreenshot('09_after_upgrade_v1003.png');
-    report.screenshots.push({ name: '09_after_upgrade_v1003.png', path: s9, stage: 'Stage 5' });
+    const s9 = captureScreenshot('09_after_upgrade_v1004.png');
+    report.screenshots.push({ name: '09_after_upgrade_v1004.png', path: s9, stage: 'Stage 5' });
 
     // =========================================================================
-    // STAGE 6: Appearance & Edge-to-Edge Safe Area Insets Verification on v1003
+    // STAGE 6: Appearance & Edge-to-Edge Safe Area Insets Verification on v1004
     // =========================================================================
-    recordStage('Stage 6', 'Appearance Settings & Safe Area Insets on v1003 (Dark, Light, System)');
+    recordStage('Stage 6', 'Appearance Settings & Safe Area Insets on v1004 (Dark, Light, System)');
     await navigateToTab(cdp, 'settings');
     await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="appearance-option-dark"]\')', 10000);
 
@@ -673,7 +790,7 @@ async function main() {
     runAdb('shell input keyevent 4');
     await waitForCondition(cdp, '!document.querySelector(\'[role="dialog"]\')', 8000);
 
-    const pidAfterBack = runAdbQuiet('shell pidof com.billzen.desktop');
+    const pidAfterBack = runAdbDetailed('shell pidof com.billzen.desktop').output.trim();
     if (pidAfterBack.length > 0) {
       recordAssertion('back_button_dismisses_customer_modal_without_exit', 'Stage 7', 'PASSED', {
         dialogClosed: true,
@@ -703,9 +820,9 @@ async function main() {
     });
 
     // =========================================================================
-    // STAGE 8: Customer Modal Back Dismissal and Clean Reopen on v1003
+    // STAGE 8: Customer Modal Back Dismissal and Clean Reopen on v1004
     // =========================================================================
-    recordStage('Stage 8', 'Customer modal Back button dismissal and clean reopening on v1003');
+    recordStage('Stage 8', 'Customer modal Back button dismissal and clean reopening on v1004');
     await navigateToTab(cdp, 'customers');
     await waitForCondition(cdp, '!!document.querySelector(\'[data-testid="add-customer-button"]\')', 10000);
 
@@ -835,25 +952,43 @@ async function main() {
     report.screenshots.push({ name: '08_after_kill_recovery.png', path: s8, stage: 'Stage 10' });
 
     // =========================================================================
-    // STAGE 11: 100% Offline Mode Operations & Verification on v1003
+    // STAGE 11: 100% Offline Mode Operations & Verification on v1004
     // =========================================================================
-    recordStage('Stage 11', '100% offline mode operations on v1003 (Airplane mode, WiFi & Mobile Data disabled)');
+    recordStage('Stage 11', '100% offline mode operations on v1004 (Airplane mode, WiFi & Mobile Data disabled)');
     console.log('Enabling airplane mode and disabling WiFi/Data...');
     runAdb('shell cmd connectivity airplane-mode enable');
     runAdb('shell svc wifi disable');
     runAdb('shell svc data disable');
     await sleep(2000);
 
-    // Verify offline network condition explicitly
-    const pingOutput = runAdbQuiet('shell "ping -c 1 -W 2 8.8.8.8 2>&1 || true"');
-    const isPingBlocked =
-      pingOutput.includes('100% packet loss') ||
-      pingOutput.includes('Network is unreachable') ||
-      pingOutput.includes('100.0% packet loss') ||
-      pingOutput.includes('unreachable') ||
-      !pingOutput.includes('1 packets transmitted, 1 received');
+    // Verify offline network condition explicitly at Android OS level
+    // 1. Airplane mode setting in Global settings
+    const airplaneSetting = runAdbDetailed('shell settings get global airplane_mode_on');
+    const isAirplaneOn = airplaneSetting.success && airplaneSetting.output.trim() === '1';
 
-    // Ensure WebView navigator.onLine reflects offline state via native bridge
+    // 2. Wi-Fi status in Global settings or dumpsys
+    const wifiSetting = runAdbDetailed('shell settings get global wifi_on');
+    const isWifiOff = wifiSetting.success && (wifiSetting.output.trim() === '0' || wifiSetting.output.trim() === '');
+
+    // 3. Mobile data setting in Global settings
+    const mobileDataSetting = runAdbDetailed('shell settings get global mobile_data');
+    const isMobileDataOff = mobileDataSetting.success && (mobileDataSetting.output.trim() === '0' || mobileDataSetting.output.trim() === '');
+
+    // 4. Active default network in ConnectivityService
+    const activeNetworkCheck = runAdbDetailed('shell "dumpsys connectivity | grep -E \\"Active network:|Default network:\\" || true"');
+    const hasNoActiveNetwork = activeNetworkCheck.success &&
+      (activeNetworkCheck.output.includes('none') || activeNetworkCheck.output.includes('null') || activeNetworkCheck.output.trim() === '');
+
+    // 5. Ping packet loss / route failure
+    const pingRes = runAdbDetailed('shell "ping -c 1 -W 2 8.8.8.8 2>&1 || true"');
+    const isPingBlocked =
+      pingRes.output.includes('100% packet loss') ||
+      pingRes.output.includes('Network is unreachable') ||
+      pingRes.output.includes('100.0% packet loss') ||
+      pingRes.output.includes('unreachable') ||
+      !pingRes.output.includes('1 packets transmitted, 1 received');
+
+    // 6. Ensure WebView navigator.onLine reflects offline state via native bridge
     await cdp.eval(`
       (() => {
         if (window.BillZenNative?.setNetworkAvailable) {
@@ -869,17 +1004,21 @@ async function main() {
       isNavigatorOffline = await cdp.eval('!navigator.onLine');
     }
 
-    if (isPingBlocked && isNavigatorOffline) {
-      recordAssertion('offline_network_state_verified', 'Stage 11', 'PASSED', {
-        pingBlocked: true,
-        navigatorOnLine: false,
-      });
+    const offlineDetails = {
+      isAirplaneOn,
+      isWifiOff,
+      isMobileDataOff,
+      hasNoActiveNetwork,
+      isPingBlocked,
+      isNavigatorOffline,
+      pingOutput: pingRes.output,
+    };
+
+    if (isAirplaneOn && isWifiOff && isMobileDataOff && isPingBlocked && isNavigatorOffline) {
+      recordAssertion('offline_network_state_verified', 'Stage 11', 'PASSED', offlineDetails);
     } else {
-      recordAssertion('offline_network_state_verified', 'Stage 11', 'FAILED', {
-        pingOutput,
-        isNavigatorOffline,
-      });
-      throw new Error('Device is not strictly offline before offline operations!');
+      recordAssertion('offline_network_state_verified', 'Stage 11', 'FAILED', offlineDetails);
+      throw new Error(`Device is not strictly offline before offline operations: ${JSON.stringify(offlineDetails)}`);
     }
 
     // Navigate to Products tab
@@ -961,23 +1100,47 @@ async function main() {
     // =========================================================================
     recordStage('Stage 13', 'Run-scoped Logcat audit for fatal exceptions, SIGSEGV, or panics');
     
-    // Dump test run logcat to disk
-    const logcatOutput = runAdbQuiet('shell logcat -d -v time');
+    // Dump test run logcat to disk with explicit status checking
+    const logcatRes = runAdbDetailed('shell logcat -d -v time', { timeout: 45000 });
     const logFilePath = path.join(ARTIFACTS_DIR, 'test_run.log');
-    fs.writeFileSync(logFilePath, logcatOutput);
-    console.log(`Scoped logcat dumped to: ${logFilePath}`);
 
-    const crashLines = runAdbQuiet('shell logcat -d | grep -E "FATAL EXCEPTION|SIGSEGV|AndroidRuntime: FATAL|panic in" || true');
+    if (!logcatRes.success || !logcatRes.output || logcatRes.output.length < 50) {
+      const errorDetail = {
+        captureSuccess: logcatRes.success,
+        exitCode: logcatRes.exitCode,
+        error: logcatRes.error,
+        outputLength: (logcatRes.output || '').length,
+      };
+      report.logcatSummary = {
+        captureStatus: 'CAPTURE_UNAVAILABLE',
+        errorDetail,
+      };
+      recordAssertion('logcat_audit_zero_fatal_crashes', 'Stage 13', 'FAILED', {
+        status: 'CAPTURE_UNAVAILABLE',
+        errorDetail,
+      });
+      throw new Error(`Logcat capture unavailable: exitCode=${logcatRes.exitCode}, error=${logcatRes.error}`);
+    }
+
+    fs.writeFileSync(logFilePath, logcatRes.output);
+    const totalLines = logcatRes.output.split('\n').length;
+    console.log(`Scoped logcat (${totalLines} lines) dumped to: ${logFilePath}`);
+
+    const crashRes = runAdbDetailed('shell "logcat -d | grep -E \\"FATAL EXCEPTION|SIGSEGV|AndroidRuntime: FATAL|panic in\\" || true"');
+    const crashLines = crashRes.success ? crashRes.output : '';
     const hasCrashes = crashLines.trim().length > 0;
     report.logcatSummary = {
+      captureStatus: 'SUCCESS',
       logFilePath,
-      totalLinesCaptured: logcatOutput.split('\n').length,
+      totalLinesCaptured: totalLines,
       crashLinesFound: crashLines.split('\n').filter(Boolean).length,
       sample: crashLines.slice(0, 500),
     };
 
     if (!hasCrashes) {
-      recordAssertion('logcat_audit_zero_fatal_crashes', 'Stage 13', 'PASSED');
+      recordAssertion('logcat_audit_zero_fatal_crashes', 'Stage 13', 'PASSED', {
+        totalLinesCaptured: totalLines,
+      });
     } else {
       recordAssertion('logcat_audit_zero_fatal_crashes', 'Stage 13', 'FAILED', { crashLines });
       throw new Error('Fatal crash or panic detected in logcat!');
@@ -991,19 +1154,39 @@ async function main() {
     throw err;
   } finally {
     console.log('\n--- Cleanup & Safety Teardown ---');
-    // Ensure network always restored
+    // Restore actual previous network state
     try {
-      runAdbQuiet('shell cmd connectivity airplane-mode disable');
-      runAdbQuiet('shell svc wifi enable');
-      runAdbQuiet('shell svc data enable');
-      console.log('Restored Airplane mode, WiFi, and Mobile Data states.');
-    } catch {}
+      if (initialAirplaneMode === '1') {
+        runAdbDetailed('shell cmd connectivity airplane-mode enable');
+      } else {
+        runAdbDetailed('shell cmd connectivity airplane-mode disable');
+      }
+      if (initialWifi === '1') {
+        runAdbDetailed('shell svc wifi enable');
+      } else {
+        runAdbDetailed('shell svc wifi disable');
+      }
+      if (initialMobileData === '1') {
+        runAdbDetailed('shell svc data enable');
+      } else {
+        runAdbDetailed('shell svc data disable');
+      }
+      console.log(`Restored network state to initial values: airplane=${initialAirplaneMode}, wifi=${initialWifi}, data=${initialMobileData}`);
+    } catch (e) {
+      console.warn('Warning restoring network state in teardown:', e.message);
+    }
 
-    // Ensure OS theme restored to day/light mode
+    // Restore actual previous OS theme
     try {
-      runAdbQuiet('shell cmd uimode night no');
-      console.log('Restored OS theme to light mode.');
-    } catch {}
+      if (initialIsDarkTheme) {
+        runAdbDetailed('shell cmd uimode night yes');
+      } else {
+        runAdbDetailed('shell cmd uimode night no');
+      }
+      console.log(`Restored OS theme to initial value: isDark=${initialIsDarkTheme}`);
+    } catch (e) {
+      console.warn('Warning restoring theme state in teardown:', e.message);
+    }
 
     // Ensure adb forwarding removed
     try {

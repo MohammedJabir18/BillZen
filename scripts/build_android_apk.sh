@@ -45,21 +45,30 @@ BUILD_DIR="$ROOT_DIR/src-tauri/gen/android/app/build/outputs/apk"
 rm -rf "$BUILD_DIR"
 
 # Authoritative versioning
-export BILLZEN_VERSION_CODE="${BILLZEN_VERSION_CODE:-1003}"
+export BILLZEN_VERSION_CODE="${BILLZEN_VERSION_CODE:-1004}"
 export BILLZEN_VERSION_NAME="${BILLZEN_VERSION_NAME:-0.1.0}"
 
 TARGET_ARCH="${1:-aarch64}"
 if [ "$TARGET_ARCH" = "x86_64" ]; then
     ABI_NAME="x86_64"
     SIGNED_APK="$ROOT_DIR/dist-android/billzen-test-v0.1.0-x86_64.apk"
+    export BILLZEN_ENABLE_WEBVIEW_DEBUGGING="${BILLZEN_ENABLE_WEBVIEW_DEBUGGING:-true}"
+elif [ "$TARGET_ARCH" = "x86_64_dist" ] || [ "$TARGET_ARCH" = "x86_64_no_debug" ]; then
+    TARGET_ARCH="x86_64"
+    ABI_NAME="x86_64"
+    SIGNED_APK="$ROOT_DIR/dist-android/billzen-dist-v0.1.0-x86_64.apk"
+    export BILLZEN_ENABLE_WEBVIEW_DEBUGGING="false"
 elif [ "$TARGET_ARCH" = "aarch64" ] || [ "$TARGET_ARCH" = "arm64-v8a" ]; then
     TARGET_ARCH="aarch64"
     ABI_NAME="arm64-v8a"
     SIGNED_APK="$ROOT_DIR/dist-android/billzen-beta-v0.1.0-arm64-v8a.apk"
+    export BILLZEN_ENABLE_WEBVIEW_DEBUGGING="${BILLZEN_ENABLE_WEBVIEW_DEBUGGING:-false}"
 else
     echo "ERROR: Unsupported target arch $TARGET_ARCH"
     exit 1
 fi
+
+echo "WebView Debugging Enabled: $BILLZEN_ENABLE_WEBVIEW_DEBUGGING"
 
 echo "Writing authoritative version metadata to tauri.properties..."
 cat <<EOF > "$ROOT_DIR/src-tauri/gen/android/app/tauri.properties"
@@ -74,7 +83,12 @@ npm run build
 
 # Run Tauri Android Build
 echo "--- 2. Building Android native binary & APK via Tauri CLI for $TARGET_ARCH ($ABI_NAME) ---"
-npx tauri android build --apk --target "$TARGET_ARCH" --ci
+if [ "$BILLZEN_ENABLE_WEBVIEW_DEBUGGING" = "true" ]; then
+    TAURI_CONFIG_OVERRIDE='{"app":{"windows":[{"label":"main","devtools":true}]}}'
+else
+    TAURI_CONFIG_OVERRIDE='{"app":{"windows":[{"label":"main","devtools":false}]}}'
+fi
+npx tauri android build --apk --target "$TARGET_ARCH" --ci --config "$TAURI_CONFIG_OVERRIDE"
 
 # Locate generated APK
 echo "Build outputs found in $BUILD_DIR:"
