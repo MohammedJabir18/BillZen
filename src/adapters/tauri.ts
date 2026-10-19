@@ -363,13 +363,8 @@ export async function exportWorkspaceBackup(): Promise<import('../types/backup')
     const products = await getProducts();
     const customers = await getCustomers();
     const categories = await getCategories();
-    const cashbookModule = await import('./cashbook');
-    const money_accounts = await cashbookModule.getMoneyAccounts();
-    const cashbook_categories = await cashbookModule.getCashbookCategories();
-    const cashbook_parties = await cashbookModule.getCashbookParties();
-    const { entries } = await cashbookModule.getCashbookLedger({});
-    const cashbook_vouchers = entries.map((e) => e.voucher);
-    const cashbook_movements = entries.map((e) => e.movement);
+    const { exportWebCashbookTables } = await import('./web_cashbook_db');
+    const cashbookTables = await exportWebCashbookTables();
 
     const payload: Record<string, any> = {
       format_version: '1.0',
@@ -388,13 +383,13 @@ export async function exportWorkspaceBackup(): Promise<import('../types/backup')
       payments: [],
       payment_allocations: [],
       expenses: [],
-      money_accounts,
-      cashbook_categories,
-      cashbook_parties,
-      cashbook_sequences: [],
-      cashbook_vouchers,
-      cashbook_movements,
-      cashbook_audit_events: [],
+      money_accounts: cashbookTables.money_accounts,
+      cashbook_categories: cashbookTables.cashbook_categories,
+      cashbook_parties: cashbookTables.cashbook_parties,
+      cashbook_sequences: cashbookTables.cashbook_sequences,
+      cashbook_vouchers: cashbookTables.cashbook_vouchers,
+      cashbook_movements: cashbookTables.cashbook_movements,
+      cashbook_audit_events: cashbookTables.cashbook_audit_events,
     };
 
     const { computePayloadChecksum } = await import('../domain/backup_crypto');
@@ -419,15 +414,30 @@ export async function restoreWorkspaceBackup(
     if (backupEnvelope.business_settings) {
       localStorage.setItem('billzen_browser_settings', JSON.stringify(backupEnvelope.business_settings));
     }
+    const { restoreWebCashbookTables } = await import('./web_cashbook_db');
+    await restoreWebCashbookTables({
+      money_accounts: backupEnvelope.money_accounts,
+      cashbook_categories: backupEnvelope.cashbook_categories,
+      cashbook_parties: backupEnvelope.cashbook_parties,
+      cashbook_vouchers: backupEnvelope.cashbook_vouchers,
+      cashbook_movements: backupEnvelope.cashbook_movements,
+      cashbook_sequences: backupEnvelope.cashbook_sequences,
+      cashbook_audit_events: backupEnvelope.cashbook_audit_events,
+    });
     return {
       success: true,
       message: 'Workspace restored successfully in browser preview.',
       restored_tables: Object.keys(backupEnvelope).filter((k) => k !== 'checksum_sha256'),
-      record_counts: {},
+      record_counts: {
+        money_accounts: backupEnvelope.money_accounts?.length || 0,
+        cashbook_vouchers: backupEnvelope.cashbook_vouchers?.length || 0,
+        cashbook_movements: backupEnvelope.cashbook_movements?.length || 0,
+      },
     };
   }
   return await invoke<import('../types/backup').RestoreBackupResult>('restore_workspace_backup', {
     backupJson: backupEnvelope,
   });
 }
+
 
