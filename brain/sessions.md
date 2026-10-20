@@ -1309,3 +1309,12 @@
   - Commit and push Phase UI-1 per `AGENTS.md` and report remote CI status.
   - Proceed with Phase UI-2: Dashboard View migration (Today default, featured `#ceeaa0` card, cash breakdown, 5-entry ledger, and SVG analytics chart).
 
+
+
+### 2026-10-20 — Rebuild local Linux executable with UI-1
+
+- **Owner request:** Update `src-tauri/target/release/billzen` to include the latest verified UI-1 header/navigation source.
+- **Completed:** Rebuilt v0.1.2 from `ea854d8` with `npm run tauri build -- --no-bundle`. File timestamp is 10:49:08 IST; size 20,661,096 bytes; SHA-256 `cf0b9085fcf439475ed1053a22e386209a737eabbd5c058af204929ff27d9187`. No application source, database schema, version or signing changes.
+- **Verification:** Native temporary-database suite passed 42/42 assertions across 14 steps, including explicit new header/active-pill/token checks, financial workflows, restart persistence and unchanged real business database fingerprints. Build-specific probe and receipt are ignored artifacts in `test_artifacts/native_ui1_rebuild/`; native report remains in `test_artifacts/native_cashbook/`. Existing frontend build warnings remain; no physical printer test.
+- **Files modified:** `docs/verification-status.md`, `brain/sessions.md`. Rebuilt executable remains ignored. Architecture unchanged.
+- **Next:** Close/reopen any already-running old app to use the rebuilt file. UI-2 Dashboard migration remains next; Android APKs/installers/live update releases were not rebuilt or published.
