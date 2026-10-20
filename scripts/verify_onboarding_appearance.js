@@ -359,8 +359,6 @@ async function main() {
     const productSearchContrast = await checkElementContrast(page1, '[data-testid="product-search-input"]', 4.5);
     recordTest('products_search_input_dark_contrast_ratio', productSearchContrast.passed, productSearchContrast);
 
-    const productTableThContrast = await checkElementContrast(page1, 'th', 4.5);
-    recordTest('products_table_header_dark_contrast_ratio', productTableThContrast.passed, productTableThContrast);
 
     // 6.2 Products Create Modal Dialog Contrast
     await page1.click('[data-testid="add-product-button"]');
@@ -374,7 +372,17 @@ async function main() {
     recordTest('product_modal_dialog_input_contrast', productModalInputContrast.passed, productModalInputContrast);
 
     await page1.screenshot({ path: path.join(ARTIFACTS_DIR, 'products_modal_dark_mode.png') });
-    await page1.click('[data-testid="close-product-modal"]');
+    // Empty catalogs do not render table headers. Create an isolated synthetic row
+    // before checking header contrast instead of weakening the missing-element check.
+    await page1.getByTestId('input-product-sku').fill('ONBOARDING-CONTRAST-001');
+    await page1.getByTestId('input-product-name').fill('Synthetic contrast item');
+    await page1.getByTestId('input-product-price').fill('100');
+    await page1.getByTestId('save-product-submit').click();
+    await page1.getByTestId('product-modal-dialog').waitFor({ state: 'hidden' });
+    await page1.locator('th').first().waitFor();
+    const productTableThContrast = await checkElementContrast(page1, 'th', 4.5);
+    recordTest('products_table_header_dark_contrast_ratio', productTableThContrast.passed, productTableThContrast);
+
     await page1.waitForTimeout(200);
 
     // 6.3 Customers View Dark Mode & Contrast
@@ -389,8 +397,6 @@ async function main() {
     const customerSearchContrast = await checkElementContrast(page1, '[data-testid="customer-search-input"]', 4.5);
     recordTest('customers_search_input_dark_contrast_ratio', customerSearchContrast.passed, customerSearchContrast);
 
-    const customerTableThContrast = await checkElementContrast(page1, 'th', 4.5);
-    recordTest('customers_table_header_dark_contrast_ratio', customerTableThContrast.passed, customerTableThContrast);
 
     // 6.4 Customers Create Modal Dialog Contrast
     await page1.click('[data-testid="add-customer-button"]');
@@ -404,7 +410,13 @@ async function main() {
     recordTest('customer_modal_dialog_input_contrast', customerModalInputContrast.passed, customerModalInputContrast);
 
     await page1.screenshot({ path: path.join(ARTIFACTS_DIR, 'customers_modal_dark_mode.png') });
-    await page1.click('[data-testid="close-customer-modal"]');
+    await page1.getByTestId('input-customer-name').fill('Synthetic Contrast Customer');
+    await page1.getByTestId('save-customer-submit').click();
+    await page1.getByTestId('customer-modal-dialog').waitFor({ state: 'hidden' });
+    await page1.locator('th').first().waitFor();
+    const customerTableThContrast = await checkElementContrast(page1, 'th', 4.5);
+    recordTest('customers_table_header_dark_contrast_ratio', customerTableThContrast.passed, customerTableThContrast);
+
     await page1.waitForTimeout(200);
 
     // 6.5 Settings View & Getting-Started Guide Dialog Contrast

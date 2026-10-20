@@ -1307,7 +1307,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
           aria-modal="true"
           className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-base font-bold">Negative Balance Confirmation Required</h3>
@@ -1373,7 +1373,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-2.5 text-purple-600 dark:text-purple-400">
               <RotateCcw className="w-5 h-5 shrink-0" />
               <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
@@ -1437,7 +1437,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
           aria-modal="true"
           className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
@@ -1654,7 +1654,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
           aria-modal="true"
           className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
         >
-          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-3">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 shadow-2xl space-y-3">
             <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">Add Cashbook Category</h3>
             <form
               onSubmit={(e) => {
@@ -1717,7 +1717,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
           aria-modal="true"
           className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
         >
-          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-3">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 shadow-2xl space-y-3">
             <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">Add Cashbook Party</h3>
             <form
               onSubmit={(e) => {

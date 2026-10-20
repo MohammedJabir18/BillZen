@@ -12,6 +12,7 @@
     "test:cashbook": "node scripts/verify_cashbook_playwright.js",
     "test:cashbook-pdf": "node scripts/verify_cashbook_pdf.js",
     "test:native-cashbook": "node scripts/verify_native_cashbook.js",
+    "test:layout": "npm run build && node scripts/verify_layout_regression.js",
     "test:responsive": "node scripts/verify_responsive_playwright.js",
     "test:onboarding": "node scripts/verify_onboarding_appearance.js",
     "test:theme": "npm run build && node scripts/verify_theme_contrast.js",

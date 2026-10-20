@@ -1,3 +1,4 @@
+import { DesktopNavigation, MobileNavigation, type AppTab } from './components/AppNavigation';
 import {useUpdateStartupCheck} from './hooks/useUpdateStartupCheck';
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,21 +17,14 @@ import { GettingStartedGuide } from './components/GettingStartedGuide';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { pingBackend, getBusinessSettings, isTauriEnvironment } from './adapters/tauri';
 import { getInvoiceForScenario } from './domain/test_scenarios';
-import { translations, Language } from './i18n';
+import type { Language } from './i18n';
 import type { BusinessSettings, ActivePrintDocument } from './types';
 import { preparePrintStyles, cleanupPrintStyles } from './utils/print';
 import {
-  Building2,
-  Printer,
   ShieldCheck,
   Database,
   Laptop,
-  Package,
-  Users,
   Globe,
-  Wallet,
-  LayoutDashboard,
-  FileText,
 } from 'lucide-react';
 
 const queryClient = new QueryClient({
@@ -42,7 +36,7 @@ const queryClient = new QueryClient({
   },
 });
 
-type ActiveTab = 'dashboard' | 'reports' | 'cashbook' | 'products' | 'customers' | 'settings' | 'print';
+type ActiveTab = AppTab;
 
 const AppContent: React.FC = () => {
   useUpdateStartupCheck();
@@ -74,7 +68,6 @@ const AppContent: React.FC = () => {
 
   const client = useQueryClient();
   const isTauri = isTauriEnvironment();
-  const t = translations[language] || translations.en;
   const isRTL = language === 'ar';
 
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -192,7 +185,7 @@ const AppContent: React.FC = () => {
             : 'max(0px, env(safe-area-inset-top, 0px), var(--sat, 0px))',
         }}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-14 sm:min-h-16 py-2 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             <img
               src="/brand/billzen-icon.svg"
@@ -206,7 +199,7 @@ const AppContent: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">BillZen</h1>
-                <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-200 dark:border-indigo-800 shrink-0">
+                <span className="hidden min-[400px]:inline text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-200 dark:border-indigo-800 shrink-0">
                   beta
                 </span>
               </div>
@@ -214,111 +207,17 @@ const AppContent: React.FC = () => {
             </div>
           </div>
 
-          {/* Desktop Navigation Tabs (hidden on mobile/tablet, shown on lg and above) */}
-          <nav className="hidden lg:flex space-x-1 bg-slate-100 dark:bg-zinc-800/80 p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              data-testid="tab-dashboard"
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'dashboard'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-              {t.tab_dashboard}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('reports')}
-              data-testid="tab-reports"
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'reports'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
-              }`}
-            >
-              <FileText className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-              {t.tab_reports}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('cashbook')}
-              data-testid="tab-cashbook"
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'cashbook'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
-              }`}
-            >
-              <Wallet className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-              {t.tab_cashbook}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('products')}
-              data-testid="tab-products"
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'products'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
-              }`}
-            >
-              <Package className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-              {t.tab_products}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('customers')}
-              data-testid="tab-customers"
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'customers'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
-              }`}
-            >
-              <Users className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-              {t.tab_customers}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('settings')}
-              data-testid="tab-settings"
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'settings'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
-              }`}
-            >
-              <Building2 className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-              {t.tab_settings}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('print')}
-              data-testid="tab-print"
-              className={`flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'print'
-                  ? 'bg-white dark:bg-zinc-900 text-indigo-700 dark:text-lime-400 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
-              }`}
-            >
-              <Printer className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-              {t.tab_print_probe}
-            </button>
-          </nav>
-
           {/* Right Controls: Language Selector & Environment Status */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Language Switcher */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
+            <div className="flex items-center gap-1 min-w-0 max-w-[140px] sm:max-w-none bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
               <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 dark:text-zinc-400 ml-1" />
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Language)}
                 data-testid="language-select"
                 aria-label="Select Language"
-                className="text-xs bg-transparent border-none text-slate-700 dark:text-zinc-200 font-medium focus:outline-none pr-1 cursor-pointer"
+                className="min-w-0 w-full text-xs bg-transparent border-none text-slate-700 dark:text-zinc-200 font-medium focus:outline-none pr-1 cursor-pointer"
               >
                 <option value="en" className="dark:bg-zinc-900">English (EN)</option>
                 <option value="ml" className="dark:bg-zinc-900">മലയാളം (ML)</option>
@@ -326,20 +225,18 @@ const AppContent: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-850">
+            <div className="hidden sm:flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-850">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{environmentLabel}</span>
             </div>
           </div>
         </div>
+        <DesktopNavigation activeTab={activeTab} language={language} onNavigate={setActiveTab} />
       </header>
 
       {/* Main Content Area with bottom padding on mobile for thumb bar */}
       <main
-        className="flex-1 w-full mx-auto py-4 sm:py-6 px-3 sm:px-6 lg:px-8 pb-28 lg:pb-6"
-        style={{
-          paddingBottom: 'calc(4.5rem + max(0.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)))',
-        }}
+        className="app-main flex-1 min-w-0 w-full mx-auto py-4 sm:py-6 px-3 sm:px-6 lg:px-8"
       >
         {activeTab === 'dashboard' && (
           <DashboardView
@@ -400,109 +297,7 @@ const AppContent: React.FC = () => {
         {activeTab === 'print' && <PrintFeasibilityProbe invoice={activeInvoice} />}
       </main>
 
-      {/* Mobile Bottom Navigation Bar (no-print, <lg only) */}
-      <nav
-        aria-label="Mobile Navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-lg px-2 flex justify-around items-center no-print transition-colors"
-        style={{
-          paddingBottom: isAndroid
-            ? 'max(1.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px))'
-            : 'max(0.5rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px))',
-          paddingTop: '0.25rem',
-        }}
-      >
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          data-testid="mobile-tab-dashboard"
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-1.5 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'dashboard'
-              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
-              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <LayoutDashboard className={`w-5 h-5 mb-0.5 ${activeTab === 'dashboard' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
-          <span className="truncate max-w-[64px] text-[11px] leading-tight text-center">{t.tab_dashboard}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('reports')}
-          data-testid="mobile-tab-reports"
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-1.5 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'reports'
-              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
-              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <FileText className={`w-5 h-5 mb-0.5 ${activeTab === 'reports' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
-          <span className="truncate max-w-[64px] text-[11px] leading-tight text-center">{t.tab_reports}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('cashbook')}
-          data-testid="mobile-tab-cashbook"
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-1.5 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'cashbook'
-              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
-              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Wallet className={`w-5 h-5 mb-0.5 ${activeTab === 'cashbook' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
-          <span className="truncate max-w-[64px] text-[11px] leading-tight text-center">{t.tab_cashbook}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('products')}
-          data-testid="mobile-tab-products"
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'products'
-              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
-              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Package className={`w-5 h-5 mb-0.5 ${activeTab === 'products' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
-          <span>{t.tab_products}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('customers')}
-          data-testid="mobile-tab-customers"
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'customers'
-              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
-              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Users className={`w-5 h-5 mb-0.5 ${activeTab === 'customers' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
-          <span>{t.tab_customers}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('settings')}
-          data-testid="mobile-tab-settings"
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'settings'
-              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
-              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Building2 className={`w-5 h-5 mb-0.5 ${activeTab === 'settings' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
-          <span>{t.tab_settings}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('print')}
-          data-testid="mobile-tab-print"
-          aria-label={t.tab_print_probe}
-          className={`flex flex-col items-center justify-center min-w-[48px] min-h-[48px] py-1 px-2 rounded-lg text-xs font-medium transition-colors ${
-            activeTab === 'print'
-              ? 'text-indigo-600 dark:text-lime-400 font-semibold'
-              : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Printer className={`w-5 h-5 mb-0.5 ${activeTab === 'print' ? 'text-indigo-600 dark:text-lime-400' : 'text-slate-500 dark:text-zinc-400'}`} />
-          <span className="truncate max-w-[76px] text-[11px] leading-tight text-center">{t.tab_print_probe_short}</span>
-        </button>
-      </nav>
+      <MobileNavigation activeTab={activeTab} language={language} onNavigate={setActiveTab} />
 
       {/* Getting-Started Guide Modal */}
       <GettingStartedGuide
@@ -535,7 +330,7 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Desktop Bottom Status Bar (no-print, hidden on mobile) */}
-      <footer className="hidden md:block bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 dark:text-zinc-400 no-print">
+      <footer className="hidden lg:block bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 dark:text-zinc-400 no-print">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">

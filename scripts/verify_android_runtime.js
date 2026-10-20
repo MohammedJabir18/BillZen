@@ -212,12 +212,20 @@ async function clickElement(client, selector) {
 async function navigateToTab(client, tabName) {
   await client.eval(`
     (() => {
-      const btn = document.querySelector('[data-testid="tab-${tabName}"]') ||
-                  document.querySelector('[data-testid="mobile-tab-${tabName}"]');
-      if (btn) btn.click();
+      const candidates = [...document.querySelectorAll('[data-testid="tab-${tabName}"], [data-testid="mobile-tab-${tabName}"]')];
+      const visible = candidates.find(button => button.getClientRects().length > 0);
+      if (visible) visible.click();
+      else document.querySelector('[data-testid="mobile-nav-more"]')?.click();
     })()
   `);
   await sleep(400);
+  await client.eval(`
+    (() => {
+      const button = [...document.querySelectorAll('[data-testid="tab-${tabName}"], [data-testid="mobile-tab-${tabName}"]')].find(item => item.getClientRects().length > 0);
+      if (button && (button.closest('[role="dialog"]') || !button.matches('[aria-current="page"]'))) button.click();
+    })()
+  `);
+  await sleep(200);
 }
 
 // Bounded condition wait for catalog data and form values with rich timeout diagnostics

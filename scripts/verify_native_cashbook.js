@@ -360,8 +360,10 @@ async function runNativeVerification() {
     console.log('\nStep 2: Completing onboarding setup wizard on clean database...');
     await new Promise((r) => setTimeout(r, 1200));
 
-    const bodyText = await evalInApp(`document.body.innerText`);
-    const isOnboarding = bodyText.includes('Welcome to BillZen') || bodyText.includes('Language & Regional Presets');
+    // Wait for the actual wizard rather than assuming IPC and WebKit render within 1.2s.
+    // Stable IDs also work when a saved UI language changes the visible welcome text.
+    await waitForCondition(`Boolean(document.querySelector('[data-testid="onboarding-next-step-1"]'))`, 15000);
+    const isOnboarding = await evalInApp(`Boolean(document.querySelector('[data-testid="onboarding-next-step-1"]'))`);
     assert(isOnboarding === true, 'Fresh isolated database presents Onboarding Wizard');
 
     // 2a. Select India (INR) and advance to business profile
@@ -721,12 +723,16 @@ async function runNativeVerification() {
     const inst2Wait = activeInstance.waitForCondition;
 
     // Step 10: Cold Restart State & Onboarding Bypass Verification
-    console.log('\nStep 10: Verifying cold restart preserves completed setup and mounts Cashbook...');
+    console.log('\nStep 10: Verifying cold restart opens the Today dashboard and preserves Cashbook...');
+    await inst2Wait(`Boolean(document.querySelector('[data-testid="dashboard-view"]'))`, 12000);
+    assert(await inst2Eval(`Boolean(document.querySelector('[data-testid="dashboard-view"]'))`), 'Today dashboard is the approved cold-start destination');
+    assert(!await inst2Eval(`Boolean(document.querySelector('[data-testid="onboarding-next-step-1"]'))`), 'Onboarding wizard is NOT shown after restart');
+    await inst2Eval(`(() => {
+      const button = [...document.querySelectorAll('[data-testid="tab-cashbook"], [data-testid="mobile-tab-cashbook"]')].find(element => element.getClientRects().length);
+      if (button) button.click();
+    })()`);
     await inst2Wait(`Boolean(document.body.innerText.includes('Company Cashbook'))`, 12000);
-
-    const restartBodyText = await inst2Eval(`document.body.innerText`);
-    assert(!restartBodyText.includes('Welcome to BillZen'), 'Onboarding wizard is NOT shown after restart');
-    assert(restartBodyText.includes('Company Cashbook'), 'Cashbook mounts immediately on cold restart');
+    assert(await inst2Eval(`document.body.innerText.includes('Company Cashbook')`), 'Cashbook opens from the dashboard after cold restart');
 
     const postRestartSummary = await activeInstance.invokeInApp('get_cashbook_ledger', { filter: {} });
 

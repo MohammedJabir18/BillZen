@@ -1,3 +1,4 @@
+import { navigateToAppTab } from './lib/navigation.js';
 import { chromium } from 'playwright';
 import { spawn, execSync } from 'child_process';
 import path from 'path';
@@ -106,7 +107,7 @@ async function main() {
       let navModeValid = false;
       if (vp.width < 1024) {
         // Mobile bottom navigation bar should be visible
-        const bottomNavVisible = await page.isVisible('[data-testid="mobile-tab-products"]');
+        const bottomNavVisible = await page.isVisible('[data-testid="mobile-tab-dashboard"]');
         navModeValid = bottomNavVisible;
         console.log(`  Mobile bottom nav bar visible: ${bottomNavVisible}`);
       } else {
@@ -117,13 +118,7 @@ async function main() {
       }
 
       // 3. Test Add Product Modal and Form Scrollability (Navigate to Products tab first)
-      if (vp.width < 1024) {
-        const mobileTab = await page.$('[data-testid="mobile-tab-products"]');
-        if (mobileTab) await mobileTab.click();
-      } else {
-        const desktopTab = await page.$('[data-testid="tab-products"]');
-        if (desktopTab) await desktopTab.click();
-      }
+      await navigateToAppTab(page, 'products');
       await page.waitForTimeout(200);
 
       const addBtn = await page.$('[data-testid="add-product-button"], [data-testid="mobile-add-product-button"]');
@@ -167,29 +162,18 @@ async function main() {
       }
 
       // 5. Test Navigation to Customers and Settings Tabs
-      const customerTabSelector = vp.width < 1024 
-        ? '[data-testid="mobile-tab-customers"]' 
-        : '[data-testid="tab-customers"]';
-      
-      await page.click(customerTabSelector);
+      await navigateToAppTab(page, 'customers');
       await page.waitForTimeout(200);
       const customerOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
       console.log(`  Customers tab horizontal scroll: ${customerOverflow ? 'FAIL (Detected)' : 'PASS (None)'}`);
 
-      const settingsTabSelector = vp.width < 1024 
-        ? '[data-testid="mobile-tab-settings"]' 
-        : '[data-testid="tab-settings"]';
-      
-      await page.click(settingsTabSelector);
+      await navigateToAppTab(page, 'settings');
       await page.waitForTimeout(200);
       const settingsOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
       console.log(`  Settings tab horizontal scroll: ${settingsOverflow ? 'FAIL (Detected)' : 'PASS (None)'}`);
 
       // Return to Products tab for screenshot
-      const productsTabSelector = vp.width < 1024 
-        ? '[data-testid="mobile-tab-products"]' 
-        : '[data-testid="tab-products"]';
-      await page.click(productsTabSelector);
+      await navigateToAppTab(page, 'products');
       await page.waitForTimeout(200);
 
       // Save screenshot

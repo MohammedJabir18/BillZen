@@ -326,7 +326,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       </div>
 
       {/* Period Controls & Date Selector Bar */}
-      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-4">
         {/* Period Switcher (Today, Month, Year, Custom) */}
         <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-full sm:w-auto">
           <button
@@ -422,13 +422,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         )}
 
         {/* Account Selector */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0 max-w-full">
           <Wallet className="w-4 h-4 text-slate-500 shrink-0" />
           <select
             value={selectedAccountId}
             onChange={(e) => setSelectedAccountId(e.target.value)}
             data-testid="report-account-select"
-            className="text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-slate-800 dark:text-zinc-200 font-medium focus:ring-1 focus:ring-indigo-500 outline-none w-full sm:w-auto"
+            className="text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-slate-800 dark:text-zinc-200 font-medium focus:ring-1 focus:ring-indigo-500 outline-none min-w-0 max-w-full w-full sm:w-auto sm:max-w-[16rem]"
           >
             <option value="all">{t.all_accounts}</option>
             {accounts.map((acc) => (
@@ -534,28 +534,28 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
       {/* Balance Summary Bar */}
       <div className="bg-slate-900 text-white dark:bg-zinc-900 border border-slate-800 dark:border-zinc-800 rounded-2xl p-4 shadow-sm">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-800 dark:divide-zinc-800">
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-slate-800 dark:divide-zinc-800">
           <div className="pt-2 md:pt-0">
             <span className="text-[11px] text-slate-400 font-medium uppercase">{t.opening_balance}</span>
-            <div className="text-base sm:text-lg font-bold font-mono mt-0.5" data-testid="report-opening-balance">
+            <div className="text-base sm:text-lg font-bold font-mono [overflow-wrap:anywhere] mt-0.5" data-testid="report-opening-balance">
               {currencySymbol}{formatMinorUnits(summary.opening_balance_minor, currencyExponent)}
             </div>
           </div>
           <div className="pt-2 md:pt-0 md:pl-4">
             <span className="text-[11px] text-emerald-400 font-medium uppercase">{t.money_received}</span>
-            <div className="text-base sm:text-lg font-bold font-mono text-emerald-400 mt-0.5" data-testid="report-period-inflows">
+            <div className="text-base sm:text-lg font-bold font-mono [overflow-wrap:anywhere] text-emerald-400 mt-0.5" data-testid="report-period-inflows">
               +{currencySymbol}{formatMinorUnits(summary.period_inflows_minor, currencyExponent)}
             </div>
           </div>
           <div className="pt-2 md:pt-0 md:pl-4">
             <span className="text-[11px] text-rose-400 font-medium uppercase">{t.money_paid}</span>
-            <div className="text-base sm:text-lg font-bold font-mono text-rose-400 mt-0.5" data-testid="report-period-outflows">
+            <div className="text-base sm:text-lg font-bold font-mono [overflow-wrap:anywhere] text-rose-400 mt-0.5" data-testid="report-period-outflows">
               −{currencySymbol}{formatMinorUnits(summary.period_outflows_minor, currencyExponent)}
             </div>
           </div>
           <div className="pt-2 md:pt-0 md:pl-4">
             <span className="text-[11px] text-lime-400 font-medium uppercase">{t.closing_balance}</span>
-            <div className="text-base sm:text-lg font-bold font-mono text-lime-400 mt-0.5" data-testid="report-closing-balance">
+            <div className="text-base sm:text-lg font-bold font-mono [overflow-wrap:anywhere] text-lime-400 mt-0.5" data-testid="report-closing-balance">
               {currencySymbol}{formatMinorUnits(summary.closing_balance_minor, currencyExponent)}
             </div>
           </div>

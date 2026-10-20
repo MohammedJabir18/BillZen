@@ -662,7 +662,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             data-testid="modal-restore-confirm"
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           >
-            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in duration-150">
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in duration-150">
               <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-zinc-800">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
                   <FileJson className="w-5 h-5 text-lime-600 dark:text-lime-400" />
@@ -720,7 +720,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {/* Modal Actions */}
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+              <div className="flex flex-wrap justify-end gap-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
                 <button
                   type="button"
                   data-testid="btn-cancel-restore"
@@ -735,7 +735,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   data-testid="btn-confirm-restore"
                   disabled={isRestoring}
                   onClick={handleConfirmRestore}
-                  className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 min-h-[44px] shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 min-h-[44px] shadow-sm disabled:opacity-50"
                 >
                   {isRestoring ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
