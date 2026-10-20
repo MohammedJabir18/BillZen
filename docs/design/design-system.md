@@ -43,10 +43,10 @@ The color system uses CSS custom properties defined at `:root` (light) and `body
 ### 2.3 Typography & Text Tokens
 | Token Name | CSS Variable | Light Value | Dark Value | Usage |
 | :--- | :--- | :--- | :--- | :--- |
-| `text-primary` | `--text-main` | `#141915` | `#f0f3ee` | Headings, primary amounts, active labels |
-| `text-secondary`| `--text-muted` | `#576356` | `#9eaba0` | Subtitles, table headers, helper notes |
-| `text-subtle` | `--text-subtle` | `#788677` | `#6f7c71` | Timestamps, voucher metadata, disabled labels |
-| `text-on-accent`| `--text-on-accent` | `#ffffff` | `#0c0f0d` | Text on brand green/lime buttons |
+| `text-primary` | `--text-main` | `#141915` | `#f0f3ee` | Headings, primary amounts, active labels (17.8:1 light, 15.9:1 dark) |
+| `text-secondary`| `--text-muted` | `#576356` | `#9eaba0` | Subtitles, table headers, helper notes (6.32:1 light, 7.45:1 dark) |
+| `text-subtle` | `--text-subtle` | `#5e6c5d` | `#869788` | Timestamps, voucher metadata, small labels (5.56:1 light, 5.76:1 dark) |
+| `text-on-accent`| `--text-on-accent` | `#ffffff` | `#0c0f0d` | Text on brand green/lime buttons (12.0:1 light, 14.6:1 dark) |
 
 ### 2.4 Brand & Financial Action Accents
 | Purpose | Light Foreground / Border | Light Background | Dark Foreground / Border | Dark Background |

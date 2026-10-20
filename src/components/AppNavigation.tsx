@@ -22,14 +22,14 @@ function destinations(language: Language): Destination[] {
 
 export function DesktopNavigation({ activeTab, language, onNavigate }: NavigationProps) {
   return (
-    <nav aria-label="Main Navigation" className="hidden lg:block border-t border-[#e5e9df] dark:border-[#242c26] bg-[#f8f9f6] dark:bg-[#0c0f0d] no-print transition-colors">
+    <nav aria-label="Main Navigation" className="hidden lg:block border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] no-print transition-colors">
       <div className="max-w-7xl mx-auto grid grid-cols-7 gap-1 px-4 py-1.5">
         {destinations(language).map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" data-testid={'tab-' + id} aria-current={activeTab === id ? 'page' : undefined}
             onClick={() => onNavigate(id)}
-            className={`min-w-0 min-h-11 flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f3d23] dark:focus-visible:ring-[#ceeaa0] ${activeTab === id
-              ? 'bg-[#1f3d23] text-white shadow-sm dark:bg-[#2e5733] dark:text-[#ceeaa0]'
-              : 'text-[#576356] dark:text-[#9eaba0] hover:bg-[#f2f4ef] dark:hover:bg-[#1e261f] hover:text-[#141915] dark:hover:text-[#f0f3ee]'}`}>
+            className={`min-w-0 min-h-11 flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${activeTab === id
+              ? 'bg-[var(--brand-primary)] text-[var(--text-on-accent)] shadow-sm dark:bg-[#2e5733] dark:text-[#ceeaa0]'
+              : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-main)]'}`}>
             <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
           </button>
@@ -75,13 +75,13 @@ export function MobileNavigation({ activeTab, language, onNavigate }: Navigation
   }, [open]);
 
   const select = (tab: AppTab) => { setOpen(false); onNavigate(tab); };
-  const itemClass = (active: boolean) => `min-w-0 min-h-[60px] flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-lg text-[11px] leading-snug font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f3d23] dark:focus-visible:ring-[#ceeaa0] ${active
-    ? 'text-[#1f3d23] dark:text-[#ceeaa0] bg-[#eef8f0] dark:bg-[#1e261f] border border-[#1f3d23]/20 dark:border-[#ceeaa0]/25'
-    : 'text-[#576356] dark:text-[#9eaba0] hover:bg-[#f2f4ef] dark:hover:bg-[#1e261f]'}`;
+  const itemClass = (active: boolean) => `min-w-0 min-h-[60px] flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-lg text-[11px] leading-snug font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${active
+    ? 'text-[var(--brand-primary)] dark:text-[#ceeaa0] bg-[var(--brand-lime-muted)] border border-[var(--brand-primary)]/20 dark:border-[#ceeaa0]/25'
+    : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)]'}`;
 
   return (
     <>
-      <nav aria-label="Mobile Navigation" className="app-mobile-nav lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[#ffffff] dark:bg-[#141915] border-t border-[#e5e9df] dark:border-[#242c26] shadow-lg px-2 pt-1 grid grid-cols-4 gap-1 no-print transition-colors">
+      <nav aria-label="Mobile Navigation" className="app-mobile-nav lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] shadow-lg px-2 pt-1 grid grid-cols-4 gap-1 no-print transition-colors">
         {primary.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" data-testid={'mobile-tab-' + id} aria-current={activeTab === id ? 'page' : undefined}
             onClick={() => select(id)} className={itemClass(activeTab === id)}>
@@ -98,24 +98,24 @@ export function MobileNavigation({ activeTab, language, onNavigate }: Navigation
       </nav>
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden no-print">
-          <button type="button" aria-label={t.action_cancel} className="absolute inset-0 w-full h-full bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setOpen(false)} tabIndex={-1} />
+          <button type="button" aria-label={t.action_cancel} className="absolute inset-0 w-full h-full bg-[var(--bg-overlay)] backdrop-blur-sm transition-opacity" onClick={() => setOpen(false)} tabIndex={-1} />
           <div ref={dialog} id="mobile-more-navigation" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title"
-            className="app-more-navigation absolute inset-x-0 bottom-0 mx-auto w-full max-w-xl max-h-[85dvh] overflow-y-auto rounded-t-2xl border-t border-x border-[#e5e9df] dark:border-[#242c26] bg-[#ffffff] dark:bg-[#141915] p-4 shadow-2xl transition-colors">
+            className="app-more-navigation absolute inset-x-0 bottom-0 mx-auto w-full max-w-xl max-h-[85dvh] overflow-y-auto rounded-t-2xl border-t border-x border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 shadow-2xl transition-colors">
             <div className="flex items-center justify-between gap-3 mb-4">
-              <h2 id="mobile-more-title" className="font-bold text-[#141915] dark:text-[#f0f3ee] tracking-tight">{t.nav_more_title}</h2>
-              <button type="button" aria-label={t.action_cancel} onClick={() => setOpen(false)} className="min-h-11 min-w-11 grid place-items-center rounded-lg text-[#576356] dark:text-[#9eaba0] hover:bg-[#f2f4ef] dark:hover:bg-[#1e261f] active:scale-[0.975]"><X className="w-5 h-5" /></button>
+              <h2 id="mobile-more-title" className="font-bold text-[var(--text-main)] tracking-tight">{t.nav_more_title}</h2>
+              <button type="button" aria-label={t.action_cancel} onClick={() => setOpen(false)} className="min-h-11 min-w-11 grid place-items-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)] active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"><X className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {secondary.map(({ id, label, icon: Icon }) => (
                 <button key={id} type="button" data-testid={'mobile-tab-' + id} aria-current={activeTab === id ? 'page' : undefined}
-                  onClick={() => select(id)} className={`min-h-20 min-w-0 p-3 flex items-center justify-between gap-2.5 rounded-xl border text-start text-sm transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f3d23] dark:focus-visible:ring-[#ceeaa0] ${activeTab === id
-                    ? 'border-[#1f3d23] dark:border-[#ceeaa0] bg-[#eef8f0] dark:bg-[#1e261f] text-[#1f3d23] dark:text-[#ceeaa0] font-semibold shadow-sm'
-                    : 'border-[#e5e9df] dark:border-[#242c26] bg-[#f8f9f6] dark:bg-[#0c0f0d] text-[#141915] dark:text-[#f0f3ee] hover:bg-[#f2f4ef] dark:hover:bg-[#1e261f] font-medium'}`}>
+                  onClick={() => select(id)} className={`min-h-20 min-w-0 p-3 flex items-center justify-between gap-2.5 rounded-xl border text-start text-sm transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${activeTab === id
+                    ? 'border-[var(--brand-primary)] dark:border-[#ceeaa0] bg-[var(--brand-lime-muted)] text-[var(--brand-primary)] dark:text-[#ceeaa0] font-semibold shadow-sm'
+                    : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-main)] hover:bg-[var(--bg-surface-subtle)] font-medium'}`}>
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon className="w-5 h-5 shrink-0 text-[#1f3d23] dark:text-[#ceeaa0]" aria-hidden="true" />
+                    <Icon className="w-5 h-5 shrink-0 text-[var(--brand-primary)] dark:text-[#ceeaa0]" aria-hidden="true" />
                     <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
                   </div>
-                  <span className="text-[#788677] dark:text-[#6f7c71] text-xs shrink-0" aria-hidden="true">↗</span>
+                  <span className="text-[var(--text-subtle)] text-xs shrink-0" aria-hidden="true">↗</span>
                 </button>
               ))}
             </div>
