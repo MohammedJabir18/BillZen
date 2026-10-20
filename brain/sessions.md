@@ -1318,3 +1318,32 @@
 - **Verification:** Native temporary-database suite passed 42/42 assertions across 14 steps, including explicit new header/active-pill/token checks, financial workflows, restart persistence and unchanged real business database fingerprints. Build-specific probe and receipt are ignored artifacts in `test_artifacts/native_ui1_rebuild/`; native report remains in `test_artifacts/native_cashbook/`. Existing frontend build warnings remain; no physical printer test.
 - **Files modified:** `docs/verification-status.md`, `brain/sessions.md`. Rebuilt executable remains ignored. Architecture unchanged.
 - **Next:** Close/reopen any already-running old app to use the rebuilt file. UI-2 Dashboard migration remains next; Android APKs/installers/live update releases were not rebuilt or published.
+
+### 2026-10-20 — UI-1 Foundation Correction: Design Tokens Reconcile & Accessible Focus Indicators
+
+- **Goals:**
+  1. Reconcile `docs/design/design-system.md` with implemented CSS: document `--bg-overlay`, `--border-focus`, `--text-on-accent`, `--radius-*` tokens, and replace repeated shell color literals with semantic CSS variables.
+  2. Correct `--text-subtle` token contrast to guarantee WCAG AA >= 4.5:1 across all surfaces (`#5e6c5d` light, `#869788` dark). Add dedicated test suite for actual foreground/background pairs.
+  3. Add visible keyboard-focus indicator to language selector and verify Tab navigation through the header.
+- **Completed:**
+  - `src/styles/globals.css`: Added `--bg-overlay`, `--border-focus`, `--text-on-accent`, `--radius-xs/sm/md/lg/pill` variables, updated `--text-subtle` to `#5e6c5d` (5.56:1 light) and `#869788` (5.76:1 dark), and added `.focus-ring` / `.focus-ring-within` visible focus indicators (`outline: 2px solid var(--border-focus); outline-offset: 2px;`).
+  - `tailwind.config.js`: Extended theme with semantic CSS variable tokens for canvas, surface, borders, text, and radii.
+  - `docs/design/design-system.md`: Reconciled tokens and recorded contrast compliance figures.
+  - `src/App.tsx` & `src/components/AppNavigation.tsx`: Replaced hardcoded color literals with semantic CSS variables and applied visible focus indicators to language switcher and navigation elements.
+  - `src/styles/tokens.test.ts`: Authored comprehensive Vitest test suite asserting WCAG AA contrast compliance across all token pairs and verifying globals.css definitions (7/7 passed).
+  - `scripts/verify_header_tab_navigation.js`: Authored and ran Playwright verification testing Tab key progression through language selector and all 7 desktop tabs, plus mobile header navigation (passed).
+- **Files Modified / Added:**
+  - `src/styles/globals.css`
+  - `tailwind.config.js`
+  - `docs/design/design-system.md`
+  - `src/App.tsx`
+  - `src/components/AppNavigation.tsx`
+  - `src/styles/tokens.test.ts`
+  - `scripts/verify_header_tab_navigation.js`
+  - `brain/sessions.md`
+- **Verification Evidence:**
+  - Vitest Unit Tests (`npm test`): 60/60 tests passed across 12 files.
+  - Theme Contrast Suite (`npm run test:theme`): 104/104 checks passed with 0 contrast failures and 0 overflow.
+  - Header Tab Navigation (`node scripts/verify_header_tab_navigation.js`): Passed across 1280px and 390px viewports with confirmed visible outline.
+- **Next:** Commit and push UI-1 foundation correction to `origin/main` and verify CI before starting UI-2 Dashboard migration.
+
