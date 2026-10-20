@@ -1389,3 +1389,39 @@
   - `npm run test:native-cashbook`: 39/39 native assertions passed across 13 steps on temporary SQLite database.
   - 8 UI-2 production screenshots recorded in `test_artifacts/ui2_dashboard/ui2_manifest.json`.
 - **Next:** Commit and push Phase UI-2 to `origin/main` and verify CI. Proceed to Phase UI-3: Cashbook View migration.
+
+### 2026-10-20 — Phase UI-2.1: Precision Ledger Dashboard Correctness & Verification Pass
+
+- **Goals:**
+  1. Make account/date scope explicit: when "All Accounts" is active, display all active accounts and ensure sum strictly equals closing balance. When a specific account is filtered, strip displays only that account with an explicit `(filtered)` badge so it never contradicts the single-account closing total. Support archived accounts consistently with `[Archived]` indicator.
+  2. Handle loading, refreshing, and errors honestly: eliminate unverified fallbacks. Provide loading skeletons (`···` / `Loading…`) and failure retry controls (`Failed to load. Retry`); avoid fake zero balances (`0.00`) on query failure.
+  3. Author comprehensive behavioral tests with synthetic data verifying calculations, multi-account consistency, single-account filtering, 3-decimal currencies (KWD), loading states, query error handling, and chart bar zero-value geometry.
+  4. Accessibility & Localization: Add complete translations for 17 new strings across English, Malayalam (`ml`), and Arabic (`ar`). Fix chart bars so 0 inflow/outflow has strictly `0%` height.
+  5. Reconcile documentation: Accurately describe the chart as responsive HTML/CSS bar visualization and record conditional balance guarantees. Rebuild Linux release binary.
+- **Completed:**
+  - `src/i18n/index.ts`: Added 17 new localization keys across `en`, `ml`, and `ar` (`transactions_count`, `clear_selection`, `chart_net_label`, `no_active_accounts`, `total_receipts_in_period`, `total_payments_in_period`, `receipts_minus_payments`, `at_end_of_period`, `cash_flow_subtitle`, `cash_receipt_default`, `cash_payment_default`, `chart_comparison_subtitle`, `category_expenses_subtitle`, `no_expenses_period`, `account_filtered_label`, `balance_loading`, `balance_error_retry`).
+  - `src/components/DashboardView.tsx`:
+    - Added optional `initialAccountId` and `initialPeriod` props.
+    - Derived `displayedAccounts`: returns all active accounts when `selectedAccountId === 'all'`, or `[selectedAccount]` when filtered.
+    - Tracked account balance query states with `accountStatesMap`, rendering `···` / `Loading…` during fetch and retry controls on failure, eliminating unverified inception fallback balances.
+    - Fixed zero-value bars: 0 inflow/outflow renders with `height: 0%` (`group.inflows > 0 ? Math.max(2, ...) : 0`).
+    - Added visible focus indicators and aria-labels on chart bars.
+    - Added `data-testid="dashboard-ledger-error"` banner and skeleton cards for honest loading/error displays.
+  - `src/components/DashboardView.test.tsx`:
+    - Authored 13 comprehensive behavioral tests asserting multi-account consistency (₹23,000 + ₹40,000 = ₹63,000), single-account filtering, archived account indicator, 3-decimal currency formatting (KWD), honest loading states, error states, and 0% bar height.
+  - Rebuilt standalone Linux release binary (`src-tauri/target/release/billzen`, v0.1.2, SHA-256 `41c83acc495d24e5cb3c0b3da9b800c593233effa714c4d92463296317e7621e`, 20,665,016 bytes).
+- **Files Modified / Added:**
+  - `src/i18n/index.ts`
+  - `src/components/DashboardView.tsx`
+  - `src/components/DashboardView.test.tsx`
+  - `brain/architecture.md`
+  - `docs/verification-status.md`
+  - `brain/sessions.md`
+- **Verification Evidence:**
+  - `npm test`: 70/70 Vitest unit/behavioral tests passed across 12 files (including 13/13 `DashboardView.test.tsx`).
+  - `npm run test:dashboard`: 9/9 Playwright scenarios passed (25/25 assertions).
+  - `npm run test:responsive`: 6/6 viewports passed with 0px horizontal scroll.
+  - `npm run test:theme`: 104/104 computed WCAG AA contrast checks passed with 0 failures and 0 overflow.
+  - `npm run test:layout`: 906/906 layout states passed across 10 viewports, 3 languages, and light/dark modes with 0 failures.
+  - `npm run test:native-cashbook`: 39/39 native assertions passed across 13 steps on temporary SQLite database.
+- **Next:** Commit and push Phase UI-2.1 to `origin/main` and verify CI. Proceed to Phase UI-3: Cashbook View migration.

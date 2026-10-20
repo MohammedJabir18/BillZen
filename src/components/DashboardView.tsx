@@ -25,6 +25,8 @@ interface DashboardViewProps {
   onNavigateToCashbook?: (filter?: { direction?: 'inflow' | 'outflow' }) => void;
   onOpenReceiptModal?: () => void;
   onOpenPaymentModal?: () => void;
+  initialAccountId?: string;
+  initialPeriod?: PeriodType;
 }
 
 export type PeriodType = 'today' | 'month' | 'year' | 'custom';
@@ -37,6 +39,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToCashbook,
   onOpenReceiptModal,
   onOpenPaymentModal,
+  initialAccountId,
+  initialPeriod,
 }) => {
   const t = translations[language] || translations.en;
   const currencyExponent = settings.currency_exponent ?? 2;
@@ -46,9 +50,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const todayStr = useMemo(() => getTodayBusinessDate(timezone), [timezone]);
 
   // Period state
-  const [period, setPeriod] = useState<PeriodType>('today');
+  const [period, setPeriod] = useState<PeriodType>(initialPeriod || 'today');
   const [mode, setMode] = useState<ViewMode>('simple');
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(initialAccountId || 'all');
   const [customStartDate, setCustomStartDate] = useState<string>(todayStr);
   const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
 
@@ -109,6 +113,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Step backward / forward
   const handleStepPeriod = (direction: -1 | 1) => {
+    setSelectedBarLabel(null);
     if (period === 'today') {
       const [y, m, d] = referenceDate.split('-').map(Number);
       const dt = new Date(y, m - 1, d + direction);
@@ -133,48 +138,83 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts]);
 
+  // Which accounts to display in the account balances strip:
+  // - When 'all' is selected: display all active accounts.
+  // - When a specific account is selected: display only that account (even if archived).
+  const displayedAccounts = useMemo(() => {
+    if (selectedAccountId === 'all') {
+      return activeAccounts;
+    }
+    const found = accounts.find((a) => a.id === selectedAccountId);
+    return found ? [found] : [];
+  }, [selectedAccountId, activeAccounts, accounts]);
+
+  const isSelectedAccountArchived = useMemo(() => {
+    if (selectedAccountId === 'all') return false;
+    return accounts.find((a) => a.id === selectedAccountId)?.is_archived ?? false;
+  }, [selectedAccountId, accounts]);
+
   // Main ledger query for the dashboard
-  const { data: ledgerData } = useQuery({
+  const {
+    data: ledgerData,
+    isLoading: isLedgerLoading,
+    isError: isLedgerError,
+    refetch: refetchLedger,
+  } = useQuery({
     queryKey: ['cashbook_ledger', startDate, endDate, selectedAccountId],
     queryFn: () =>
       getCashbookLedger({
         start_date: startDate,
         end_date: endDate,
         account_id: selectedAccountId === 'all' ? undefined : selectedAccountId,
-        include_archived: false,
+        include_archived: isSelectedAccountArchived,
       }),
   });
 
-  // Query individual accounts to ensure account strip balances consistently reflect
+  // Query individual displayed accounts to ensure strip balances consistently reflect
   // the exact closing balance for the active period cutoff date
   const accountLedgerQueries = useQueries({
-    queries: activeAccounts.map((acc) => ({
+    queries: displayedAccounts.map((acc) => ({
       queryKey: ['cashbook_ledger', startDate, endDate, acc.id],
       queryFn: () =>
         getCashbookLedger({
           start_date: startDate,
           end_date: endDate,
           account_id: acc.id,
-          include_archived: false,
+          include_archived: acc.is_archived,
         }),
       staleTime: 30000,
     })),
   });
 
-  const accountBalancesMap = useMemo(() => {
-    const map = new Map<string, number>();
-    activeAccounts.forEach((acc, i) => {
-      const qData = accountLedgerQueries[i]?.data;
-      if (qData?.summary) {
-        map.set(acc.id, qData.summary.closing_balance_minor);
-      } else if (acc.current_balance_minor !== undefined && endDate >= todayStr) {
-        map.set(acc.id, acc.current_balance_minor);
-      } else {
-        map.set(acc.id, acc.opening_balance_minor);
-      }
+  interface AccountStripState {
+    balance: number | null;
+    isLoading: boolean;
+    isError: boolean;
+    refetch: () => void;
+  }
+
+  const accountStatesMap = useMemo(() => {
+    const map = new Map<string, AccountStripState>();
+    displayedAccounts.forEach((acc, i) => {
+      const q = accountLedgerQueries[i];
+      // Leverage main ledger query data if querying the same selected account
+      const data = q?.data || (selectedAccountId === acc.id ? ledgerData : undefined);
+      const isErr = q?.isError || (selectedAccountId === acc.id && isLedgerError);
+      const isLoad = (q?.isLoading ?? true) && (selectedAccountId === acc.id ? isLedgerLoading : true);
+
+      map.set(acc.id, {
+        balance: data?.summary ? data.summary.closing_balance_minor : null,
+        isLoading: Boolean(isLoad && !data?.summary),
+        isError: Boolean(isErr && !data?.summary),
+        refetch: () => {
+          q?.refetch?.();
+          if (selectedAccountId === acc.id) refetchLedger();
+        },
+      });
     });
     return map;
-  }, [activeAccounts, accountLedgerQueries, endDate, todayStr]);
+  }, [displayedAccounts, accountLedgerQueries, selectedAccountId, ledgerData, isLedgerError, isLedgerLoading, refetchLedger]);
 
   const summary = ledgerData?.summary;
   const entries = ledgerData?.entries || [];
@@ -255,8 +295,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               : t.custom_period_summary}
           </h1>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">
-            {periodLabel} · {entries.length}{' '}
-            {language === 'ml' ? 'ഇടപാടുകൾ' : language === 'ar' ? 'معاملة' : 'transactions'}
+            {periodLabel} · {entries.length} {t.transactions_count}
           </p>
         </div>
 
@@ -293,6 +332,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => {
               setPeriod('today');
               setReferenceDate(todayStr);
+              setSelectedBarLabel(null);
             }}
             data-testid="period-today"
             className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
@@ -307,6 +347,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => {
               setPeriod('month');
               setReferenceDate(todayStr);
+              setSelectedBarLabel(null);
             }}
             data-testid="period-month"
             className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
@@ -321,6 +362,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => {
               setPeriod('year');
               setReferenceDate(todayStr);
+              setSelectedBarLabel(null);
             }}
             data-testid="period-year"
             className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
@@ -332,7 +374,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {t.period_year}
           </button>
           <button
-            onClick={() => setPeriod('custom')}
+            onClick={() => {
+              setPeriod('custom');
+              setSelectedBarLabel(null);
+            }}
             data-testid="period-custom"
             className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
               period === 'custom'
@@ -370,7 +415,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               type="date"
               aria-label="Start date"
               value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
+              onChange={(e) => {
+                setCustomStartDate(e.target.value);
+                setSelectedBarLabel(null);
+              }}
               className="min-w-0 w-full px-2.5 py-1.5 text-xs border border-[var(--border-medium)] bg-[var(--bg-surface)] rounded-lg text-[var(--text-main)] focus-ring font-mono"
             />
             <span className="hidden min-[400px]:inline text-xs text-[var(--text-muted)]">→</span>
@@ -378,7 +426,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               type="date"
               aria-label="End date"
               value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
+              onChange={(e) => {
+                setCustomEndDate(e.target.value);
+                setSelectedBarLabel(null);
+              }}
               className="min-w-0 w-full px-2.5 py-1.5 text-xs border border-[var(--border-medium)] bg-[var(--bg-surface)] rounded-lg text-[var(--text-main)] focus-ring font-mono"
             />
           </div>
@@ -388,14 +439,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
           <select
             value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
+            onChange={(e) => {
+              setSelectedAccountId(e.target.value);
+              setSelectedBarLabel(null);
+            }}
             aria-label="Filter Account"
             className="flex-1 sm:flex-initial px-3 py-1.5 text-xs font-medium border border-[var(--border-medium)] bg-[var(--bg-surface)] rounded-lg text-[var(--text-main)] focus-ring min-w-[130px] max-w-full"
           >
             <option value="all">{t.all_accounts}</option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
-                {acc.account_name} ({acc.account_type})
+                {acc.account_name} ({acc.account_type}){acc.is_archived ? ' [Archived]' : ''}
               </option>
             ))}
           </select>
@@ -430,6 +484,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* Error alert banner if main ledger query failed */}
+      {isLedgerError && !summary && (
+        <div
+          data-testid="dashboard-ledger-error"
+          className="p-3 bg-[#fef2f2] dark:bg-[#2d1414] border border-[#fca5a5] dark:border-[#7f1d1d] rounded-xl text-xs flex items-center justify-between text-[#b91c1c] dark:text-[#ef4444]"
+        >
+          <span>{t.balance_error_retry}</span>
+          <button
+            onClick={() => refetchLedger()}
+            className="px-2.5 py-1 bg-[#b91c1c] hover:bg-[#991b1b] text-white rounded-lg font-semibold transition-all cursor-pointer focus-ring"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* 3. 4 Primary Summary Cards */}
       <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
         {/* Card 1: Money Received */}
@@ -445,10 +515,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#15803d] dark:text-[#22c55e] tabular-nums font-mono">
-              {currencySymbol} {formatMinorUnits(moneyReceivedMinor, currencyExponent)}
+              {isLedgerLoading && !summary ? (
+                <span className="text-[var(--text-subtle)] animate-pulse">{currencySymbol} ···</span>
+              ) : isLedgerError && !summary ? (
+                <span className="text-sm font-semibold text-[#b91c1c] dark:text-[#ef4444]">—</span>
+              ) : (
+                `${currencySymbol} ${formatMinorUnits(moneyReceivedMinor, currencyExponent)}`
+              )}
             </div>
             <p className="text-[11px] text-[var(--text-subtle)] mt-1 font-medium">
-              {language === 'ml' ? 'വരവായി രേഖപ്പെടുത്തിയ തുക' : language === 'ar' ? 'إجمالي المقبوضات' : 'Total receipts in period'}
+              {t.total_receipts_in_period}
             </p>
           </div>
         </div>
@@ -466,10 +542,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#b91c1c] dark:text-[#ef4444] tabular-nums font-mono">
-              {currencySymbol} {formatMinorUnits(moneyPaidMinor, currencyExponent)}
+              {isLedgerLoading && !summary ? (
+                <span className="text-[var(--text-subtle)] animate-pulse">{currencySymbol} ···</span>
+              ) : isLedgerError && !summary ? (
+                <span className="text-sm font-semibold text-[#b91c1c] dark:text-[#ef4444]">—</span>
+              ) : (
+                `${currencySymbol} ${formatMinorUnits(moneyPaidMinor, currencyExponent)}`
+              )}
             </div>
             <p className="text-[11px] text-[var(--text-subtle)] mt-1 font-medium">
-              {language === 'ml' ? 'ചെലവായി രേഖപ്പെടുത്തിയ തുക' : language === 'ar' ? 'إجمالي المدفوعات' : 'Total payments in period'}
+              {t.total_payments_in_period}
             </p>
           </div>
         </div>
@@ -503,11 +585,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   : 'text-[#b91c1c] dark:text-[#ef4444]'
               }`}
             >
-              {netCashChangeMinor < 0 ? '−' : '+'} {currencySymbol}{' '}
-              {formatMinorUnits(Math.abs(netCashChangeMinor), currencyExponent)}
+              {isLedgerLoading && !summary ? (
+                <span className="text-[var(--text-subtle)] animate-pulse">{currencySymbol} ···</span>
+              ) : isLedgerError && !summary ? (
+                <span className="text-sm font-semibold text-[#b91c1c] dark:text-[#ef4444]">—</span>
+              ) : (
+                `${netCashChangeMinor < 0 ? '−' : '+'} ${currencySymbol} ${formatMinorUnits(Math.abs(netCashChangeMinor), currencyExponent)}`
+              )}
             </div>
             <p className="text-[11px] text-[var(--text-subtle)] mt-1 font-medium">
-              {language === 'ml' ? 'വരവ് − ചെലവ്' : language === 'ar' ? 'المقبوضات - المدفوعات' : 'Receipts − Payments'}
+              {t.receipts_minus_payments}
             </p>
           </div>
         </div>
@@ -523,23 +610,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#142811] dark:text-[#f0f3ee] tabular-nums font-mono">
-              {currencySymbol} {formatMinorUnits(closingBalanceMinor, currencyExponent)}
+              {isLedgerLoading && !summary ? (
+                <span className="text-[#2d4926] dark:text-[#a8cb88] animate-pulse">{currencySymbol} ···</span>
+              ) : isLedgerError && !summary ? (
+                <span className="text-sm font-semibold text-[#b91c1c] dark:text-[#ef4444]">—</span>
+              ) : (
+                `${currencySymbol} ${formatMinorUnits(closingBalanceMinor, currencyExponent)}`
+              )}
             </div>
             <p className="text-[11px] text-[#2d4926] dark:text-[#a8cb88] mt-1 font-medium">
-              {language === 'ml' ? 'ഈ കാലയളവിന്റെ അവസാനം' : language === 'ar' ? 'الرصيد في نهاية الفترة' : 'At end of selected period'}
+              {t.at_end_of_period}
             </p>
           </div>
         </div>
       </div>
 
-      {/* 4. Account Balances Strip with Guaranteed Date/Account Scope Consistency */}
-      <div className="flex items-center gap-2.5 text-xs text-[var(--text-muted)] overflow-x-auto py-1.5 w-full max-w-full min-w-0">
+      {/* 4. Account Balances Strip with Explicit Date/Account Scope and Honest Loading/Error States */}
+      <div
+        className="flex items-center gap-2.5 text-xs text-[var(--text-muted)] overflow-x-auto py-1.5 w-full max-w-full min-w-0"
+        data-testid="account-balances-strip"
+      >
         <span className="font-bold text-[var(--text-main)] shrink-0 flex items-center gap-1.5">
-          {t.cash_breakdown}:
+          {t.cash_breakdown}
+          {selectedAccountId !== 'all' && (
+            <span className="text-[10px] font-semibold text-[var(--brand-primary)] dark:text-[var(--brand-lime)] bg-[var(--brand-lime-muted)] dark:bg-[#1e3518] px-1.5 py-0.5 rounded">
+              ({t.account_filtered_label})
+            </span>
+          )}:
         </span>
-        {activeAccounts.length > 0 ? (
-          activeAccounts.map((acc, idx) => {
-            const accClosingBal = accountBalancesMap.get(acc.id) ?? acc.current_balance_minor ?? acc.opening_balance_minor;
+        {displayedAccounts.length > 0 ? (
+          displayedAccounts.map((acc, idx) => {
+            const accState = accountStatesMap.get(acc.id);
             const isFiltered = selectedAccountId === acc.id;
             return (
               <React.Fragment key={acc.id}>
@@ -550,14 +651,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       ? 'bg-[var(--brand-lime-muted)] border-[var(--border-focus)] dark:bg-[#1e3518] text-[var(--text-main)]'
                       : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-muted)]'
                   }`}
+                  data-testid={`account-balance-item-${acc.id}`}
                 >
                   <span className="font-medium">{acc.account_name}:</span>
-                  <strong className="text-[var(--text-main)] font-bold tabular-nums font-mono">
-                    {currencySymbol} {formatMinorUnits(accClosingBal, currencyExponent)}
-                  </strong>
+                  {accState?.isLoading ? (
+                    <span className="text-[11px] text-[var(--text-subtle)] animate-pulse font-mono" data-testid="account-balance-loading">
+                      {t.balance_loading}
+                    </span>
+                  ) : accState?.isError ? (
+                    <button
+                      onClick={() => accState.refetch()}
+                      className="text-[11px] text-[#b91c1c] dark:text-[#ef4444] font-semibold hover:underline cursor-pointer"
+                      data-testid="account-balance-retry"
+                    >
+                      {t.balance_error_retry}
+                    </button>
+                  ) : accState?.balance !== null && accState?.balance !== undefined ? (
+                    <strong className="text-[var(--text-main)] font-bold tabular-nums font-mono" data-testid="account-balance-value">
+                      {currencySymbol} {formatMinorUnits(accState.balance, currencyExponent)}
+                    </strong>
+                  ) : (
+                    <span className="text-[11px] text-[var(--text-subtle)]">—</span>
+                  )}
                   {isFiltered && (
                     <span className="text-[10px] uppercase font-bold text-[var(--brand-primary)] dark:text-[var(--brand-lime)]">
-                      (active)
+                      ({t.account_filtered_label})
+                    </span>
+                  )}
+                  {acc.is_archived && (
+                    <span className="text-[10px] text-[var(--text-subtle)]">
+                      [Archived]
                     </span>
                   )}
                 </div>
@@ -565,7 +688,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             );
           })
         ) : (
-          <span className="text-[var(--text-subtle)]">No active accounts configured</span>
+          <span className="text-[var(--text-subtle)]">{t.no_active_accounts}</span>
         )}
       </div>
 
@@ -620,7 +743,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-[var(--text-main)] truncate">
-                            {v.party_name_snap || (isInflow ? 'Cash Receipt' : 'Cash Payment')}
+                            {v.party_name_snap || (isInflow ? t.cash_receipt_default : t.cash_payment_default)}
                           </p>
                           <p className="text-[11px] text-[var(--text-muted)] truncate font-mono">
                             {v.voucher_number} · {v.payment_method} · {v.business_date}
@@ -655,11 +778,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {t.cash_movement_explainer}
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                {language === 'ml'
-                  ? 'ഈ കാലയളവിലെ മാറ്റം എളുപ്പത്തിൽ'
-                  : language === 'ar'
-                  ? 'تفاصيل حركة النقد لهذه الفترة'
-                  : 'Breakdown of cash flow in selected period'}
+                {t.cash_flow_subtitle}
               </p>
 
               {/* Math Equation Lines */}
@@ -719,19 +838,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {t.inflows_outflows}
                   </h2>
                   <p className="text-xs text-[var(--text-muted)]">
-                    {language === 'ml'
-                      ? 'തിരഞ്ഞെടുത്ത കാലയളവിലെ cash flow'
-                      : language === 'ar'
-                      ? 'التدفقات النقدية الداخلة والخارجة'
-                      : 'Comparison of inflows and outflows'}
+                    {t.chart_comparison_subtitle}
                   </p>
                 </div>
                 {selectedBarData && (
                   <button
                     onClick={() => setSelectedBarLabel(null)}
-                    className="text-[11px] text-[var(--brand-primary)] dark:text-[var(--brand-lime)] font-semibold hover:underline"
+                    className="text-[11px] text-[var(--brand-primary)] dark:text-[var(--brand-lime)] font-semibold hover:underline focus-ring rounded"
                   >
-                    Clear selection
+                    {t.clear_selection}
                   </button>
                 )}
               </div>
@@ -745,8 +860,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               >
                 {barChartData.list.length > 0 ? (
                   barChartData.list.map((group) => {
-                    const inHeight = Math.max(3, (group.inflows / barChartData.peak) * 100);
-                    const outHeight = Math.max(3, (group.outflows / barChartData.peak) * 100);
+                    const inHeight = group.inflows > 0 ? Math.max(2, (group.inflows / barChartData.peak) * 100) : 0;
+                    const outHeight = group.outflows > 0 ? Math.max(2, (group.outflows / barChartData.peak) * 100) : 0;
                     const isSelected = selectedBarLabel === group.label;
                     const groupAria = `${group.label}: Inflows ${currencySymbol}${formatMinorUnits(group.inflows, currencyExponent)}, Outflows ${currencySymbol}${formatMinorUnits(group.outflows, currencyExponent)}`;
 
@@ -763,7 +878,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             setSelectedBarLabel(isSelected ? null : group.label);
                           }
                         }}
-                        className={`flex-1 max-w-[64px] h-full flex items-end justify-center gap-1.5 relative group cursor-pointer focus:outline-none rounded-t-lg p-0.5 transition-all duration-120 ${
+                        className={`flex-1 max-w-[64px] h-full flex items-end justify-center gap-1.5 relative group cursor-pointer rounded-t-lg p-0.5 transition-all duration-120 focus:outline-none focus:ring-2 focus:ring-[var(--border-focus)] focus:ring-offset-1 ${
                           isSelected ? 'bg-[var(--brand-lime-muted)] dark:bg-[#1e3518]' : 'hover:bg-[var(--bg-surface-subtle)]'
                         }`}
                       >
@@ -796,7 +911,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {selectedBarData && (
                 <div className="mt-3 p-3 bg-[var(--brand-lime-muted)] dark:bg-[#1e3518] border border-[var(--border-subtle)] rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
                   <div className="font-bold text-[var(--text-main)]">
-                    {selectedBarData.label} ({selectedBarData.count} transactions):
+                    {selectedBarData.label} ({selectedBarData.count} {t.transactions_count}):
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-[#15803d] dark:text-[#22c55e] font-bold font-mono tabular-nums">
@@ -806,7 +921,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       − {currencySymbol} {formatMinorUnits(selectedBarData.outflows, currencyExponent)}
                     </span>
                     <span className="font-bold text-[var(--text-main)] font-mono tabular-nums">
-                      Net:{' '}
+                      {t.chart_net_label}:{' '}
                       {selectedBarData.inflows - selectedBarData.outflows >= 0 ? '+' : '−'}
                       {currencySymbol}{' '}
                       {formatMinorUnits(Math.abs(selectedBarData.inflows - selectedBarData.outflows), currencyExponent)}
@@ -837,11 +952,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {t.spending_by_category}
               </h2>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                {language === 'ml'
-                  ? 'Category അനുസരിച്ചുള്ള തുക'
-                  : language === 'ar'
-                  ? 'المصروفات حسب البند'
-                  : 'Outflows distributed by category'}
+                {t.category_expenses_subtitle}
               </p>
 
               <div className="mt-4 space-y-3.5">
@@ -866,7 +977,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   ))
                 ) : (
                   <div className="py-8 text-center text-xs text-[var(--text-subtle)]">
-                    {language === 'ml' ? 'ചെലവുകളില്ല' : language === 'ar' ? 'لا توجد مصروفات' : 'No expenses in this period'}
+                    {t.no_expenses_period}
                   </div>
                 )}
               </div>
