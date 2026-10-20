@@ -144,8 +144,10 @@ async function main() {
         modalOpenedCleanly = false; // Missing Add button must fail verification
       }
 
-      // 4. Test Language Switcher to Arabic (RTL)
-      const langSelector = await page.$('[data-testid="language-select"]');
+      // 4. Change language through Settings, as in the product UI.
+      await navigateToAppTab(page, 'settings');
+      // Test Language Switcher to Arabic (RTL)
+      const langSelector = await page.waitForSelector('[data-testid="language-select"]', { state: 'visible' });
       let rtlValid = false;
       let rtlNoOverflow = true;
       if (langSelector) {

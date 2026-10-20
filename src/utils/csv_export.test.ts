@@ -138,3 +138,16 @@ describe('exportTransactionsToCsv', () => {
     expect(csv).toContain('Total Transactions,2');
   });
 });
+
+describe('report category presentation', () => {
+  it('resolves category IDs to names while retaining CSV formula protection', () => {
+    const csv = exportTransactionsToCsv({
+      settings: { currency_code: 'INR', currency_exponent: 2 } as BusinessSettings,
+      summary: { opening_balance_minor: 0, period_inflows_minor: 100, period_outflows_minor: 0, closing_balance_minor: 100 } as CashbookSummary,
+      entries: [{ voucher: { category_id: 'cat-retail', direction: 'inflow', amount_minor: 100 }, running_balance_minor: 100 } as CashbookLedgerEntry],
+      categoryNames: { 'cat-retail': '=Retail sales' },
+    });
+    expect(csv).toContain("'=Retail sales");
+    expect(csv).not.toContain('cat-retail');
+  });
+});

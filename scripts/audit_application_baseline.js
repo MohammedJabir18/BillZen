@@ -440,6 +440,7 @@ async function runAudit() {
     });
 
     // 16. Arabic RTL (Dark)
+    await desktopPage.goto(`${BASE_URL}/?tab=settings`, { waitUntil: 'networkidle' });
     const langSelect = desktopPage.locator('[data-testid="language-select"]');
     await langSelect.selectOption('ar');
     await desktopPage.waitForTimeout(400);
@@ -461,6 +462,7 @@ async function runAudit() {
     });
 
     // 17. Malayalam (Dark)
+    await desktopPage.goto(`${BASE_URL}/?tab=settings`, { waitUntil: 'networkidle' });
     await langSelect.selectOption('ml');
     await desktopPage.waitForTimeout(400);
     await desktopPage.goto(`${BASE_URL}/?tab=dashboard`);

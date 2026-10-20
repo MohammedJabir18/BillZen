@@ -494,3 +494,9 @@ BillZen's visual direction follows the owner-approved **Direction 1 — Precisio
 No financial schema, adapter, transaction, numbering, idempotency, backup, signing or updater protocol changed. The browser Cashbook adapter already persists in IndexedDB; its storage notice now accurately distinguishes browser-site data from native SQLite. Printable voucher/invoice documents retain their existing contract and independent scrolling preview. Dark semantic coral is `#f87171` after a measured normal-text contrast failure at the earlier color.
 
 See `docs/design/cashbook-ui3.md` and the verification record. Android distribution is unchanged; native evidence applies only to the rebuilt Linux executable and isolated test database.
+
+## UI-4 — Reports and Settings language (2026-10-20)
+
+The shared App header no longer renders a language selector or platform/framework badge, and the diagnostic footer/backend ping polling are removed. Settings owns the language control through the same App callback/localStorage preference; document language/direction update with the preference. Initial setup still offers language selection. Financial locale, currency and timezone remain separate.
+
+Reports use the approved semantic tokens, accessible named/touch-sized filters, wrapping monetary summaries and a labelled narrow-screen table scroll region. Invalid/read-pending/read-failed ranges show unavailable values; CSV/print wait for the ledger and category/account lookups. Category filters now use IDs, and optional category-name maps feed CSV and printable report presentation without changing monetary values or formula protection. Full-period statement totals remain independent of matching transaction totals. Arabic period labels explicitly use Gregorian dates matching the ledger.

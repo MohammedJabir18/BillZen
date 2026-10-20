@@ -80,3 +80,20 @@ describe('ReportsView', () => {
     expect(html).toContain('data-testid="report-closing-balance"');
   });
 });
+
+it('waits for category labels before enabling a ready ledger export', async () => {
+  const { getTodayBusinessDate } = await import('../domain/financial');
+  const date = getTodayBusinessDate('Asia/Kolkata');
+  const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
+  client.setQueryData(['money_accounts'], []);
+  client.setQueryData(['cashbook_ledger', { account_id: null, start_date: date, end_date: date, search: null, classification: null, include_archived: false }], {
+    summary: { total_cash_minor: 100, active_cash_minor: 100, opening_balance_minor: 0, period_inflows_minor: 100, period_outflows_minor: 0, closing_balance_minor: 100, net_operating_cash_flow_minor: 100 }, entries: [],
+  });
+  const html = renderToStaticMarkup(<QueryClientProvider client={client}><ReportsView settings={{ currency_exponent: 2, currency_symbol: '₹', timezone: 'Asia/Kolkata' } as BusinessSettings} language="en" /></QueryClientProvider>);
+  const exportButton = html.match(/<button\b[^>]*data-testid="btn-export-csv"[^>]*>/)?.[0];
+  expect(exportButton).toContain('disabled');
+  client.setQueryData(['cashbook_categories'], []);
+  const readyHtml = renderToStaticMarkup(<QueryClientProvider client={client}><ReportsView settings={{ currency_exponent: 2, currency_symbol: '₹', timezone: 'Asia/Kolkata' } as BusinessSettings} language="en" /></QueryClientProvider>);
+  expect(readyHtml.match(/<button\b[^>]*data-testid="btn-export-csv"[^>]*>/)?.[0]).not.toContain('disabled');
+  client.clear();
+});

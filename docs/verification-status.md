@@ -218,3 +218,9 @@ Final acceptance after shortcut/error-feedback corrections:
 - Frontend main JS: 655.82 kB / gzip 164.76 kB in the release build. No new dependency or runtime cloud service.
 - Mandatory Graphify semantic/Obsidian update could not finish: no semantic API key. Local `--code-only` fallback refreshed `graphify-out/graph.json` to 1,448 nodes / 3,018 edges. SQL extraction remains unavailable (`tree_sitter_sql` missing); this is not a full semantic/vault refresh.
 - Android APK/signing/versionCode unchanged. No GitHub application release, updater manifest or installer was published. Windows/macOS/iOS/Android native acceptance remains outside this Linux/browser section.
+
+## 2026-10-20 — UI-4 Reports / Settings language
+
+The previous UI-3 commit's GitHub CI succeeded. UI-4 removes language/platform controls from the shared header and the implementation-diagnostic footer. Language is now changed in Settings and persists through the existing device preference. Reports use the approved semantic design, named controls, readable narrow/RTL amounts, honest loading/error/date validation, correct category identity and human-readable category names in screen/CSV/PDF output. See [UI-4 design evidence](design/reports-ui4.md).
+
+Observed local verification: 72 frontend tests, 14 Settings/header assertions, 68 Reports assertions (including filtered CSV, invalid ranges and genuine A4 PDF/category-name extraction), 906 layout states, 104 theme checks, 6 responsive viewports, Dashboard25 assertions, catalog localization, onboarding and all four invoice PDF scenarios passed. No physical printer was invoked. Readiness regression verifies a ready ledger cannot export until category names resolve. Native Linux and Android packaging/acceptance follow in the next section; this UI section alone does not certify native Android.

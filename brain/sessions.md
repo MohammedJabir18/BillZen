@@ -1441,3 +1441,13 @@
 - **Final results:** frontend70; CashbookUI55 (including KWD3 and real Dashboard payment submit); Cashbook12; Dashboard25/9; responsive6; PDF3; theme104; layout906. Final Linux native39 passed including cold restart and unchanged real-data fingerprints. Linux SHA-256 `77ee980e39cec2086bd5857b86163f7a88d75b14f45d4628226eaf284d4a7edc` (20,669,112 bytes). See verification note for broad-gate/final-targeted ordering.
 - **Graphify:** mandatory semantic/Obsidian command blocked by absent semantic API key. Code-only AST fallback refreshed 1,448 nodes/3,018 edges; SQL parser missing. Full semantic/vault refresh is not claimed.
 - **Delivery:** coherent UI-3 section prepared for owner-authorized main commit/push; report actual remote CI separately. No APK/live release published.
+
+### 2026-10-20 — UI-4 Reports and Settings-only language
+
+- Owner explicitly requests Reports migration, refreshed Android APK, language control only in Settings and removal of platform/framework labels from every app shell.
+- Confirmed prior UI-3 GitHub CI 39385267594 succeeded. Removed the shared header language/platform controls, diagnostic footer and unnecessary ping polling; retained onboarding language selection. Settings changes apply immediately through the existing persisted device preference and update document language/RTL.
+- Migrated Reports to semantic Precision Ledger colors, touch/narrow/RTL controls, featured closing balance, readable numbers and named filters. Reproduced/fixed category name/ID mismatch, retained full statement totals and mapped category names into CSV/PDF safely. Added valid-range/load/error/export guards.
+- Independent review found exports could activate before category lookup completed; observed a failing unit regression and fixed readiness. No other important review finding.
+- Verified: 72 frontend tests; 14 header/Settings assertions; 68 populated Reports/filter/CSV/date-validation/A4 PDF checks; 906 layout states; 104 theme states; 6 responsive viewports; Dashboard25 assertions; catalog localization; onboarding; 4 invoice PDFs. Relevant harnesses now navigate through Settings and wait for it to render. PDF checks tolerate normal sub-point rounding and verify wrapped category-name words, not artificial single-line text.
+- UI code/docs/tests are ready for owner-authorized main delivery. Linux rebuild is intentionally combined with the upcoming versioned Android packaging stage. No live release published.
+- Android preparation: original signing access recovered from owner-provided build logs and validated without disclosing/storing credentials in Git. Dedicated billzen_test_avd booted; snapshot/upgrade harness being prepared. Existing test installation is versionCode1006. No uninstall or data clearing.

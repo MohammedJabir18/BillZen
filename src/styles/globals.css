@@ -244,3 +244,12 @@ html.dark {
     transform: none !important;
   }
 }
+
+/* Reports share Cashbook's semantic financial hierarchy without styling printed paper. */
+.reports-screen :is(button, input, select) { min-height: 44px; }
+.reports-screen :is(input, select) { min-width: 0; max-width: 100%; }
+.reports-screen :is(button, input, select, [role="region"]):focus-visible {
+  outline: 2px solid var(--border-focus); outline-offset: 2px;
+}
+.reports-screen button:disabled { opacity: .55; cursor: not-allowed; }
+.reports-screen [dir="ltr"] { unicode-bidi: isolate; }

@@ -88,6 +88,9 @@ jobs:
       - name: Run Playwright Responsive Verification
         run: npm run test:responsive
 
+      - name: Verify Settings language preference and clean header
+        run: node scripts/verify_header_tab_navigation.js
+
       - name: Audit navigation and screen layouts across languages and themes
         run: node scripts/verify_layout_regression.js
 
@@ -101,6 +104,7 @@ jobs:
         run: |
           node scripts/verify_updates_browser.js
           npm run test:cashbook
+          npm run test:reports-ui
           npm run test:cashbook-ui
           node scripts/verify_theme_contrast.js
           npm run test:cashbook-pdf

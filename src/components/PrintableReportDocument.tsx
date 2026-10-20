@@ -173,7 +173,7 @@ export const PrintableReportDocument: React.FC<PrintableReportProps> = ({
                     )}
                   </td>
                   <td className="py-2 px-2.5 border-r border-slate-200 text-[11px] text-slate-700">
-                    {v.category_id || '—'}
+                    {(v.category_id && reportData.categoryNames?.[v.category_id]) || v.category_id || '—'}
                   </td>
                   <td className="py-2 px-2.5 border-r border-slate-200 text-[11px] text-slate-700 whitespace-nowrap">
                     {v.account_name_snap || '—'}
