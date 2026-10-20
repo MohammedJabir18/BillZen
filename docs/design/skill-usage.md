@@ -43,3 +43,7 @@ To prevent conflicting visual directions from competing during development, the 
 3. **Domain Integrity (`Karpathy` + Project Financial Model)**:
    - Cash movement is liquidity, never accounting profit.
    - 100% offline functionality: Zero external CDN font or script dependencies.
+
+## 2026-10-20 — UI-3 continuation evidence
+
+See [Cashbook UI-3](cashbook-ui3.md) for the specific local guidance actually used, before/after review, behavioral gates and compatibility rulings. This continuation uses the existing approved design; it does not claim to have re-run every tool in the historical discovery matrix above. In particular, the installed Taste Skill v2 excludes app/dashboard screens, and no full Impeccable critique/detector command was run for UI-3. Its adapt/harden references were used directly.

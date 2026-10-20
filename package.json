@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:catalog": "node scripts/verify_catalog_playwright.js",
+    "test:cashbook-ui": "node scripts/verify_cashbook_ui3.js",
     "test:cashbook": "node scripts/verify_cashbook_playwright.js",
     "test:cashbook-pdf": "node scripts/verify_cashbook_pdf.js",
     "test:native-cashbook": "node scripts/verify_native_cashbook.js",

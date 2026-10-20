@@ -65,17 +65,20 @@ async function run() {
     allPassed: false,
   };
 
+  let browser;
   try {
     await waitForServer(BASE_URL, 15000);
     console.log(`Vite preview server listening at ${BASE_URL}`);
 
-    const browser = await chromium.launch({
+    browser = await chromium.launch({
       channel: 'chrome',
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--font-render-hinting=none'],
     });
 
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    // PDF isolation is independent of guide timing; onboarding has its own suite.
+    await page.addInitScript(() => localStorage.setItem('billzen_guide_status', 'completed'));
 
     // -------------------------------------------------------------------------
     // Scenario 1: Post Voucher and Generate A4 Voucher PDF
@@ -247,12 +250,13 @@ async function run() {
 
     console.log(`\n=== PDF Verification Summary: ${results.allPassed ? 'ALL PASSED' : 'FAILURES DETECTED'} ===`);
     if (!results.allPassed) {
-      process.exit(1);
+      process.exitCode = 1;
     }
   } catch (err) {
     console.error('Fatal error during PDF verification:', err);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
+    await browser?.close();
     killServer();
   }
 }
