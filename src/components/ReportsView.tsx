@@ -328,11 +328,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* Period Controls & Date Selector Bar */}
       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-4">
         {/* Period Switcher (Today, Month, Year, Custom) */}
-        <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-full sm:w-auto max-w-full">
           <button
             onClick={() => setPeriod('today')}
             data-testid="report-period-today"
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
               period === 'today'
                 ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
@@ -343,7 +343,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <button
             onClick={() => setPeriod('month')}
             data-testid="report-period-month"
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
               period === 'month'
                 ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
@@ -354,7 +354,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <button
             onClick={() => setPeriod('year')}
             data-testid="report-period-year"
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
               period === 'year'
                 ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
@@ -365,7 +365,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <button
             onClick={() => setPeriod('custom')}
             data-testid="report-period-custom"
-            className={`flex-1 sm:flex-initial px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
               period === 'custom'
                 ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
@@ -402,13 +402,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full">
             <input
               type="date"
               value={customStartDate}
               onChange={(e) => setCustomStartDate(e.target.value)}
               data-testid="report-custom-start-date"
-              className="text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-zinc-100 font-mono"
+              className="text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-zinc-100 font-mono max-w-[135px] sm:max-w-none"
             />
             <span className="text-xs text-slate-500">to</span>
             <input
@@ -416,7 +416,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               value={customEndDate}
               onChange={(e) => setCustomEndDate(e.target.value)}
               data-testid="report-custom-end-date"
-              className="text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-zinc-100 font-mono"
+              className="text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-zinc-100 font-mono max-w-[135px] sm:max-w-none"
             />
           </div>
         )}

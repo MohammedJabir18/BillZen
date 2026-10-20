@@ -1228,3 +1228,35 @@
 - **CI observation:** CI run 39366578334 started for 6705a9c and was in progress at inspection; success is not yet claimed. No application release was published.
 - **Files modified:** brain/sessions.md only, to record delivery. Ongoing untracked docs/design/ and scripts/audit_application_baseline.js were preserved and excluded from delivery commits.
 - **Next:** Continue the premium UI design work using docs/antigravity-next-task.md and inspect the latest CI result before treating remote verification as complete. Earlier push-authentication blockers in this log are historical and now resolved.
+
+### 2026-10-20 — Design Prototypes Refinement, Responsiveness Fix & 8-Viewport Audit
+
+- **Goals:** Address all 7 owner critique points on the BillZen design-prototype phase: eliminate fake phone-frame wrapper hacks; achieve true fluid responsiveness across all 8 viewports (320px, 360px, 390px, 412px, 568px landscape, 768px, 1024px, 1280px) with 0px horizontal document overflow; implement working prototype flows (Dashboard, Cashbook, Reports, period filters with recalculated math, validated in-memory entry modals, and More drawer with Escape key dismiss); correct baseline audit evidence (24/24 screenshots in `test_artifacts/audit/` and `audit_manifest.json`); record installed `taste-skill` (v2) usage; install and vendor local offline GSAP (v3.15.0); eliminate all UI emojis per Design Doctrine; fix CI 320px reports period overflow in `src/components/ReportsView.tsx`; and capture 21 genuine screenshots for owner evaluation.
+- **Completed:**
+  - **8-Viewport Zero-Overflow Verification:** Re-engineered both prototypes (`direction-1-precision-ledger.html` and `direction-2-executive-clarity.html`) with true fluid layouts. Playwright automated audit verified `scrollWidth <= clientWidth` (0px overflow) across all 8 viewports for both directions.
+  - **Working Interactive Prototype Flows:** Implemented distinct, working Dashboard, Cashbook, and Reports views; period filters (Today, Month, Year, Custom) with consistent balance arithmetic; working receipt/payment entry modals with input validation and in-memory additions; working More navigation drawers with Escape key dismissal; honest action labels (`RECORD ENTRY (SIMULATED)`).
+  - **Local Offline Accessible Motion:** Installed `gsap` (3.15.0) and `@gsap/react` (2.1.2) in `package.json` and vendored minified bundle (`docs/prototypes/vendor/gsap.min.js`, 72K) for 100% offline, zero-CDN execution with `(prefers-reduced-motion: reduce)` support.
+  - **Design Doctrine & Zero-Emoji Enforcement:** Removed all emojis from More drawer items and replaced with clean typographic labels and SVG glyphs.
+  - **CI 320px Reports Layout Resiliency:** Added `flex-wrap`, `gap-1`, and responsive padding to the period switcher and custom date inputs in `src/components/ReportsView.tsx`, resolving narrow viewport overflow.
+  - **Artifacts & Evidence:** Captured 21 genuine, non-frame-hacked screenshots to `test_artifacts/prototypes/` and copied to the brain artifact directory. Updated `docs/design/prototypes-comparison.md`, `docs/design/references.md`, and the user-facing artifact `billzen_design_directions.md`.
+- **Files Modified / Added:**
+  - `src/components/ReportsView.tsx`
+  - `package.json`, `package-lock.json`
+  - `docs/prototypes/direction-1-precision-ledger.html`
+  - `docs/prototypes/direction-2-executive-clarity.html`
+  - `docs/prototypes/vendor/gsap.min.js`
+  - `scripts/capture_prototype_screenshots.js`
+  - `scripts/audit_application_baseline.js`
+  - `docs/design/audit.md`, `docs/design/skill-usage.md`, `docs/design/references.md`, `docs/design/prototypes-comparison.md`
+  - `brain/sessions.md`
+- **Verification Evidence:**
+  - Prototype 8-Viewport Audit: 8/8 viewports passed with 0px overflow on both Direction 1 and Direction 2.
+  - 21 Captured Visual Artifacts recorded in `test_artifacts/prototypes/prototype_manifest.json`.
+  - Frontend Vitest Unit Tests: 53/53 passed across 11 files (`npm test`).
+  - Production Frontend Build: `npm run build` passed cleanly (1.69s).
+  - Playwright Responsive Matrix: 6/6 viewports passed with zero horizontal overflow (`npm run test:responsive`).
+  - Playwright Layout Regression Matrix: 906/906 states checked, 0 failed.
+- **Decision Gate & Next Steps:**
+  - Both candidates are fully functioning, responsive, and verified.
+  - Direction 1 ("Precision Ledger") is the recommended candidate for production migration.
+  - Await final owner approval before defining production design tokens and beginning full application UI migration.

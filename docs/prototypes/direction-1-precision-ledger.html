@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BillZen Prototype — Direction 1: Precision Ledger</title>
+<style>
+/* ==========================================================================
+   BillZen Direction 1: "Precision Ledger" Design System Tokens
+   ========================================================================== */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Malayalam", "Noto Sans Arabic", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Surfaces & Canvas */
+  --bg-app: #f8f9f6;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #f2f4ef;
+  --bg-surface-subtle: #fbfcf9;
+
+  /* Lines & Hairlines */
+  --border-subtle: #e5e9df;
+  --border-medium: #d4dad0;
+  --border-strong: #a4afa0;
+
+  /* Text & Contrast */
+  --text-main: #182216;
+  --text-muted: #5e6b5c;
+  --text-tertiary: #8b9989;
+
+  /* BillZen Brand Accents */
+  --brand-primary: #1f3d23;
+  --brand-primary-hover: #294d2d;
+  --brand-lime: #ceeaa0;
+  --brand-lime-muted: #e4f3cb;
+  --brand-lime-text: #213c19;
+  --brand-emerald: #15803d;
+  --brand-emerald-subtle: #eef8f0;
+  --brand-coral: #b91c1c;
+  --brand-coral-subtle: #fef2f2;
+
+  /* Shadows & Depth */
+  --shadow-sm: 0 1px 2px rgba(20, 35, 18, 0.04);
+  --shadow-md: 0 4px 12px rgba(20, 35, 18, 0.05);
+  --shadow-lg: 0 12px 32px rgba(20, 35, 18, 0.08);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 9999px;
+
+  /* Motion & Easing */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-smooth: 280ms;
+
+  color-scheme: light;
+}
+
+body.dark {
+  --bg-app: #0c0f0d;
+  --bg-surface: #141915;
+  --bg-surface-raised: #1c231e;
+  --bg-surface-subtle: #101411;
+
+  --border-subtle: #242c26;
+  --border-medium: #323d35;
+  --border-strong: #4a594e;
+
+  --text-main: #edf2eb;
+  --text-muted: #9aa897;
+  --text-tertiary: #6b7a68;
+
+  --brand-primary: #a6d885;
+  --brand-primary-hover: #b7e398;
+  --brand-lime: #1e3518;
+  --brand-lime-muted: #162912;
+  --brand-lime-text: #d9f3b3;
+  --brand-emerald: #4ade80;
+  --brand-emerald-subtle: #132817;
+  --brand-coral: #f87171;
+  --brand-coral-subtle: #2e1515;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
+/* Reset & Fluid Base */
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  background: var(--bg-app);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* 8-State Interactive Control Contract */
+button, input, select {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  min-height: 44px;
+  transition: all var(--duration-fast) var(--ease-spring);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  outline: none;
+  touch-action: manipulation;
+}
+button:hover {
+  background: var(--bg-surface-raised);
+  border-color: var(--border-strong);
+}
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+button:active {
+  transform: scale(0.975);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+button.primary {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: var(--brand-primary);
+  font-weight: 600;
+}
+body.dark button.primary {
+  color: #0c0f0d;
+}
+button.primary:hover {
+  background: var(--brand-primary-hover);
+}
+button.receive-btn {
+  background: var(--brand-emerald-subtle);
+  color: var(--brand-emerald);
+  border-color: var(--brand-emerald);
+  font-weight: 600;
+}
+button.pay-btn {
+  background: var(--brand-coral-subtle);
+  color: var(--brand-coral);
+  border-color: var(--brand-coral);
+  font-weight: 600;
+}
+
+/* Prototype Toolbar (Guaranteed to wrap cleanly on 320px) */
+.proto-banner {
+  background: #182419;
+  color: #e5f2de;
+  padding: 6px 12px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  width: 100%;
+}
+.proto-badge {
+  background: #ceeaa0;
+  color: #142811;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+}
+.proto-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.proto-controls button, .proto-controls select {
+  min-height: 32px;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: #253627;
+  border-color: #3b503e;
+  color: #f0f7ec;
+  border-radius: var(--radius-sm);
+}
+
+/* Responsive Application Container */
+.app-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 45px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+}
+@media (min-width: 1024px) {
+  .app-wrapper {
+    margin: 16px auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* App Header */
+.app-header {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.brand-identity svg {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+}
+.brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+  white-space: nowrap;
+}
+.brand-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.offline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brand-emerald);
+  background: var(--brand-emerald-subtle);
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(21,128,61,0.2);
+  white-space: nowrap;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Desktop Segmented Navigation */
+.desktop-nav {
+  display: none;
+  gap: 4px;
+  padding: 8px 16px;
+  background: var(--bg-surface-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+@media (min-width: 1024px) {
+  .desktop-nav { display: flex; }
+}
+.nav-tab-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  min-height: 36px;
+}
+.nav-tab-btn:hover {
+  background: var(--bg-surface-raised);
+  color: var(--text-main);
+}
+.nav-tab-btn.active {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: var(--brand-primary);
+  font-weight: 600;
+}
+body.dark .nav-tab-btn.active {
+  color: #0c0f0d;
+}
+
+/* View Container */
+.view-viewport {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .view-viewport { padding: 24px; gap: 20px; }
+}
+.view-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* View Header */
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.view-title-group h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.view-title-group p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+.fast-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fast-actions button {
+  flex: 1;
+  min-width: 130px;
+}
+
+/* Period Filter Bar */
+.period-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+.period-segmented {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+@media (min-width: 600px) {
+  .period-segmented { width: auto; }
+}
+.period-segmented button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  font-size: 12px;
+  min-height: 34px;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.period-segmented button.active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+/* 4-Card Metric Grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .cards-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
+}
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+.card-header-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.card-amount {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+  line-height: 1.15;
+  [overflow-wrap:anywhere];
+}
+.card-subtext {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.card.featured {
+  background: var(--brand-lime);
+  border-color: rgba(31, 61, 35, 0.2);
+  color: var(--brand-lime-text);
+}
+.card.featured .card-header-label { color: rgba(33, 60, 25, 0.8); }
+.card.featured .card-subtext { color: rgba(33, 60, 25, 0.85); font-weight: 500; }
+.indicator-inflow { color: var(--brand-emerald); }
+.indicator-outflow { color: var(--brand-coral); }
+
+/* Accounts Bar */
+.accounts-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+.account-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.account-tag {
+  background: var(--bg-surface-raised);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Two Column Content Area */
+.two-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+}
+@media (min-width: 900px) {
+  .two-cols { grid-template-columns: 1.5fr 1fr; gap: 20px; }
+}
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .panel { padding: 20px; }
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  min-width: 0;
+  gap: 8px;
+}
+.panel-head h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Scoped Table Scrolling Wrapper */
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 290px;
+}
+.data-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: var(--bg-surface-raised);
+  border-bottom: 1px solid var(--border-medium);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.data-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.data-table tr:last-child td { border-bottom: none; }
+
+/* Explainer Box */
+.explainer-box {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 14px;
+}
+.explainer-box strong {
+  color: var(--text-main);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Mobile Sticky Bottom Navigation */
+.mobile-bottom-nav {
+  display: flex;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+  padding: 6px 12px max(8px, env(safe-area-inset-bottom));
+  justify-content: space-around;
+  z-index: 40;
+}
+@media (min-width: 1024px) {
+  .mobile-bottom-nav { display: none; }
+}
+.mobile-nav-btn {
+  border: none;
+  background: transparent;
+  flex-direction: column;
+  padding: 4px;
+  min-height: 52px;
+  font-size: 10px;
+  color: var(--text-muted);
+  gap: 2px;
+  flex: 1;
+}
+.mobile-nav-btn.active {
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+.mobile-nav-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Slide-Over Drawer / Modal (Adaptive) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 15, 13, 0.55);
+  backdrop-filter: blur(2px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+}
+@media (min-width: 640px) {
+  .modal-overlay { align-items: center; }
+}
+.modal-overlay.open { display: flex; }
+.modal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .modal-card {
+    border-radius: var(--radius-xl);
+    max-height: 85vh;
+  }
+}
+.modal-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.form-field input, .form-field select { width: 100%; }
+.modal-foot {
+  padding: 12px 18px;
+  background: var(--bg-surface-subtle);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* More Navigation Drawer */
+.more-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: flex-end;
+  z-index: 250;
+}
+.more-drawer-overlay.open { display: flex; }
+.more-drawer {
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  width: 100%;
+  max-height: 70vh;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.more-drawer-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-subtle);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Interactive Toast */
+.proto-toast {
+  position: fixed;
+  bottom: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--brand-primary);
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  display: none;
+  z-index: 300;
+  max-width: 90vw;
+  text-align: center;
+}
+body.dark .proto-toast { color: #0c0f0d; }
+
+/* Print Mode Simulation */
+@media print {
+  .proto-banner, .desktop-nav, .mobile-bottom-nav, .fast-actions, .period-bar { display: none !important; }
+  .app-wrapper { border: none; box-shadow: none; margin: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- Prototype Notification & Mode Toolbar -->
+<aside class="proto-banner" aria-label="Prototype controls">
+  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <span class="proto-badge">DIRECTION 1</span>
+    <strong>Precision Ledger</strong>
+    <span style="opacity: 0.8;">· Prototype (Sample Data Only)</span>
+  </div>
+  <div class="proto-controls">
+    <button type="button" onclick="toggleTheme()" aria-label="Toggle Light and Dark Mode">◐ Theme</button>
+    <select onchange="changeLanguage(this.value)" aria-label="Select Prototype Language">
+      <option value="en">English (EN)</option>
+      <option value="ml">മലയാളം (ML)</option>
+      <option value="ar">العربية (AR RTL)</option>
+    </select>
+  </div>
+</aside>
+
+<div class="app-wrapper">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="brand-identity">
+      <!-- Authentic BillZen Vector Icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 43 43" role="img" aria-label="BillZen Icon">
+        <rect width="43" height="43" rx="13" fill="#c9ff79"/>
+        <path d="M12 12H29L15 31H31M13 22H26" fill="none" stroke="#101b18" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <h1 class="brand-title">BillZen</h1>
+        <p class="brand-subtitle" id="bizSubtitle">Apex Store · Offline Business Workspace</p>
+      </div>
+    </div>
+    <div class="offline-status">
+      <span class="status-dot"></span>
+      <span>100% Offline SQLite</span>
+    </div>
+  </header>
+
+  <!-- Desktop Navigation Bar -->
+  <nav class="desktop-nav" aria-label="Desktop destinations">
+    <button class="nav-tab-btn active" onclick="navigateTo('dashboard', this)" id="dtab-dashboard">Today Dashboard</button>
+    <button class="nav-tab-btn" onclick="navigateTo('cashbook', this)" id="dtab-cashbook">Cashbook</button>
+    <button class="nav-tab-btn" onclick="navigateTo('reports', this)" id="dtab-reports">Reports & Analytics</button>
+    <button class="nav-tab-btn" onclick="showMoreItem('Products Catalog')">Products</button>
+    <button class="nav-tab-btn" onclick="showMoreItem('Customers & Debtors')">Customers</button>
+    <button class="nav-tab-btn" onclick="showMoreItem('Settings & Backups')">Settings</button>
+  </nav>
+
+  <!-- View Container -->
+  <main class="view-viewport" id="viewportMain">
+
+    <!-- ===================================================================
+         VIEW 1: TODAY DASHBOARD
+         =================================================================== -->
+    <section class="view-panel" id="view-dashboard">
+      <div class="view-header">
+        <div class="view-title-group">
+          <h2 id="dashHeading">Today's Cash Position</h2>
+          <p id="dashDate">Tuesday, 20 October 2026 · Asia/Kolkata</p>
+        </div>
+        <div class="fast-actions">
+          <button class="receive-btn" type="button" onclick="openEntryModal('inflow')">
+            <span>＋</span>
+            <span id="btnReceiveLabel">Receive Money</span>
+          </button>
+          <button class="pay-btn" type="button" onclick="openEntryModal('outflow')">
+            <span>−</span>
+            <span id="btnPayLabel">Pay Money</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Period Filter Bar -->
+      <div class="period-bar">
+        <div class="period-segmented">
+          <button class="active" onclick="filterPeriod('today', this)" id="p-today">Today</button>
+          <button onclick="filterPeriod('month', this)" id="p-month">This Month</button>
+          <button onclick="filterPeriod('year', this)" id="p-year">This Year</button>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted);" id="periodStatusBadge">
+          5 Transactions recorded
+        </div>
+      </div>
+
+      <!-- 4-Card Summary Grid -->
+      <div class="cards-grid">
+        <div class="card featured">
+          <span class="card-header-label" id="lblClosing">Closing Available Cash</span>
+          <div class="card-amount mono" id="sumClosing">₹21,000.00</div>
+          <span class="card-subtext" id="subClosing">Exact physical cash + bank funds</span>
+        </div>
+        <div class="card">
+          <span class="card-header-label" id="lblInflow">Money Received (In)</span>
+          <div class="card-amount mono indicator-inflow" id="sumInflow">+₹12,500.00</div>
+          <span class="card-subtext" id="subInflow">2 customer receipts</span>
+        </div>
+        <div class="card">
+          <span class="card-header-label" id="lblOutflow">Money Paid (Out)</span>
+          <div class="card-amount mono indicator-outflow" id="sumOutflow">-₹3,900.00</div>
+          <span class="card-subtext" id="subOutflow">3 payments & expenses</span>
+        </div>
+        <div class="card">
+          <span class="card-header-label" id="lblNet">Net Cash Change</span>
+          <div class="card-amount mono indicator-inflow" id="sumNet">+₹8,600.00</div>
+          <span class="card-subtext" id="subNet">Inflows − Outflows</span>
+        </div>
+      </div>
+
+      <!-- Account Balances Row -->
+      <div class="accounts-strip">
+        <strong id="lblAccountStrip">Account Balances:</strong>
+        <div class="account-badge">
+          <span class="account-tag">Cash Drawer</span>
+          <span class="mono" style="font-weight: 600;" id="accCashVal">₹11,000.00</span>
+        </div>
+        <div class="account-badge">
+          <span class="account-tag">Current Bank</span>
+          <span class="mono" style="font-weight: 600;" id="accBankVal">₹10,000.00</span>
+        </div>
+      </div>
+
+      <!-- Two-Column Area -->
+      <div class="two-cols">
+        <!-- Recent Entries Panel -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3 id="panelRecentTitle">Recent Transactions</h3>
+            <button type="button" style="border: none; background: transparent; color: var(--brand-emerald); font-size: 12px; font-weight: 600; padding: 0;" onclick="navigateTo('cashbook', document.getElementById('dtab-cashbook'))">
+              Full Cashbook ↗
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Voucher</th>
+                  <th>Counterparty</th>
+                  <th>Account</th>
+                  <th style="text-align: right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody id="dashRecentRows">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cash Movement Breakdown -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3 id="panelBreakdownTitle">Cash Breakdown</h3>
+            <span style="font-size: 11px; color: var(--text-muted);" id="subBreakdownPeriod">Today</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);" id="bdownOpenLabel">Opening Balance:</span>
+              <span class="mono" style="font-weight: 600;" id="bdownOpenVal">₹12,400.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);" id="bdownInLabel">Total Received:</span>
+              <span class="mono indicator-inflow" style="font-weight: 600;" id="bdownInVal">+₹12,500.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);" id="bdownOutLabel">Total Paid:</span>
+              <span class="mono indicator-outflow" style="font-weight: 600;" id="bdownOutVal">-₹3,900.00</span>
+            </div>
+            <div style="border-top: 1px solid var(--border-subtle); padding-top: 8px; display: flex; justify-content: space-between; font-weight: 700;">
+              <span id="bdownCloseLabel">Closing Balance:</span>
+              <span class="mono" id="bdownCloseVal">₹21,000.00</span>
+            </div>
+          </div>
+          <div class="explainer-box">
+            <strong>Accounting Clarity Rule</strong>
+            Money received is not always revenue (e.g. loans or capital). Money paid is not always expense. Net Cash Change reflects physical liquidity, not net profit.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         VIEW 2: DEDICATED CASHBOOK
+         =================================================================== -->
+    <section class="view-panel" id="view-cashbook" style="display: none;">
+      <div class="view-header">
+        <div class="view-title-group">
+          <h2>Cashbook Ledger</h2>
+          <p>Record, reverse, and review all receipts and disbursements</p>
+        </div>
+        <div class="fast-actions">
+          <button class="receive-btn" type="button" onclick="openEntryModal('inflow')">
+            <span>＋</span>
+            <span>Receive Money</span>
+          </button>
+          <button class="pay-btn" type="button" onclick="openEntryModal('outflow')">
+            <span>−</span>
+            <span>Pay Money</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cashbook Filter Strip -->
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <input type="text" placeholder="Search by party or voucher no…" id="cbSearch" oninput="renderCashbook()" style="flex: 1; min-width: 180px;">
+        <select id="cbDirection" onchange="renderCashbook()" style="min-width: 120px;">
+          <option value="all">All Movements</option>
+          <option value="in">Inflows Only</option>
+          <option value="out">Outflows Only</option>
+        </select>
+        <select id="cbAccount" onchange="renderCashbook()" style="min-width: 120px;">
+          <option value="all">All Accounts</option>
+          <option value="cash">Cash Drawer</option>
+          <option value="bank">Current Bank</option>
+        </select>
+      </div>
+
+      <!-- Cashbook Full Table -->
+      <div class="panel" style="padding: 0;">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Voucher #</th>
+                <th>Date & Time</th>
+                <th>Counterparty</th>
+                <th>Category</th>
+                <th>Account</th>
+                <th style="text-align: right;">Amount</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="cashbookFullRows">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         VIEW 3: REPORTS & ANALYTICS
+         =================================================================== -->
+    <section class="view-panel" id="view-reports" style="display: none;">
+      <div class="view-header">
+        <div class="view-title-group">
+          <h2>Reports & Analytics</h2>
+          <p>Multi-factor financial summaries and historical export</p>
+        </div>
+        <div class="fast-actions">
+          <button class="primary" type="button" onclick="triggerToast('Simulated: Preparing A4 printable report document...')">
+            Print Report (Simulated)
+          </button>
+          <button type="button" onclick="triggerToast('Simulated: RFC-4180 CSV export generated successfully.')">
+            Export CSV (Simulated)
+          </button>
+        </div>
+      </div>
+
+      <!-- Reports Filter Controls -->
+      <div class="period-bar">
+        <div class="period-segmented">
+          <button class="active" onclick="setReportPeriod('today', this)">Today</button>
+          <button onclick="setReportPeriod('month', this)">This Month</button>
+          <button onclick="setReportPeriod('year', this)">This Year</button>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted);" id="repMatchingCount">
+          Showing 5 matching records
+        </div>
+      </div>
+
+      <!-- Reports Summary Bar -->
+      <div class="cards-grid">
+        <div class="card">
+          <span class="card-header-label">Opening Balance</span>
+          <div class="card-amount mono" id="repOpenBal">₹12,400.00</div>
+          <span class="card-subtext">Before period start</span>
+        </div>
+        <div class="card">
+          <span class="card-header-label">Period Inflows</span>
+          <div class="card-amount mono indicator-inflow" id="repInflows">+₹12,500.00</div>
+          <span class="card-subtext">Operating & capital</span>
+        </div>
+        <div class="card">
+          <span class="card-header-label">Period Outflows</span>
+          <div class="card-amount mono indicator-outflow" id="repOutflows">-₹3,900.00</div>
+          <span class="card-subtext">Operating & expenses</span>
+        </div>
+        <div class="card featured">
+          <span class="card-header-label">Closing Balance</span>
+          <div class="card-amount mono" id="repCloseBal">₹21,000.00</div>
+          <span class="card-subtext">Net reconciled position</span>
+        </div>
+      </div>
+
+      <!-- Filtered Reports Table -->
+      <div class="panel" style="padding: 0;">
+        <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); font-size: 13px; font-weight: 600;">
+          Detailed Period Ledger
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Voucher</th>
+                <th>Counterparty</th>
+                <th>Category</th>
+                <th>Classification</th>
+                <th>Method</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableRows">
+              <!-- Injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile Sticky Bottom Navigation -->
+  <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+    <button class="mobile-nav-btn active" onclick="navigateTo('dashboard', this)" id="mtab-dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="navigateTo('cashbook', this)" id="mtab-cashbook">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+      <span>Cashbook</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="navigateTo('reports', this)" id="mtab-reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+      <span>Reports</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="toggleMoreDrawer(true)" id="mtab-more">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+      <span>More</span>
+    </button>
+  </nav>
+
+</div>
+
+<!-- Entry Modal / Slide-Over Sheet -->
+<div class="modal-overlay" id="entryModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="modalTitle">Record Cash Receipt</h3>
+      <button type="button" onclick="closeEntryModal()" aria-label="Close dialog" style="border: none; background: transparent; padding: 4px; min-height: auto;">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label for="inputAmount">Amount (INR)</label>
+        <input type="text" class="mono" id="inputAmount" placeholder="0.00" value="5000.00">
+      </div>
+      <div class="form-field">
+        <label for="selectAccount">Account</label>
+        <select id="selectAccount">
+          <option value="cash">Cash in Drawer</option>
+          <option value="bank">Current Bank</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="inputParty">Customer / Counterparty</label>
+        <input type="text" id="inputParty" placeholder="Enter party name" value="Al Madina Trading LLC">
+      </div>
+      <div class="form-field">
+        <label for="selectClassification">Classification</label>
+        <select id="selectClassification">
+          <option value="Operating">Operating (Normal Trading)</option>
+          <option value="Loan">Loan / Borrowing (Non-operating)</option>
+          <option value="Owner Capital">Owner Capital Investment</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="inputCategory">Category</label>
+        <input type="text" id="inputCategory" value="Commercial Settlement">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="secondary" type="button" onclick="closeEntryModal()">Cancel</button>
+      <button class="primary" type="button" onclick="submitEntry()">Save Entry (Simulated)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile More Navigation Drawer -->
+<div class="more-drawer-overlay" id="moreDrawerOverlay" onclick="if(event.target===this) toggleMoreDrawer(false);">
+  <div class="more-drawer">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px;">
+      <strong style="font-size: 14px;">More Destinations</strong>
+      <button type="button" onclick="toggleMoreDrawer(false)" style="border: none; background: transparent; min-height: auto;">✕</button>
+    </div>
+    <button class="more-drawer-item" onclick="showMoreItem('Product Catalog & Stock')">
+      <span>Products Catalog</span>
+      <span>↗</span>
+    </button>
+    <button class="more-drawer-item" onclick="showMoreItem('Customer CRM & Debtors')">
+      <span>Customer Directory</span>
+      <span>↗</span>
+    </button>
+    <button class="more-drawer-item" onclick="showMoreItem('Business & Appearance Settings')">
+      <span>Settings & Backups</span>
+      <span>↗</span>
+    </button>
+    <button class="more-drawer-item" onclick="showMoreItem('Print Feasibility Probe')">
+      <span>Print Hardware Probe</span>
+      <span>↗</span>
+    </button>
+  </div>
+</div>
+
+<!-- Toast Notice -->
+<div class="proto-toast" id="toastNotice" role="status"></div>
+
+<!-- Local GSAP for Accessible Motion -->
+<script src="./vendor/gsap.min.js"></script>
+
+<script>
+// Isolated Synthetic Data Store
+const rawTransactions = [
+  { id: 'RCP-003', date: '2026-10-20', time: '11:45 AM', party: 'Ahmed Traders', cat: 'Sales Settlement', classification: 'Operating', acc: 'bank', method: 'Bank transfer', dir: 'in', amount: 1000000 },
+  { id: 'RCP-004', date: '2026-10-20', time: '01:15 PM', party: 'Service Counter', cat: 'Services', classification: 'Operating', acc: 'cash', method: 'Cash', dir: 'in', amount: 250000 },
+  { id: 'PAY-003', date: '2026-10-20', time: '02:30 PM', party: 'Metro Properties', cat: 'Office Rent', classification: 'Operating', acc: 'bank', method: 'Bank transfer', dir: 'out', amount: 250000 },
+  { id: 'PAY-004', date: '2026-10-20', time: '03:10 PM', party: 'State Electricity Board', cat: 'Utilities', classification: 'Operating', acc: 'cash', method: 'Cash', dir: 'out', amount: 100000 },
+  { id: 'PAY-005', date: '2026-10-20', time: '04:00 PM', party: 'Express Couriers', cat: 'Delivery', classification: 'Operating', acc: 'cash', method: 'Cash', dir: 'out', amount: 40000 },
+  { id: 'RCP-002', date: '2026-10-01', time: '10:00 AM', party: 'October Opening Inflow', cat: 'Sales', classification: 'Operating', acc: 'cash', method: 'Cash', dir: 'in', amount: 1500000 },
+  { id: 'PAY-002', date: '2026-10-01', time: '11:30 AM', party: 'Shop Supplies Mart', cat: 'Supplies', classification: 'Operating', acc: 'cash', method: 'Cash', dir: 'out', amount: 800000 },
+  { id: 'RCP-001', date: '2026-09-25', time: '09:30 AM', party: 'Client Advance', cat: 'Sales', classification: 'Operating', acc: 'bank', method: 'Bank transfer', dir: 'in', amount: 4000000 },
+  { id: 'PAY-001', date: '2026-09-25', time: '03:00 PM', party: 'Office Desk Supplies', cat: 'Equipment', classification: 'Operating', acc: 'bank', method: 'Bank transfer', dir: 'out', amount: 1250000 }
+];
+
+const initialAccounts = { cash: 1100000, bank: 0 };
+let currentPeriod = 'today';
+let activeView = 'dashboard';
+let currentEntryDir = 'inflow';
+
+const formatMoney = (minor) => '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
+
+function getFilteredTransactions(period) {
+  let from = '2026-10-20', to = '2026-10-20';
+  if (period === 'month') from = '2026-10-01';
+  if (period === 'year') from = '2026-01-01';
+  
+  const inScope = rawTransactions.filter(t => t.date >= from && t.date <= to);
+  const prior = rawTransactions.filter(t => t.date < from);
+  
+  const opening = (initialAccounts.cash + initialAccounts.bank) + prior.reduce((sum, t) => sum + (t.dir === 'in' ? t.amount : -t.amount), 0);
+  const inflows = inScope.filter(t => t.dir === 'in').reduce((s, t) => s + t.amount, 0);
+  const outflows = inScope.filter(t => t.dir === 'out').reduce((s, t) => s + t.amount, 0);
+  const closing = opening + inflows - outflows;
+  const net = inflows - outflows;
+
+  return { inScope, opening, inflows, outflows, closing, net };
+}
+
+function updateDashboardMetrics() {
+  const data = getFilteredTransactions(currentPeriod);
+  document.getElementById('sumClosing').textContent = formatMoney(data.closing);
+  document.getElementById('sumInflow').textContent = '+' + formatMoney(data.inflows);
+  document.getElementById('sumOutflow').textContent = '-' + formatMoney(data.outflows);
+  document.getElementById('sumNet').textContent = (data.net >= 0 ? '+' : '') + formatMoney(data.net);
+  document.getElementById('periodStatusBadge').textContent = `${data.inScope.length} Transactions recorded`;
+
+  document.getElementById('bdownOpenVal').textContent = formatMoney(data.opening);
+  document.getElementById('bdownInVal').textContent = '+' + formatMoney(data.inflows);
+  document.getElementById('bdownOutVal').textContent = '-' + formatMoney(data.outflows);
+  document.getElementById('bdownCloseVal').textContent = formatMoney(data.closing);
+
+  // Render Recent Transactions
+  const tbody = document.getElementById('dashRecentRows');
+  tbody.innerHTML = data.inScope.slice(0, 5).map(t => `
+    <tr>
+      <td class="mono" style="font-weight: 600;">${t.id}</td>
+      <td><b>${t.party}</b><br><span style="font-size: 10px; color: var(--text-muted);">${t.cat}</span></td>
+      <td><span class="account-tag">${t.acc === 'cash' ? 'Cash' : 'Bank'}</span></td>
+      <td class="mono" style="text-align: right; font-weight: 700; color: ${t.dir === 'in' ? 'var(--brand-emerald)' : 'var(--brand-coral)'}">
+        ${t.dir === 'in' ? '+' : '-'}${formatMoney(t.amount)}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderCashbook() {
+  const query = (document.getElementById('cbSearch')?.value || '').toLowerCase();
+  const dir = document.getElementById('cbDirection')?.value || 'all';
+  const acc = document.getElementById('cbAccount')?.value || 'all';
+
+  const rows = rawTransactions.filter(t => {
+    if (dir !== 'all' && t.dir !== dir) return false;
+    if (acc !== 'all' && t.acc !== acc) return false;
+    if (query && !t.party.toLowerCase().includes(query) && !t.id.toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('cashbookFullRows');
+  if (!tbody) return;
+  tbody.innerHTML = rows.map(t => `
+    <tr>
+      <td class="mono" style="font-weight: 700;">${t.id}</td>
+      <td>${t.date}<br><span style="font-size: 10px; color: var(--text-muted);">${t.time}</span></td>
+      <td><b>${t.party}</b></td>
+      <td><span class="account-tag">${t.cat}</span></td>
+      <td>${t.acc === 'cash' ? 'Cash Drawer' : 'Current Bank'}</td>
+      <td class="mono" style="text-align: right; font-weight: 700; color: ${t.dir === 'in' ? 'var(--brand-emerald)' : 'var(--brand-coral)'}">
+        ${t.dir === 'in' ? '+' : '-'}${formatMoney(t.amount)}
+      </td>
+      <td style="text-align: center;">
+        <button type="button" style="min-height: 30px; padding: 2px 8px; font-size: 11px;" onclick="triggerToast('Reversal simulation for ${t.id}')">Reverse</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderReports() {
+  const data = getFilteredTransactions(currentPeriod);
+  document.getElementById('repOpenBal').textContent = formatMoney(data.opening);
+  document.getElementById('repInflows').textContent = '+' + formatMoney(data.inflows);
+  document.getElementById('repOutflows').textContent = '-' + formatMoney(data.outflows);
+  document.getElementById('repCloseBal').textContent = formatMoney(data.closing);
+  document.getElementById('repMatchingCount').textContent = `Showing ${data.inScope.length} matching records`;
+
+  const tbody = document.getElementById('reportTableRows');
+  if (!tbody) return;
+  tbody.innerHTML = data.inScope.map(t => `
+    <tr>
+      <td>${t.date}</td>
+      <td class="mono">${t.id}</td>
+      <td><b>${t.party}</b></td>
+      <td>${t.cat}</td>
+      <td><span class="account-tag">${t.classification}</span></td>
+      <td>${t.method}</td>
+      <td class="mono" style="text-align: right; font-weight: 700; color: ${t.dir === 'in' ? 'var(--brand-emerald)' : 'var(--brand-coral)'}">
+        ${t.dir === 'in' ? '+' : '-'}${formatMoney(t.amount)}
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Navigation & Screen Switching with Local Accessible GSAP
+function navigateTo(viewId, triggerBtn) {
+  activeView = viewId;
+  const views = ['dashboard', 'cashbook', 'reports'];
+  views.forEach(v => {
+    const el = document.getElementById(`view-${v}`);
+    if (el) el.style.display = v === viewId ? 'flex' : 'none';
+  });
+
+  document.querySelectorAll('.nav-tab-btn, .mobile-nav-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`dtab-${viewId}`)?.classList.add('active');
+  document.getElementById(`mtab-${viewId}`)?.classList.add('active');
+
+  const currentViewEl = document.getElementById(`view-${viewId}`);
+  if (currentViewEl && window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    gsap.fromTo(currentViewEl, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.22, ease: "power2.out" });
+  }
+
+  if (viewId === 'dashboard') updateDashboardMetrics();
+  if (viewId === 'cashbook') renderCashbook();
+  if (viewId === 'reports') renderReports();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function filterPeriod(period, btn) {
+  currentPeriod = period;
+  document.querySelectorAll('.period-segmented button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  updateDashboardMetrics();
+}
+
+function setReportPeriod(period, btn) {
+  currentPeriod = period;
+  document.querySelectorAll('#view-reports .period-segmented button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderReports();
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('dark');
+}
+
+function triggerToast(msg) {
+  const t = document.getElementById('toastNotice');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => { t.style.display = 'none'; }, 2600);
+}
+
+function toggleMoreDrawer(open) {
+  const drawer = document.getElementById('moreDrawerOverlay');
+  if (open) {
+    drawer.classList.add('open');
+  } else {
+    drawer.classList.remove('open');
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeEntryModal();
+    toggleMoreDrawer(false);
+  }
+});
+
+function showMoreItem(name) {
+  toggleMoreDrawer(false);
+  triggerToast(`Simulated navigation to: ${name}`);
+}
+
+function openEntryModal(dir) {
+  currentEntryDir = dir;
+  document.getElementById('modalTitle').textContent = dir === 'inflow' ? 'Record Cash Receipt' : 'Record Cash Payment';
+  document.getElementById('entryModal').classList.add('open');
+}
+function closeEntryModal() {
+  document.getElementById('entryModal').classList.remove('open');
+}
+
+function submitEntry() {
+  const amountStr = document.getElementById('inputAmount').value.trim();
+  const party = document.getElementById('inputParty').value.trim();
+  const acc = document.getElementById('selectAccount').value;
+  const classification = document.getElementById('selectClassification').value;
+  const cat = document.getElementById('inputCategory').value.trim();
+
+  const num = parseFloat(amountStr);
+  if (isNaN(num) || num <= 0) {
+    alert('Please enter a valid amount greater than 0.');
+    return;
+  }
+  if (!party) {
+    alert('Please enter the customer / counterparty name.');
+    return;
+  }
+
+  const newVoucher = {
+    id: (currentEntryDir === 'inflow' ? 'RCP-00' : 'PAY-00') + (rawTransactions.length + 1),
+    date: '2026-10-20',
+    time: 'Just now',
+    party: party,
+    cat: cat || 'General',
+    classification: classification,
+    acc: acc,
+    method: acc === 'cash' ? 'Cash' : 'Bank transfer',
+    dir: currentEntryDir === 'inflow' ? 'in' : 'out',
+    amount: Math.round(num * 100)
+  };
+
+  rawTransactions.unshift(newVoucher);
+  closeEntryModal();
+  updateDashboardMetrics();
+  renderCashbook();
+  renderReports();
+  triggerToast(`Simulated save: ${newVoucher.id} added to in-memory prototype.`);
+}
+
+// Translations
+const i18n = {
+  en: {
+    heading: "Today's Cash Position",
+    date: "Tuesday, 20 October 2026 · Asia/Kolkata",
+    receive: "Receive Money",
+    pay: "Pay Money",
+    closing: "Closing Available Cash",
+    inflow: "Money Received (In)",
+    outflow: "Money Paid (Out)",
+    net: "Net Cash Change",
+    acc: "Account Balances:",
+    recent: "Recent Transactions"
+  },
+  ml: {
+    heading: "ഇന്നത്തെ പണത്തിന്റെ കണക്ക്",
+    date: "20 ഒക്ടോബർ 2026, ചൊവ്വ · Asia/Kolkata",
+    receive: "വരവ് ചേർക്കുക",
+    pay: "ചെലവ് രേഖപ്പെടുത്തുക",
+    closing: "ഇന്നത്തെ ബാക്കി തുക",
+    inflow: "ലഭിച്ച പണം (വരവ്)",
+    outflow: "നൽകിയ പണം (ചെലവ്)",
+    net: "പണത്തിലെ മാറ്റം",
+    acc: "അക്കൗണ്ടുകളിലെ തുക:",
+    recent: "അവസാന ഇടപാടുകൾ"
+  },
+  ar: {
+    heading: "المركز النقدي لليوم",
+    date: "الثلاثاء، 20 أكتوبر 2026 · كلكتا",
+    receive: "تسجيل استلام",
+    pay: "تسجيل صرف",
+    closing: "الرصيد النقدي الختامي",
+    inflow: "المقبوضات (داخل)",
+    outflow: "المدفوعات (خارج)",
+    net: "صافي التغير النقدي",
+    acc: "أرصدة الحسابات:",
+    recent: "أحدث المعاملات"
+  }
+};
+
+function changeLanguage(lang) {
+  const d = i18n[lang] || i18n.en;
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.getElementById('dashHeading').textContent = d.heading;
+  document.getElementById('dashDate').textContent = d.date;
+  document.getElementById('btnReceiveLabel').textContent = d.receive;
+  document.getElementById('btnPayLabel').textContent = d.pay;
+  document.getElementById('lblClosing').textContent = d.closing;
+  document.getElementById('lblInflow').textContent = d.inflow;
+  document.getElementById('lblOutflow').textContent = d.outflow;
+  document.getElementById('lblNet').textContent = d.net;
+  document.getElementById('lblAccountStrip').textContent = d.acc;
+  document.getElementById('panelRecentTitle').textContent = d.recent;
+  triggerToast(`Language switched to: ${lang.toUpperCase()}`);
+}
+
+// Initial Mount
+updateDashboardMetrics();
+renderCashbook();
+renderReports();
+</script>
+</body>
+</html>
