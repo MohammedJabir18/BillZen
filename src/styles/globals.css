@@ -30,15 +30,49 @@
   color-scheme: light;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
+
+  /* Precision Ledger Semantic Tokens */
+  --bg-canvas: #f8f9f6;
+  --bg-surface: #ffffff;
+  --bg-surface-subtle: #f2f4ef;
+  --border-subtle: #e5e9df;
+  --border-medium: #d6dcce;
+  --text-main: #141915;
+  --text-muted: #576356;
+  --text-subtle: #788677;
+
+  --brand-primary: #1f3d23;
+  --brand-primary-hover: #17301b;
+  --brand-lime: #ceeaa0;
+  --brand-emerald: #15803d;
+  --brand-emerald-subtle: #eef8f0;
+  --brand-coral: #b91c1c;
+  --brand-coral-subtle: #fef2f2;
 }
 
 html.dark {
   color-scheme: dark;
+  --bg-canvas: #0c0f0d;
+  --bg-surface: #141915;
+  --bg-surface-subtle: #1e261f;
+  --border-subtle: #242c26;
+  --border-medium: #333d35;
+  --text-main: #f0f3ee;
+  --text-muted: #9eaba0;
+  --text-subtle: #6f7c71;
+
+  --brand-primary: #2e5733;
+  --brand-primary-hover: #3b6d41;
+  --brand-lime: #1e3518;
+  --brand-emerald: #22c55e;
+  --brand-emerald-subtle: #132a18;
+  --brand-coral: #ef4444;
+  --brand-coral-subtle: #2d1414;
 }
 
 @layer base {
   html, body {
-    @apply bg-slate-50 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100 antialiased;
+    @apply bg-[#f8f9f6] text-[#141915] dark:bg-[#0c0f0d] dark:text-[#f0f3ee] antialiased;
     min-height: 100%;
     font-family: 'Noto Sans', 'Noto Sans Malayalam', 'Noto Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
@@ -47,8 +81,18 @@ html.dark {
 /* Native controls and their hints follow the selected application theme. */
 @layer base {
   input::placeholder, textarea::placeholder {
-    @apply text-slate-500 dark:text-zinc-400;
+    @apply text-[#576356] dark:text-[#9eaba0];
     opacity: 1;
+  }
+}
+
+/* Accessible reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

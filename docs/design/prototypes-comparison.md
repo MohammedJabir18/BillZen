@@ -107,9 +107,15 @@ Both prototypes were audited via headless Chromium across 8 distinct viewports t
 
 ---
 
-## 5. Candidate Recommendation & Decision Gate
+## 5. Decision & Owner Approval
 
-**Candidate Recommendation:** Direction 1 ("Precision Ledger") is the recommended candidate for production migration.
+**Approved Direction:** **Direction 1 ("Precision Ledger")** was approved by the owner as BillZen's visual direction. Direction 2 is recorded as the unselected alternative.
 
-> [!IMPORTANT]
-> **Owner Approval Required:** Direction 1 is proposed as the primary candidate, but **has not been approved as final**. Await explicit owner decision between Direction 1 and Direction 2 before proceeding to full token definition and screen-by-screen UI migration.
+> [!NOTE]
+> **Approval Scope:** This approves the design direction (visual language, color palette, typography, hierarchy, and interaction feel), **not** the prototype code as production-ready. Production implementation strictly utilizes existing checked integer arithmetic, SQLite/IndexedDB adapters, print isolation, and React components.
+
+### Review Findings Resolution (Pre-Migration Checklist):
+1. **Synthetic Financial Balance Derivation:** In Direction 1, `accCashVal` and `accBankVal` are dynamically derived from the synthetic ledger (`initialAccounts + rawTransactions.filter(t => t.acc === ... && t.date <= to)`), guaranteeing `accCashVal + accBankVal === sumClosing` across all periods and after simulated receipts/payments.
+2. **Period Filtering & Custom Date:** Added Custom Date filtering with native date pickers (`dashFromDate`/`dashToDate` and `repFromDate`/`repToDate`) in Direction 1. Added period filtering (Today, Month, Year, Custom) to Direction 2. All existing production reporting features remain intact for production migration.
+3. **Drawer Accessibility:** Implemented accessible focus trap, focus restoration to trigger on close, body scroll locking (`overflow: hidden`), `Escape` key dismiss, backdrop click, Android-back integration, and viewport resize cleanup (`>= 1024px`) on `#moreDrawerOverlay`.
+4. **Direction 2 Malformed CSS & Labeling:** Fixed unclosed `.proto-toast` CSS rule block in Direction 2 and updated the top banner to explicitly label Direction 2 as "Unselected Alternative".

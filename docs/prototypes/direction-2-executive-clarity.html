@@ -428,6 +428,14 @@ button:active {
   color: var(--bg-surface);
   padding: 8px 16px;
   border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 600;
+  display: none;
+  z-index: 300;
+  max-width: 90vw;
+  text-align: center;
+}
+
 /* More Navigation Drawer */
 .more-drawer-overlay {
   position: fixed;
@@ -476,9 +484,9 @@ button:active {
 
 <aside class="proto-banner" aria-label="Prototype controls">
   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-    <span class="proto-badge">DIRECTION 2</span>
+    <span class="proto-badge" style="background: #64748b; color: #ffffff;">DIRECTION 2 (UNSELECTED ALTERNATIVE)</span>
     <strong>Executive Clarity</strong>
-    <span style="opacity: 0.8;">· Swiss Grid Prototype (Sample Data Only)</span>
+    <span style="opacity: 0.8;">· Swiss Grid Prototype (Unselected Design Alternative — Direction 1 Approved)</span>
   </div>
   <div class="proto-controls">
     <button type="button" onclick="toggleTheme()">◐ Theme</button>
@@ -553,6 +561,21 @@ button:active {
            VIEW 1: STATEMENT / DASHBOARD
            =============================================================== -->
       <section class="view-panel" id="view-dashboard">
+        <!-- Period Selector Strip -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+          <div style="display: flex; gap: 2px; background: var(--bg-surface-subtle); padding: 3px; border: 1px solid var(--border-subtle);">
+            <button type="button" class="btn-period active" onclick="setPeriodD2('today', this)" id="d2p-today" style="border: none; background: var(--text-main); color: var(--bg-surface); font-size: 10px; font-weight: 700; padding: 4px 10px; cursor: pointer; text-transform: uppercase;">Today</button>
+            <button type="button" class="btn-period" onclick="setPeriodD2('month', this)" id="d2p-month" style="border: none; background: transparent; color: var(--text-main); font-size: 10px; font-weight: 700; padding: 4px 10px; cursor: pointer; text-transform: uppercase;">Month</button>
+            <button type="button" class="btn-period" onclick="setPeriodD2('year', this)" id="d2p-year" style="border: none; background: transparent; color: var(--text-main); font-size: 10px; font-weight: 700; padding: 4px 10px; cursor: pointer; text-transform: uppercase;">Year</button>
+            <button type="button" class="btn-period" onclick="setPeriodD2('custom', this)" id="d2p-custom" style="border: none; background: transparent; color: var(--text-main); font-size: 10px; font-weight: 700; padding: 4px 10px; cursor: pointer; text-transform: uppercase;">Custom</button>
+          </div>
+          <div id="d2CustomRange" style="display: none; align-items: center; gap: 6px; font-size: 10px;">
+            <input type="date" id="d2FromDate" value="2026-10-01" style="padding: 2px 6px; font-size: 10px; border: 1px solid var(--border-medium); background: var(--bg-surface); color: var(--text-main);" onchange="updateD2()">
+            <span>TO</span>
+            <input type="date" id="d2ToDate" value="2026-10-20" style="padding: 2px 6px; font-size: 10px; border: 1px solid var(--border-medium); background: var(--bg-surface); color: var(--text-main);" onchange="updateD2()">
+          </div>
+        </div>
+
         <!-- Gapless Bento Grid -->
         <div class="bento-grid">
           <div class="bento-cell hero-cell">
@@ -666,7 +689,7 @@ button:active {
       <button class="phone-tab active" onclick="navigateTo('dashboard', this)" id="ptab-dashboard">Statement</button>
       <button class="phone-tab" onclick="navigateTo('cashbook', this)" id="ptab-cashbook">Cashbook</button>
       <button class="phone-tab" onclick="navigateTo('reports', this)" id="ptab-reports">Reports</button>
-      <button class="phone-tab" onclick="toggleMoreDrawer(true)" id="ptab-more">More</button>
+      <button class="phone-tab" onclick="toggleMoreDrawer(true, this)" id="ptab-more" aria-haspopup="dialog" aria-expanded="false">More</button>
     </nav>
 
   </div>
@@ -701,11 +724,11 @@ button:active {
 </div>
 
 <!-- Mobile More Navigation Drawer -->
-<div class="more-drawer-overlay" id="moreDrawerOverlay" onclick="if(event.target===this) toggleMoreDrawer(false);">
+<div class="more-drawer-overlay" id="moreDrawerOverlay" role="dialog" aria-modal="true" aria-label="Additional Modules" aria-hidden="true" onclick="if(event.target===this) toggleMoreDrawer(false);">
   <div class="more-drawer">
     <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle);">
       <strong style="font-size: 13px; font-weight: 800; letter-spacing: -0.01em;">ADDITIONAL MODULES</strong>
-      <button type="button" onclick="toggleMoreDrawer(false)" class="btn-arch btn-outline" style="min-height: 28px; padding: 2px 8px;">✕ CLOSE</button>
+      <button type="button" onclick="toggleMoreDrawer(false)" aria-label="Close destinations" class="btn-arch btn-outline" style="min-height: 28px; padding: 2px 8px;">✕ CLOSE</button>
     </div>
     <button class="more-drawer-item" onclick="showMoreItem('Product Catalog & Stock')">
       <span>Products Catalog</span>
@@ -737,16 +760,57 @@ const transactions2 = [
   { id: 'RCP-004', date: '2026-10-20', party: 'Service Counter', cat: 'Services', classification: 'Operating', acc: 'cash', dir: 'in', amount: 250000 },
   { id: 'PAY-003', date: '2026-10-20', party: 'Metro Properties', cat: 'Premises Lease', classification: 'Operating', acc: 'bank', dir: 'out', amount: 250000 },
   { id: 'PAY-004', date: '2026-10-20', party: 'State Electricity Board', cat: 'Utilities', classification: 'Operating', acc: 'cash', dir: 'out', amount: 100000 },
-  { id: 'PAY-005', date: '2026-10-20', party: 'Express Couriers', cat: 'Delivery', classification: 'Operating', acc: 'cash', dir: 'out', amount: 40000 }
+  { id: 'PAY-005', date: '2026-10-20', party: 'Express Couriers', cat: 'Delivery', classification: 'Operating', acc: 'cash', dir: 'out', amount: 40000 },
+  { id: 'RCP-002', date: '2026-10-01', party: 'October Opening Inflow', cat: 'Sales', classification: 'Operating', acc: 'cash', dir: 'in', amount: 1500000 },
+  { id: 'PAY-002', date: '2026-10-01', party: 'Shop Supplies Mart', cat: 'Supplies', classification: 'Operating', acc: 'cash', dir: 'out', amount: 800000 },
+  { id: 'RCP-001', date: '2026-09-25', party: 'Client Advance', cat: 'Sales', classification: 'Operating', acc: 'bank', dir: 'in', amount: 4000000 },
+  { id: 'PAY-001', date: '2026-09-25', party: 'Office Desk Supplies', cat: 'Equipment', classification: 'Operating', acc: 'bank', dir: 'out', amount: 1250000 }
 ];
 
 let curDir2 = 'in';
+let curPeriodD2 = 'today';
+let drawerTriggerEl2 = null;
+const initialAccountsD2 = { cash: 1100000, bank: 1000000 };
 const formatMoney2 = (m) => '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(m / 100);
 
+function setPeriodD2(period, btn) {
+  curPeriodD2 = period;
+  document.querySelectorAll('.btn-period').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-main)';
+  });
+  if (btn) {
+    btn.classList.add('active');
+    btn.style.background = 'var(--text-main)';
+    btn.style.color = 'var(--bg-surface)';
+  }
+  const customRange = document.getElementById('d2CustomRange');
+  if (customRange) {
+    customRange.style.display = period === 'custom' ? 'flex' : 'none';
+  }
+  updateD2();
+}
+
 function updateD2() {
-  const inflows = transactions2.filter(t => t.dir === 'in').reduce((s, t) => s + t.amount, 0);
-  const outflows = transactions2.filter(t => t.dir === 'out').reduce((s, t) => s + t.amount, 0);
-  const opening = 1240000;
+  let from = '2026-10-20', to = '2026-10-20';
+  if (curPeriodD2 === 'month') {
+    from = '2026-10-01';
+    to = '2026-10-20';
+  } else if (curPeriodD2 === 'year') {
+    from = '2026-01-01';
+    to = '2026-10-20';
+  } else if (curPeriodD2 === 'custom') {
+    from = document.getElementById('d2FromDate')?.value || '2026-10-01';
+    to = document.getElementById('d2ToDate')?.value || '2026-10-20';
+  }
+
+  const inScope = transactions2.filter(t => t.date >= from && t.date <= to);
+  const prior = transactions2.filter(t => t.date < from);
+
+  const opening = (initialAccountsD2.cash + initialAccountsD2.bank) + prior.reduce((s, t) => s + (t.dir === 'in' ? t.amount : -t.amount), 0);
+  const inflows = inScope.filter(t => t.dir === 'in').reduce((s, t) => s + t.amount, 0);
+  const outflows = inScope.filter(t => t.dir === 'out').reduce((s, t) => s + t.amount, 0);
   const closing = opening + inflows - outflows;
   const net = inflows - outflows;
 
@@ -754,7 +818,7 @@ function updateD2() {
   document.getElementById('d2InVal').textContent = '+' + formatMoney2(inflows);
   document.getElementById('d2OutVal').textContent = '-' + formatMoney2(outflows);
   document.getElementById('d2NetVal').textContent = (net >= 0 ? '+' : '') + formatMoney2(net);
-  document.getElementById('d2CountBadge').textContent = `${transactions2.length} ENTRIES VALIDATED`;
+  document.getElementById('d2CountBadge').textContent = `${inScope.length} ENTRIES VALIDATED`;
 
   document.getElementById('r2Open').textContent = formatMoney2(opening);
   document.getElementById('r2In').textContent = '+' + formatMoney2(inflows);
@@ -763,7 +827,7 @@ function updateD2() {
 
   const tbody = document.getElementById('d2RecentRows');
   if (tbody) {
-    tbody.innerHTML = transactions2.map(t => `
+    tbody.innerHTML = inScope.slice(0, 5).map(t => `
       <tr>
         <td class="mono" style="font-weight: 700;">${t.id}</td>
         <td><b>${t.party}</b></td>
@@ -844,12 +908,33 @@ function closeModal() {
   document.getElementById('modal').classList.remove('open');
 }
 
-function toggleMoreDrawer(open) {
+// Accessible Drawer in Direction 2
+function toggleMoreDrawer(open, triggerEl) {
   const drawer = document.getElementById('moreDrawerOverlay');
+  const triggerBtn = document.getElementById('ptab-more');
+  if (!drawer) return;
+
   if (open) {
+    drawerTriggerEl2 = triggerEl || document.activeElement;
     drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+
+    const firstFocusable = drawer.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (firstFocusable) {
+      setTimeout(() => firstFocusable.focus(), 60);
+    }
   } else {
     drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+
+    if (drawerTriggerEl2 && typeof drawerTriggerEl2.focus === 'function') {
+      drawerTriggerEl2.focus();
+      drawerTriggerEl2 = null;
+    }
   }
 }
 
@@ -858,9 +943,51 @@ function showMoreItem(name) {
   triggerToast(`Simulated navigation to: ${name}`);
 }
 
+// Trap focus inside open drawer on Tab / Shift+Tab & Escape key
 document.addEventListener('keydown', (e) => {
+  const drawer = document.getElementById('moreDrawerOverlay');
+  const isDrawerOpen = drawer && drawer.classList.contains('open');
+
   if (e.key === 'Escape') {
     closeModal();
+    if (isDrawerOpen) toggleMoreDrawer(false);
+    return;
+  }
+
+  if (e.key === 'Tab' && isDrawerOpen) {
+    const focusables = Array.from(drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      }
+    } else {
+      if (document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    }
+  }
+});
+
+// Viewport resize cleanup: dismiss drawer if resizing to desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth >= 1024) {
+    const drawer = document.getElementById('moreDrawerOverlay');
+    if (drawer && drawer.classList.contains('open')) {
+      toggleMoreDrawer(false);
+    }
+  }
+});
+
+// Android Back button event integration
+window.addEventListener('billzen-back-button', (e) => {
+  const drawer = document.getElementById('moreDrawerOverlay');
+  if (drawer && drawer.classList.contains('open')) {
+    e.preventDefault();
     toggleMoreDrawer(false);
   }
 });

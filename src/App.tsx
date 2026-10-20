@@ -75,10 +75,12 @@ const AppContent: React.FC = () => {
   const tabParam = urlParams?.get('tab') as ActiveTab | null;
 
   React.useEffect(() => {
-    if (tabParam && ['dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings', 'print'].includes(tabParam)) {
+    if (scenario) {
+      setActiveTab('print');
+    } else if (tabParam && ['dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings', 'print'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
-  }, [tabParam]);
+  }, [tabParam, scenario]);
 
   const activeInvoice = React.useMemo(() => getInvoiceForScenario(scenario), [scenario]);
  
@@ -175,10 +177,10 @@ const AppContent: React.FC = () => {
     : 'Browser Mode';
 
   return (
-    <div className={`min-h-screen bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 flex flex-col font-sans transition-colors ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-[#f8f9f6] dark:bg-[#0c0f0d] text-[#141915] dark:text-[#f0f3ee] flex flex-col font-sans transition-colors ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Top Application Bar (no-print) */}
       <header
-        className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 sticky top-0 z-20 no-print shadow-sm transition-colors"
+        className="bg-[#ffffff] dark:bg-[#141915] border-b border-[#e5e9df] dark:border-[#242c26] sticky top-0 z-20 no-print shadow-sm transition-colors"
         style={{
           paddingTop: isAndroid
             ? 'max(24px, env(safe-area-inset-top, 0px), var(--sat, 0px))'
@@ -198,34 +200,34 @@ const AppContent: React.FC = () => {
             />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-zinc-100 tracking-tight">BillZen</h1>
-                <span className="hidden min-[400px]:inline text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border border-indigo-200 dark:border-indigo-800 shrink-0">
+                <h1 className="text-base sm:text-lg font-bold text-[#141915] dark:text-[#f0f3ee] tracking-tight">BillZen</h1>
+                <span className="hidden min-[400px]:inline text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-[#ceeaa0] text-[#142811] dark:bg-[#1e3518] dark:text-[#ceeaa0] dark:border dark:border-[#7cb342]/40 font-bold shrink-0">
                   beta
                 </span>
               </div>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate">Offline Billing System</p>
+              <p className="text-[10px] sm:text-xs text-[#576356] dark:text-[#9eaba0] truncate font-medium">Offline Business Suite</p>
             </div>
           </div>
 
           {/* Right Controls: Language Selector & Environment Status */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Language Switcher */}
-            <div className="flex items-center gap-1 min-w-0 max-w-[140px] sm:max-w-none bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
-              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 dark:text-zinc-400 ml-1" />
+            <div className="flex items-center gap-1 min-w-0 max-w-[140px] sm:max-w-none bg-[#f2f4ef] dark:bg-[#1e261f] border border-[#e5e9df] dark:border-[#242c26] p-1 rounded-lg">
+              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#576356] dark:text-[#9eaba0] ml-1 shrink-0" />
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as Language)}
                 data-testid="language-select"
                 aria-label="Select Language"
-                className="min-w-0 w-full text-xs bg-transparent border-none text-slate-700 dark:text-zinc-200 font-medium focus:outline-none pr-1 cursor-pointer"
+                className="min-w-0 w-full text-xs bg-transparent border-none text-[#141915] dark:text-[#f0f3ee] font-semibold focus:outline-none pr-1 cursor-pointer"
               >
-                <option value="en" className="dark:bg-zinc-900">English (EN)</option>
-                <option value="ml" className="dark:bg-zinc-900">മലയാളം (ML)</option>
-                <option value="ar" className="dark:bg-zinc-900">العربية (AR)</option>
+                <option value="en" className="dark:bg-[#141915]">English (EN)</option>
+                <option value="ml" className="dark:bg-[#141915]">മലയാളം (ML)</option>
+                <option value="ar" className="dark:bg-[#141915]">العربية (AR)</option>
               </select>
             </div>
 
-            <div className="hidden sm:flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 sm:px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-850">
+            <div className="hidden sm:flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold text-[#15803d] dark:text-[#22c55e] bg-[#eef8f0] dark:bg-[#132a18] px-2.5 py-1 rounded-full border border-[#15803d]/20 dark:border-[#22c55e]/20">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{environmentLabel}</span>
             </div>
