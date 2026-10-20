@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { chromium } from 'playwright';
+import { navigateToAppTab } from './lib/navigation.js';
 
 const ARTIFACTS_DIR = path.resolve('test_artifacts/catalog');
 fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
@@ -187,7 +188,9 @@ async function runCatalogVerification() {
 
     // 5. Test Malayalam Localization
     console.log('\nStep 5: Testing Malayalam localization...');
+    await navigateToAppTab(page, 'settings');
     await page.selectOption('[data-testid="language-select"]', 'ml');
+    await navigateToAppTab(page, 'products');
     await page.waitForTimeout(500);
 
     const mlTabProducts = await page.textContent('[data-testid="tab-products"]');
@@ -205,7 +208,9 @@ async function runCatalogVerification() {
 
     // 6. Test Arabic RTL Localization
     console.log('\nStep 6: Testing Arabic RTL localization...');
+    await navigateToAppTab(page, 'settings');
     await page.selectOption('[data-testid="language-select"]', 'ar');
+    await navigateToAppTab(page, 'products');
     await page.waitForTimeout(500);
 
     const arDir = await page.getAttribute('div.min-h-screen', 'dir');

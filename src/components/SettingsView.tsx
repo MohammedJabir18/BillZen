@@ -53,11 +53,13 @@ export const REGIONAL_CURRENCIES: CurrencyPreset[] = [
 
 export interface SettingsViewProps {
   currentLanguage?: Language;
+  onLanguageChange?: (language: Language) => void;
   onViewGuide?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   currentLanguage = 'en',
+  onLanguageChange,
   onViewGuide,
 }) => {
   const queryClient = useQueryClient();
@@ -324,6 +326,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
 
       <UpdatesSettings hasUnsavedChanges={JSON.stringify(formData) !== JSON.stringify(settings)} workspaceBusy={isRestoring || isExporting} />
+
+      <section className="mt-6 bg-surface p-5 sm:p-6 border border-border-subtle rounded-xl space-y-3">
+        <label htmlFor="settings-language" className="block text-base font-semibold text-text-main">
+          {{en: 'Language', ml: 'ഭാഷ', ar: 'اللغة'}[currentLanguage]}
+        </label>
+        <p className="text-sm text-text-muted">
+          {{en: 'Choose the language for the app. Changes apply immediately on this device.', ml: 'ആപ്പിന്റെ ഭാഷ തിരഞ്ഞെടുക്കുക. മാറ്റം ഈ ഉപകരണത്തിൽ ഉടൻ പ്രാബല്യത്തിൽ വരും.', ar: 'اختر لغة التطبيق. تُطبّق التغييرات فورًا على هذا الجهاز.'}[currentLanguage]}
+        </p>
+        <select id="settings-language" data-testid="language-select" value={currentLanguage}
+          onChange={event => onLanguageChange?.(event.target.value as Language)}
+          className="w-full sm:max-w-sm min-h-11 p-3 rounded-lg bg-surface-subtle border border-border-medium text-text-main focus-ring">
+          <option value="en">English (EN)</option>
+          <option value="ml">മലയാളം (ML)</option>
+          <option value="ar">العربية (AR)</option>
+        </select>
+      </section>
 
       {/* 1. APPEARANCE SETTINGS (Strictly in Settings, no header/bottom toggles) */}
       <div className="mt-6 bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">

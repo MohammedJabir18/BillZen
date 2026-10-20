@@ -47,3 +47,7 @@ To prevent conflicting visual directions from competing during development, the 
 ## 2026-10-20 — UI-3 continuation evidence
 
 See [Cashbook UI-3](cashbook-ui3.md) for the specific local guidance actually used, before/after review, behavioral gates and compatibility rulings. This continuation uses the existing approved design; it does not claim to have re-run every tool in the historical discovery matrix above. In particular, the installed Taste Skill v2 excludes app/dashboard screens, and no full Impeccable critique/detector command was run for UI-3. Its adapt/harden references were used directly.
+
+## UI-4 — Reports and Settings-only language
+
+Reused the approved design with installed frontend-design, Anti-slop UI, Impeccable adapt and Emil frequency-based motion restraint. See [concrete before/after decisions](reports-ui4.md). Superpowers execution/TDD and a fresh-context reviewer were used; no new gallery/art-direction or formal Impeccable detector run is claimed. Device-local preference and category identity fixes have behavioral coverage.

@@ -15,17 +15,12 @@ import { PrintableReportDocument } from './components/PrintableReportDocument';
 import { OnboardingSetupWizard } from './components/OnboardingSetupWizard';
 import { GettingStartedGuide } from './components/GettingStartedGuide';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { pingBackend, getBusinessSettings, isTauriEnvironment } from './adapters/tauri';
+import { getBusinessSettings } from './adapters/tauri';
 import { getInvoiceForScenario } from './domain/test_scenarios';
 import type { Language } from './i18n';
 import type { BusinessSettings, ActivePrintDocument } from './types';
 import { preparePrintStyles, cleanupPrintStyles } from './utils/print';
-import {
-  ShieldCheck,
-  Database,
-  Laptop,
-  Globe,
-} from 'lucide-react';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,8 +62,11 @@ const AppContent: React.FC = () => {
   const { reconcilePreference } = useTheme();
 
   const client = useQueryClient();
-  const isTauri = isTauriEnvironment();
   const isRTL = language === 'ar';
+  React.useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+  }, [language, isRTL]);
 
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const scenario = urlParams?.get('scenario') || null;
@@ -93,12 +91,6 @@ const AppContent: React.FC = () => {
       cleanupPrintStyles();
     }
   }, [activeTab, activeInvoice]);
-
-  const { data: pingStatus } = useQuery({
-    queryKey: ['backend_ping'],
-    queryFn: pingBackend,
-    refetchInterval: 10000,
-  });
 
   const { data: settings } = useQuery({
     queryKey: ['business_settings'],
@@ -170,11 +162,7 @@ const AppContent: React.FC = () => {
   }
 
   const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
-  const environmentLabel = isTauri
-    ? isAndroid
-      ? 'Android (Tauri 2)'
-      : 'Desktop (Tauri 2)'
-    : 'Browser Mode';
+
 
   return (
     <div className={`min-h-screen bg-[var(--bg-canvas)] text-[var(--text-main)] flex flex-col font-sans transition-colors ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -209,29 +197,6 @@ const AppContent: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Controls: Language Selector & Environment Status */}
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Language Switcher with accessible visible keyboard focus indicator */}
-            <div className="flex items-center gap-1 min-w-0 max-w-[140px] sm:max-w-none bg-[var(--bg-surface-subtle)] border border-[var(--border-subtle)] p-1 rounded-lg focus-ring-within transition-all">
-              <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-muted)] ml-1 shrink-0" />
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Language)}
-                data-testid="language-select"
-                aria-label="Select Language"
-                className="min-w-0 w-full text-xs bg-transparent border-none text-[var(--text-main)] font-semibold focus:outline-none focus-visible:outline-none pr-1 cursor-pointer"
-              >
-                <option value="en" className="bg-[var(--bg-surface)] text-[var(--text-main)]">English (EN)</option>
-                <option value="ml" className="bg-[var(--bg-surface)] text-[var(--text-main)]">മലയാളം (ML)</option>
-                <option value="ar" className="bg-[var(--bg-surface)] text-[var(--text-main)]">العربية (AR)</option>
-              </select>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold text-[var(--brand-emerald)] bg-[var(--brand-emerald-subtle)] px-2.5 py-1 rounded-full border border-[var(--brand-emerald)]/20">
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{environmentLabel}</span>
-            </div>
-          </div>
         </div>
         <DesktopNavigation activeTab={activeTab} language={language} onNavigate={setActiveTab} />
       </header>
@@ -290,6 +255,7 @@ const AppContent: React.FC = () => {
         {activeTab === 'settings' && (
           <SettingsView
             currentLanguage={language}
+            onLanguageChange={setLanguage}
             onViewGuide={() => {
               setIsGuideReplay(true);
               setShowGuide(true);
@@ -331,28 +297,7 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Desktop Bottom Status Bar (no-print, hidden on mobile) */}
-      <footer className="hidden lg:block bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 py-2.5 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 dark:text-zinc-400 no-print">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-slate-500" />
-              SQLite WAL (synchronous=FULL)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-              Single-Instance Lock Active
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Laptop className="w-3.5 h-3.5 text-slate-500" />
-              IPC: {pingStatus ? `Active (${pingStatus})` : 'Connecting...'}
-            </span>
-          </div>
-          <div className="text-slate-500 dark:text-zinc-400">
-            Milestones M1–M3 Complete • Offline-First Multi-Regional Engine
-          </div>
-        </div>
-      </footer>
+
     </div>
   );
 };

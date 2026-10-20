@@ -10,6 +10,7 @@ export interface CsvExportOptions {
   endDate?: string;
   accountName?: string;
   filterSummary?: string;
+  categoryNames?: Record<string, string>;
 }
 
 /**
@@ -111,7 +112,7 @@ export function exportTransactionsToCsv(options: CsvExportOptions): string {
       v.business_date,
       v.voucher_number,
       v.party_name_snap || '',
-      v.category_id || '',
+      (v.category_id && options.categoryNames?.[v.category_id]) || v.category_id || '',
       v.account_name_snap || '',
       v.classification,
       v.payment_method,

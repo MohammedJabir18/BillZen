@@ -212,6 +212,7 @@ export interface CashbookLedgerFilter {
 }
 
 export interface ReportPrintData {
+  categoryNames?: Record<string, string>;
   summary: CashbookSummary;
   entries: CashbookLedgerEntry[];
   periodTitle: string;
