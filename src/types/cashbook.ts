@@ -16,6 +16,7 @@ export interface MoneyAccount {
   is_archived: boolean;
   created_at: number;
   updated_at: number;
+  current_balance_minor?: number;
 }
 
 export type CategoryType = 'income' | 'expense' | 'both';

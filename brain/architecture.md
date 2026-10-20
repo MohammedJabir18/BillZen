@@ -455,3 +455,26 @@ BillZen's visual direction follows the owner-approved **Direction 1 — Precisio
   - `npm test`: 53/53 Vitest unit tests passed.
   - `npm run test:matrix`: 4/4 printable A4 matrix scenarios passed.
 
+## Precision Ledger Dashboard Architecture (UI-2) — 2026-10-20
+
+`src/components/DashboardView.tsx` implements the owner-approved Precision Ledger dashboard layout:
+- **Design Token & Surface Realization**:
+  - Semantic canvas (`var(--bg-canvas)`) and surface cards (`var(--bg-surface)`).
+  - Prominent action bar: `＋ Add Receipt` and `− Add Payment` buttons with tactile compression (`active:scale-[0.975]`).
+  - Period filter pill with active lime indicator, chevron step controls, custom date inputs, account dropdown, and Simple/Analytics toggle.
+  - 4 Summary Cards: Money Received (emerald badge), Money Paid (coral badge), Net Cash Change (liquidity indicator), and Featured Closing Balance (`bg-[#ceeaa0] border-[#b8d98b] text-[#142811]` light / `bg-[#1e3518] border-[#2e5733] text-[#ceeaa0]` dark).
+- **Dynamic Account Balance & Date Scope Parity**:
+  - Employs TanStack React Query `useQueries` to query active period closing balances per account.
+  - Guarantees $\sum \text{account closing balances} \equiv \text{summary.closing\_balance\_minor}$ across any period (Today, Month, Year, Custom) and account filter.
+- **Simple View**:
+  - 5 recent ledger entries with direction badge, party, and formatted amount.
+  - Visual cash movement equation: $\text{Opening} + \text{Inflows} - \text{Outflows} = \text{Closing}$.
+  - Statutory/accounting footnote: "Receipts − Payments = Net cash change. This is not business profit."
+- **Detailed Analytics View & Accessible SVG Chart**:
+  - Pure SVG bar chart with accessible semantic markup: `role="graphics-symbol"`, `tabIndex={0}`, descriptive `aria-label`, tap/keyboard selection popover, legend, category progress bars, and loan/capital classification helper notice.
+- **Verification Matrix**:
+  - 63/63 Vitest tests (including 6/6 `DashboardView.test.tsx`).
+  - 906/906 layout states checked with zero failures (`npm run test:layout`).
+  - 104/104 computed WCAG AA contrast checks passed (`npm run test:theme`).
+  - 39/39 native assertions passed across 13 steps on temporary SQLite database (`npm run test:native-cashbook`).
+  - 8 production screenshots captured into `test_artifacts/ui2_dashboard/`.

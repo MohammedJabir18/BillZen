@@ -1347,3 +1347,45 @@
   - Header Tab Navigation (`node scripts/verify_header_tab_navigation.js`): Passed across 1280px and 390px viewports with confirmed visible outline.
 - **Next:** Commit and push UI-1 foundation correction to `origin/main` and verify CI before starting UI-2 Dashboard migration.
 
+### 2026-10-20 — Phase UI-2: Precision Ledger Dashboard Migration Delivery
+
+- **Goals:**
+  1. Complete Phase UI-2: Migrate `src/components/DashboardView.tsx` to the Precision Ledger design system tokens.
+  2. Preserve Today as default; retain Simple View, Detailed Analytics, Today/Month/Year/Custom periods, and account filtering.
+  3. Feature Closing Balance as the visual anchor (`#ceeaa0` light / `#1e3518` dark), alongside Money Received, Money Paid, and Net Cash Change.
+  4. Ensure prominent Receive Money and Pay Money buttons with tactile feedback (`active:scale-[0.975]`).
+  5. Provide clear account balances, 5 recent transactions, cash movement equation (`Opening + Inflows − Outflows = Closing`), and non-profit disclaimer.
+  6. Ensure account figures and closing totals use strictly consistent account/date scope via React Query balance queries.
+  7. Polish SVG analytics bar chart with accessible tap and keyboard interaction (`role="graphics-symbol"`, `tabIndex={0}`, descriptive `aria-label`).
+  8. Verify across 10 viewports, both themes, all 3 languages, capture production screenshots, and rebuild Linux standalone binary.
+- **Completed:**
+  - `src/types/cashbook.ts`: Added `current_balance_minor?: number;` to `MoneyAccount` interface to match runtime data adapter returns.
+  - `src/components/DashboardView.tsx`: Completely migrated to Precision Ledger:
+    - Semantic tokens: `var(--bg-canvas)`, `var(--bg-surface)`, `var(--border-subtle)`, `var(--text-main)`, `var(--text-muted)`, `var(--text-subtle)`, `var(--brand-primary)`, `var(--brand-lime)`.
+    - Header banner with uppercase workspace metadata, bold title, and prominent action buttons (`＋ Add Receipt`, `− Add Payment`) with tactile compression `active:scale-[0.975]`.
+    - Period switcher with active lime pill, chevron step controls, custom date pickers, account select, and Simple/Analytics mode toggle.
+    - 4 Summary Cards: Money Received (emerald badge), Money Paid (coral badge), Net Cash Change (liquidity indicator), and Featured Closing Balance (`bg-[#ceeaa0] border-[#b8d98b] text-[#142811]` light / `bg-[#1e3518] border-[#2e5733] text-[#ceeaa0]` dark).
+    - Account Balances Strip: Uses `useQueries` to retrieve exact period closing balances per account, guaranteeing `sum(accClosingBal) === closingBalanceMinor` across any period or account filter.
+    - Simple View: 5 recent transactions with direction badges, party names, and formatted amounts; cash movement equation; non-profit disclaimer footnote.
+    - Detailed Analytics View: Interactive SVG bar chart with `tabIndex={0}`, `role="graphics-symbol"`, accessible aria-labels, tap/keyboard selection popover, legend, category progress bars, and helper callout.
+  - `src/components/DashboardView.test.tsx`:
+    - Pre-populated test QueryClient cache for static markup tests.
+    - Added 3 new test cases testing Precision Ledger `#ceeaa0` styling, tactile button compression, and account balances formatting (all 6/6 tests passing).
+  - `scripts/capture_ui2_screenshots.js`: Captured 8 genuine production screenshots across desktop light/dark, analytics light/dark, mobile 390px light/dark, mobile 360px, and Arabic RTL into `test_artifacts/ui2_dashboard/` and copied to artifact directory.
+  - Rebuilt standalone release executable (`src-tauri/target/release/billzen`, v0.1.2, SHA-256 `8d27d447c2f873235c2b90d264abb6146fbb06443117937b680ad6559e9b68ee`).
+- **Files Modified / Added:**
+  - `src/types/cashbook.ts`
+  - `src/components/DashboardView.tsx`
+  - `src/components/DashboardView.test.tsx`
+  - `scripts/capture_ui2_screenshots.js`
+  - `docs/verification-status.md`
+  - `brain/sessions.md`
+- **Verification Evidence:**
+  - `npm test`: 63/63 Vitest tests passed across 12 files.
+  - `npm run test:dashboard`: 9/9 Playwright scenarios passed (25/25 assertions).
+  - `npm run test:responsive`: 6/6 viewports passed with 0px horizontal scroll.
+  - `npm run test:theme`: 104/104 theme contrast checks passed with 0 failures and 0 overflow.
+  - `npm run test:layout`: 906/906 layout states passed across 10 viewports, 3 languages, and light/dark modes with 0 failures.
+  - `npm run test:native-cashbook`: 39/39 native assertions passed across 13 steps on temporary SQLite database.
+  - 8 UI-2 production screenshots recorded in `test_artifacts/ui2_dashboard/ui2_manifest.json`.
+- **Next:** Commit and push Phase UI-2 to `origin/main` and verify CI. Proceed to Phase UI-3: Cashbook View migration.
