@@ -88,6 +88,9 @@ jobs:
       - name: Run Playwright Responsive Verification
         run: npm run test:responsive
 
+      - name: Audit navigation and screen layouts across languages and themes
+        run: node scripts/verify_layout_regression.js
+
       - name: Run Playwright Onboarding & Appearance Verification
         run: npm run test:onboarding
 

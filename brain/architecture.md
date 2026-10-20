@@ -420,3 +420,14 @@ flowchart TD
   - Dedicated A4 printable document (`PrintableReportDocument.tsx`) with repeated table headers, business particulars, and strict CSS print isolation (`#printable-report-root`).
   - RFC 4180 CSV export (`csv_export.ts`) with CWE-1236 spreadsheet formula injection defense (prepends `'` to cells starting with `=`, `+`, `-`, `@`, `\t`, `\r`).
 - **Data Flow**: Documented via Archify specification (`docs/diagrams/reporting-data-flow.spec.json`) and rendered diagram (`docs/diagrams/reporting-data-flow.html`).
+
+
+## Responsive application shell — 2026-10-20
+
+`src/components/AppNavigation.tsx` owns the shared destination list. At widths below 1024px, Dashboard, Cashbook and Reports remain primary bottom actions; More opens a bounded secondary sheet for Products, Customers, Settings and Print. At desktop widths all seven actions appear in a separate row below the brand/language controls. Destination IDs and app routes are unchanged.
+
+The More sheet uses the existing `useBackHandler` LIFO stack for Escape/Android back, traps keyboard focus, restores trigger focus, locks background scrolling and closes at the desktop breakpoint. Bottom navigation and main content spacing respect native safe-area variables.
+
+Dashboard custom dates stack on narrow phones. Dashboard/Reports amount summaries use one column below 400px and allow large values to wrap without losing digits. Guide, restore and cashbook confirmation panels are bounded by dynamic viewport height; their content scrolls. Fixed-size printable paper remains unchanged, with horizontal scrolling confined to its on-screen preview. No financial schema, calculation, persistence or updater protocol changes are part of this correction.
+
+`npm run test:layout` builds and audits rendered layouts across ten widths, three languages and both themes. It checks navigation geometry/touch targets, hidden-container clipping, large amounts/long account labels, dialogs, setup, paper scrolling, Escape/Android-back dismissal and breakpoint cleanup. Browser and Android regression helpers navigate through More instead of clicking hidden desktop controls.

@@ -59,6 +59,7 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
     };
 
     const handleCustomBack = (e: Event) => {
+      if (!isOpen) return;
       e.preventDefault();
       e.stopPropagation();
       handleSkip();
@@ -118,13 +119,13 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity"
     >
       <div
-        className={`bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col transition-all transform scale-100 font-sans ${
+        className={`bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col transition-all transform scale-100 font-sans ${
           isRTL ? 'rtl' : 'ltr'
         }`}
         dir={isRTL ? 'rtl' : 'ltr'}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-zinc-800">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-lime-500/10 border border-lime-500/20 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-lime-600 dark:text-lime-400" />
@@ -151,7 +152,7 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
         </div>
 
         {/* Slide Body */}
-        <div className="p-6 sm:p-8 flex-1 flex flex-col items-center text-center">
+        <div className="p-6 sm:p-8 min-h-0 overflow-y-auto flex-1 flex flex-col items-center text-center">
           {/* Slide 1: Products, Barcodes, Inventory */}
           {currentSlide === 1 && (
             <div className="space-y-4 max-w-sm animate-fadeIn">
@@ -246,7 +247,7 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="px-6 py-4 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+        <div className="shrink-0 px-4 sm:px-6 py-4 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap gap-2 items-center justify-between">
           <button
             type="button"
             data-testid="guide-skip-button"

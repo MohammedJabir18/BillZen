@@ -133,3 +133,10 @@ html.dark {
   }
 }
 
+
+
+/* Navigation owns its own safe-area space; content never sits behind the thumb bar. */
+.app-mobile-nav { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)); }
+.app-more-navigation { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)); }
+.app-main { padding-bottom: calc(7rem + max(env(safe-area-inset-bottom, 0px), var(--sab, 0px))); }
+@media (min-width: 1024px) { .app-main { padding-bottom: 1.5rem; } }

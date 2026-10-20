@@ -192,7 +192,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [entries, moneyPaidMinor]);
 
   return (
-    <div className="space-y-6 min-w-0 w-full max-w-full overflow-x-clip" data-testid="dashboard-view">
+    <div className="space-y-6 min-w-0 w-full max-w-full" data-testid="dashboard-view">
       {/* 1. Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -319,21 +319,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-1 min-[400px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 w-full sm:w-auto">
             <input
               type="date"
               aria-label="Start date"
               value={customStartDate}
               onChange={(e) => setCustomStartDate(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-zinc-200"
+              className="min-w-0 w-full px-2.5 py-1 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-zinc-200"
             />
-            <span className="text-xs text-slate-400">→</span>
+            <span className="hidden min-[400px]:inline text-xs text-slate-400">→</span>
             <input
               type="date"
               aria-label="End date"
               value={customEndDate}
               onChange={(e) => setCustomEndDate(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-zinc-200"
+              className="min-w-0 w-full px-2.5 py-1 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-zinc-200"
             />
           </div>
         )}
@@ -383,7 +383,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 3. 4 Primary Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
         {/* Card 1: Money Received */}
         <div
           data-testid="card-received"
@@ -394,7 +394,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <ArrowDownLeft className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="mt-3">
-            <div className="text-xl md:text-2xl font-black tracking-tight text-emerald-700 dark:text-emerald-400 tabular-nums">
+            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-emerald-700 dark:text-emerald-400 tabular-nums">
               {currencySymbol} {formatMinorUnits(moneyReceivedMinor, currencyExponent)}
             </div>
             <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
@@ -413,7 +413,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <ArrowUpRight className="w-4 h-4 text-rose-600 dark:text-rose-400" />
           </div>
           <div className="mt-3">
-            <div className="text-xl md:text-2xl font-black tracking-tight text-rose-700 dark:text-rose-400 tabular-nums">
+            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-rose-700 dark:text-rose-400 tabular-nums">
               {currencySymbol} {formatMinorUnits(moneyPaidMinor, currencyExponent)}
             </div>
             <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
@@ -437,7 +437,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="mt-3">
             <div
-              className={`text-xl md:text-2xl font-black tracking-tight tabular-nums ${
+              className={`text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight tabular-nums ${
                 netCashChangeMinor >= 0
                   ? 'text-slate-900 dark:text-zinc-100'
                   : 'text-rose-700 dark:text-rose-400'
@@ -462,7 +462,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <Wallet className="w-4 h-4" />
           </div>
           <div className="mt-3">
-            <div className="text-xl md:text-2xl font-black tracking-tight text-[#1b3213] dark:text-lime-100 tabular-nums">
+            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#1b3213] dark:text-lime-100 tabular-nums">
               {currencySymbol} {formatMinorUnits(closingBalanceMinor, currencyExponent)}
             </div>
             <p className="text-[11px] text-[#36532b] dark:text-lime-400 mt-1 font-medium">

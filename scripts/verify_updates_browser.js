@@ -1,3 +1,4 @@
+import { navigateToAppTab } from './lib/navigation.js';
 import {spawn} from 'node:child_process';
 import {chromium} from 'playwright';
 import fs from 'node:fs';
@@ -12,7 +13,7 @@ try{
   const context=await browser.newContext({viewport:{width,height:900},colorScheme:theme});
   await context.addInitScript(theme=>{localStorage.setItem('billzen_appearance_pref',theme);localStorage.setItem('billzen_mock_fresh_user','false');localStorage.setItem('billzen_guide_status','completed');},theme);
   const page=await context.newPage();await page.goto('http://127.0.0.1:4191');
-  await page.getByRole('button',{name:'Settings',exact:true}).last().click();
+  await navigateToAppTab(page,'settings');
   const section=page.locator('section[aria-labelledby="updates-title"]');await section.waitFor();
   await page.getByRole('button',{name:'Check for updates',exact:true}).click();
   await page.getByText('In-app updates are available in supported Android installations.',{exact:false}).waitFor();

@@ -2,6 +2,8 @@ export type Language = 'en' | 'ml' | 'ar';
 
 export interface Translations {
   // Navigation / Tabs
+  nav_more: string;
+  nav_more_title: string;
   tab_cashbook: string;
   tab_products: string;
   tab_customers: string;
@@ -169,6 +171,8 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   en: {
+    nav_more: 'More',
+    nav_more_title: 'All sections',
     tab_cashbook: 'Cashbook',
     tab_products: 'Products',
     tab_customers: 'Customers',
@@ -330,6 +334,8 @@ export const translations: Record<Language, Translations> = {
     th_outflow: 'Payment (−)',
   },
   ml: {
+    nav_more: 'കൂടുതൽ',
+    nav_more_title: 'എല്ലാ വിഭാഗങ്ങളും',
     tab_cashbook: 'ക്യാഷ്ബുക്ക്',
     tab_products: 'ഉൽപന്നങ്ങൾ',
     tab_customers: 'ഉപഭോക്താക്കൾ',
@@ -491,6 +497,8 @@ export const translations: Record<Language, Translations> = {
     th_outflow: 'ചെലവ്',
   },
   ar: {
+    nav_more: 'المزيد',
+    nav_more_title: 'جميع الأقسام',
     tab_cashbook: 'دفتر النقدية',
     tab_products: 'المنتجات',
     tab_customers: 'العملاء',

@@ -259,8 +259,8 @@ export const PrintFeasibilityProbe: React.FC<PrintFeasibilityProbeProps> = ({ in
 
       {/* In-App Simulated On-Screen Preview — STRICTLY no-print since App root mounts the print document */}
       {inAppPreviewOpen && (
-        <div className="bg-gray-100 dark:bg-zinc-800 p-8 border border-gray-300 dark:border-zinc-600 rounded-lg overflow-x-auto flex justify-center shadow-inner no-print">
-          <div className="shadow-2xl">
+        <div className="bg-gray-100 dark:bg-zinc-800 p-8 border border-gray-300 dark:border-zinc-600 rounded-lg overflow-x-auto flex justify-start shadow-inner no-print">
+          <div className="shadow-2xl shrink-0 mx-auto">
             <PrintableInvoiceDocument invoice={invoice} />
           </div>
         </div>

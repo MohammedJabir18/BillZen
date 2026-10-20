@@ -2,9 +2,38 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
-## Fresh verification (v0.1.2 / versionCode 1007)
+## Responsive correction — fresh local verification, 2026-10-20
 
-Fresh local runs during this dashboard, reporting, and release packaging session:
+The responsive UI was audited against baseline `a31b95c` and corrected in the shared React source. See [responsive-layout-audit.md](responsive-layout-audit.md) for reproduced defects and [antigravity-next-task.md](antigravity-next-task.md) for packaging handoff.
+
+| Check | Actual result this correction |
+| --- | --- |
+| Production build | TypeScript and Vite passed; existing bundle-size/static-dynamic import warnings remain |
+| Frontend unit tests | 53/53 across 11 files |
+| New rendered layout matrix | **906/906 states, zero failures**; ten widths (including 568×320 landscape), en/ml/ar, light/dark; all seven destinations, custom dates, large amounts/long account names, forms, restore/negative confirmations, guide, setup, paper scrolling and menu keyboard/back/resize cleanup |
+| Existing responsive browser suite | 6/6 viewports passed |
+| Dashboard/report browser acceptance | 25/25 assertions passed |
+| Onboarding/appearance suite | 34/34 passed; synthetic catalog rows now precede table-header contrast checks |
+| Theme/contrast matrix | 104/104 passed after Restore hover correction |
+| Update screen browser checks | 4/4 passed through visible desktop/mobile navigation |
+| Cashbook browser workflows | 12/12 steps passed, including negative guards, reversal, persistence and backup restore |
+| Cashbook/invoice PDF isolation | 3/3 scenarios passed; A4 and 80mm paper geometry retained |
+| Linux release executable | Rebuilt `src-tauri/target/release/billzen`, v0.1.2; SHA-256 `7ca1983d5d15805f2bfd21b40a26a29d31839202c35e7ab47db73db8b3673234` |
+| Linux native runtime | 39/39 assertions across 13 steps passed using temporary SQLite data; cold restart, balances, idempotency/conflicts and real database fingerprints verified |
+| Independent review / whitespace | No critical/important findings; `git diff --check` passed |
+
+Native verification initially exposed two outdated harness assumptions: fixed 1.2s/English-text onboarding detection and Cashbook as the cold-start destination. It now waits for the actual wizard and verifies the approved Today dashboard before opening Cashbook and running the unchanged persistence assertions. The earlier failed runs are not counted as passes.
+
+The native test exercised WebKit/SQLite and preview DOM; it did not open a physical printer dialog. Rust backend code was unchanged and Cargo suites were not rerun for this correction. Android runtime/update helpers were adapted to More navigation and syntax-checked; Android APKs were **not rebuilt or device-tested** in this correction. Windows/macOS/iOS were not run. Existing APK/release artifacts below belong to the earlier packaging session and do not contain these responsive changes.
+
+The mandatory Graphify full sync was attempted but semantic extraction lacks an API key. A local code-only AST refresh succeeded; a full semantic/Obsidian regeneration is not claimed. Curated vault notes were retained and architecture/session notes updated.
+
+GitHub push authentication preflight failed (`could not read Username for https://github.com: terminal prompts disabled`). Local verification does not imply remote CI success. No live release was published.
+
+## Earlier C1.5 packaging verification (v0.1.2 / versionCode 1007)
+
+
+Historical local runs reported during the preceding dashboard, reporting, and release packaging session:
 
 | Check | Result |
 | --- | --- |
