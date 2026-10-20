@@ -812,6 +812,12 @@ body.dark .proto-toast { color: #0c0f0d; }
           <button class="active" onclick="filterPeriod('today', this)" id="p-today">Today</button>
           <button onclick="filterPeriod('month', this)" id="p-month">This Month</button>
           <button onclick="filterPeriod('year', this)" id="p-year">This Year</button>
+          <button onclick="filterPeriod('custom', this)" id="p-custom">Custom</button>
+        </div>
+        <div id="customDateRangeDash" style="display: none; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <input type="date" id="dashFromDate" value="2026-10-01" style="min-height: 30px; padding: 2px 8px; font-size: 11px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-main);" onchange="updateDashboardMetrics()">
+          <span style="font-size: 11px; color: var(--text-muted);">to</span>
+          <input type="date" id="dashToDate" value="2026-10-20" style="min-height: 30px; padding: 2px 8px; font-size: 11px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-main);" onchange="updateDashboardMetrics()">
         </div>
         <div style="font-size: 11px; color: var(--text-muted);" id="periodStatusBadge">
           5 Transactions recorded
@@ -995,9 +1001,15 @@ body.dark .proto-toast { color: #0c0f0d; }
       <!-- Reports Filter Controls -->
       <div class="period-bar">
         <div class="period-segmented">
-          <button class="active" onclick="setReportPeriod('today', this)">Today</button>
-          <button onclick="setReportPeriod('month', this)">This Month</button>
-          <button onclick="setReportPeriod('year', this)">This Year</button>
+          <button class="active" onclick="setReportPeriod('today', this)" id="rp-today">Today</button>
+          <button onclick="setReportPeriod('month', this)" id="rp-month">This Month</button>
+          <button onclick="setReportPeriod('year', this)" id="rp-year">This Year</button>
+          <button onclick="setReportPeriod('custom', this)" id="rp-custom">Custom</button>
+        </div>
+        <div id="customDateRangeRep" style="display: none; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <input type="date" id="repFromDate" value="2026-10-01" style="min-height: 30px; padding: 2px 8px; font-size: 11px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-main);" onchange="renderReports()">
+          <span style="font-size: 11px; color: var(--text-muted);">to</span>
+          <input type="date" id="repToDate" value="2026-10-20" style="min-height: 30px; padding: 2px 8px; font-size: 11px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-main);" onchange="renderReports()">
         </div>
         <div style="font-size: 11px; color: var(--text-muted);" id="repMatchingCount">
           Showing 5 matching records
@@ -1070,7 +1082,7 @@ body.dark .proto-toast { color: #0c0f0d; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
       <span>Reports</span>
     </button>
-    <button class="mobile-nav-btn" onclick="toggleMoreDrawer(true)" id="mtab-more">
+    <button class="mobile-nav-btn" onclick="toggleMoreDrawer(true, this)" id="mtab-more" aria-haspopup="dialog" aria-expanded="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
       <span>More</span>
     </button>
@@ -1122,11 +1134,11 @@ body.dark .proto-toast { color: #0c0f0d; }
 </div>
 
 <!-- Mobile More Navigation Drawer -->
-<div class="more-drawer-overlay" id="moreDrawerOverlay" onclick="if(event.target===this) toggleMoreDrawer(false);">
+<div class="more-drawer-overlay" id="moreDrawerOverlay" role="dialog" aria-modal="true" aria-label="More Destinations" aria-hidden="true" onclick="if(event.target===this) toggleMoreDrawer(false);">
   <div class="more-drawer">
     <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px;">
       <strong style="font-size: 14px;">More Destinations</strong>
-      <button type="button" onclick="toggleMoreDrawer(false)" style="border: none; background: transparent; min-height: auto;">✕</button>
+      <button type="button" onclick="toggleMoreDrawer(false)" aria-label="Close destinations" style="border: none; background: transparent; min-height: auto; font-size: 14px; cursor: pointer;">✕</button>
     </div>
     <button class="more-drawer-item" onclick="showMoreItem('Product Catalog & Stock')">
       <span>Products Catalog</span>
@@ -1167,17 +1179,28 @@ const rawTransactions = [
   { id: 'PAY-001', date: '2026-09-25', time: '03:00 PM', party: 'Office Desk Supplies', cat: 'Equipment', classification: 'Operating', acc: 'bank', method: 'Bank transfer', dir: 'out', amount: 1250000 }
 ];
 
-const initialAccounts = { cash: 1100000, bank: 0 };
+const initialAccounts = { cash: 1100000, bank: 1000000 };
 let currentPeriod = 'today';
 let activeView = 'dashboard';
 let currentEntryDir = 'inflow';
+let drawerTriggerEl = null;
 
 const formatMoney = (minor) => '₹' + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100);
 
-function getFilteredTransactions(period) {
+function getFilteredTransactions(period, isReport = false) {
   let from = '2026-10-20', to = '2026-10-20';
-  if (period === 'month') from = '2026-10-01';
-  if (period === 'year') from = '2026-01-01';
+  if (period === 'month') {
+    from = '2026-10-01';
+    to = '2026-10-20';
+  } else if (period === 'year') {
+    from = '2026-01-01';
+    to = '2026-10-20';
+  } else if (period === 'custom') {
+    const fromEl = document.getElementById(isReport ? 'repFromDate' : 'dashFromDate');
+    const toEl = document.getElementById(isReport ? 'repToDate' : 'dashToDate');
+    from = fromEl?.value || '2026-10-01';
+    to = toEl?.value || '2026-10-20';
+  }
   
   const inScope = rawTransactions.filter(t => t.date >= from && t.date <= to);
   const prior = rawTransactions.filter(t => t.date < from);
@@ -1188,16 +1211,29 @@ function getFilteredTransactions(period) {
   const closing = opening + inflows - outflows;
   const net = inflows - outflows;
 
-  return { inScope, opening, inflows, outflows, closing, net };
+  // Dynamically derive account balances as of period cutoff date 'to'
+  const cashVal = initialAccounts.cash + rawTransactions.filter(t => t.acc === 'cash' && t.date <= to).reduce((sum, t) => sum + (t.dir === 'in' ? t.amount : -t.amount), 0);
+  const bankVal = initialAccounts.bank + rawTransactions.filter(t => t.acc === 'bank' && t.date <= to).reduce((sum, t) => sum + (t.dir === 'in' ? t.amount : -t.amount), 0);
+
+  return { inScope, opening, inflows, outflows, closing, net, cashVal, bankVal };
 }
 
 function updateDashboardMetrics() {
-  const data = getFilteredTransactions(currentPeriod);
+  const customRangeEl = document.getElementById('customDateRangeDash');
+  if (customRangeEl) {
+    customRangeEl.style.display = currentPeriod === 'custom' ? 'flex' : 'none';
+  }
+
+  const data = getFilteredTransactions(currentPeriod, false);
   document.getElementById('sumClosing').textContent = formatMoney(data.closing);
   document.getElementById('sumInflow').textContent = '+' + formatMoney(data.inflows);
   document.getElementById('sumOutflow').textContent = '-' + formatMoney(data.outflows);
   document.getElementById('sumNet').textContent = (data.net >= 0 ? '+' : '') + formatMoney(data.net);
   document.getElementById('periodStatusBadge').textContent = `${data.inScope.length} Transactions recorded`;
+
+  // Dynamically derived account strip ensuring cash + bank === closing balance
+  document.getElementById('accCashVal').textContent = formatMoney(data.cashVal);
+  document.getElementById('accBankVal').textContent = formatMoney(data.bankVal);
 
   document.getElementById('bdownOpenVal').textContent = formatMoney(data.opening);
   document.getElementById('bdownInVal').textContent = '+' + formatMoney(data.inflows);
@@ -1250,7 +1286,12 @@ function renderCashbook() {
 }
 
 function renderReports() {
-  const data = getFilteredTransactions(currentPeriod);
+  const customRangeEl = document.getElementById('customDateRangeRep');
+  if (customRangeEl) {
+    customRangeEl.style.display = currentPeriod === 'custom' ? 'flex' : 'none';
+  }
+
+  const data = getFilteredTransactions(currentPeriod, true);
   document.getElementById('repOpenBal').textContent = formatMoney(data.opening);
   document.getElementById('repInflows').textContent = '+' + formatMoney(data.inflows);
   document.getElementById('repOutflows').textContent = '-' + formatMoney(data.outflows);
@@ -1300,7 +1341,7 @@ function navigateTo(viewId, triggerBtn) {
 
 function filterPeriod(period, btn) {
   currentPeriod = period;
-  document.querySelectorAll('.period-segmented button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#view-dashboard .period-segmented button').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   updateDashboardMetrics();
 }
@@ -1324,18 +1365,83 @@ function triggerToast(msg) {
   window.toastTimer = setTimeout(() => { t.style.display = 'none'; }, 2600);
 }
 
-function toggleMoreDrawer(open) {
+// Accessible Drawer with Focus Trap, Focus Restore, Scroll Lock, Escape & Viewport Resize Cleanup
+function toggleMoreDrawer(open, triggerEl) {
   const drawer = document.getElementById('moreDrawerOverlay');
+  const triggerBtn = document.getElementById('mtab-more');
+  if (!drawer) return;
+
   if (open) {
+    drawerTriggerEl = triggerEl || document.activeElement;
     drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+
+    // Move focus to first interactive control inside drawer
+    const firstFocusable = drawer.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (firstFocusable) {
+      setTimeout(() => firstFocusable.focus(), 60);
+    }
   } else {
     drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    if (triggerBtn) triggerBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+
+    // Restore focus to trigger element
+    if (drawerTriggerEl && typeof drawerTriggerEl.focus === 'function') {
+      drawerTriggerEl.focus();
+      drawerTriggerEl = null;
+    }
   }
 }
 
+// Trap focus inside open drawer on Tab / Shift+Tab
 document.addEventListener('keydown', (e) => {
+  const drawer = document.getElementById('moreDrawerOverlay');
+  const isDrawerOpen = drawer && drawer.classList.contains('open');
+
   if (e.key === 'Escape') {
     closeEntryModal();
+    if (isDrawerOpen) toggleMoreDrawer(false);
+    return;
+  }
+
+  if (e.key === 'Tab' && isDrawerOpen) {
+    const focusables = Array.from(drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      }
+    } else {
+      if (document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    }
+  }
+});
+
+// Viewport resize cleanup: dismiss drawer if resizing to desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth >= 1024) {
+    const drawer = document.getElementById('moreDrawerOverlay');
+    if (drawer && drawer.classList.contains('open')) {
+      toggleMoreDrawer(false);
+    }
+  }
+});
+
+// Android Back button event integration
+window.addEventListener('billzen-back-button', (e) => {
+  const drawer = document.getElementById('moreDrawerOverlay');
+  if (drawer && drawer.classList.contains('open')) {
+    e.preventDefault();
     toggleMoreDrawer(false);
   }
 });

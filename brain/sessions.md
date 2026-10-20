@@ -1260,3 +1260,52 @@
   - Both candidates are fully functioning, responsive, and verified.
   - Direction 1 ("Precision Ledger") is the recommended candidate for production migration.
   - Await final owner approval before defining production design tokens and beginning full application UI migration.
+
+### 2026-10-20 — Phase UI-1: Precision Ledger Design System & Application Shell Delivery
+
+- **Goals:** 
+  1. Resolve 4 owner prototype review findings across Direction 1 and Direction 2.
+  2. Implement Phase UI-1: Author design tokens, typography, component states, and motion specs in `docs/design/design-system.md`.
+  3. Migrate shared application shell (`src/App.tsx`), desktop navigation, mobile bottom navigation, and accessible mobile More drawer (`src/components/AppNavigation.tsx`) to Precision Ledger tokens.
+  4. Verify production shell across 10 viewports, both themes, all 3 languages, capture production shell screenshots, and verify zero regressions.
+- **Completed:**
+  - **Prototype Findings Resolution:**
+    - Finding 1: Derived account balances dynamically in Direction 1 (`accCashVal + accBankVal === closing` strictly preserved across period filters and post-entry additions).
+    - Finding 2: Implemented working Custom Date range filtering in Direction 1 and period switcher in Direction 2.
+    - Finding 3: Added accessible drawer focus trap, trigger focus restore, scroll lock (`overflow: hidden`), Escape key, backdrop click, Android-back, and `>= 1024px` desktop cleanup in both prototypes.
+    - Finding 4: Fixed unclosed `.proto-toast` CSS block in Direction 2; labeled Direction 2 as "Unselected Alternative".
+    - Updated `docs/design/prototypes-comparison.md` recording owner approval of Direction 1.
+  - **Design System & Semantic Tokens (`docs/design/design-system.md` & `src/styles/globals.css`):**
+    - Documented complete token architecture: Forest Green `--brand-primary: #1f3d23`, Accent Lime `--brand-lime: #ceeaa0`, Muted Lime `--brand-lime-muted: #eef8f0`, warm off-white canvas `#f8f9f6`, dark obsidian canvas `#0c0f0d`, and neutral surface `#ffffff` / `#141915`.
+    - Declared strict `tabular-nums font-mono` for all amounts, currencies, rates, dates, and codes.
+    - Standardized 8 interactive component states and motion curves (120–160ms CSS transitions, 200–240ms GSAP animations, reduced-motion overrides).
+  - **Application Shell & Navigation Migration (`src/components/AppNavigation.tsx`, `src/App.tsx`):**
+    - Refactored `DesktopNavigation` using Precision Ledger active pill tokens, focus rings, and hover states.
+    - Refactored `MobileNavigation` with 48px+ touch targets and Precision Ledger styling.
+    - Enhanced `#mobile-more-navigation` drawer with backdrop blur, keyboard focus trap, trigger restoration, body scroll lock, Escape key, Android back handler, and `>= 1024px` auto-dismiss.
+    - Updated Top App Bar in `src/App.tsx` with authentic BillZen SVG icon, bold tracking-tight header, `#ceeaa0` beta badge, subtle language switcher, and living status indicator.
+    - Fixed test matrix harness in `src/App.tsx`: automatically selects `activeTab = 'print'` when URL contains `?scenario=`.
+  - **Screenshot Artifacts & Manifest:**
+    - Captured 7 genuine production shell screenshots (`scripts/capture_ui1_screenshots.js`) across desktop light/dark, mobile 390px light/dark, mobile 360px, drawer open, and Arabic RTL into `test_artifacts/ui1_shell/` and copied to artifact directory.
+- **Files Modified / Added:**
+  - `docs/prototypes/direction-1-precision-ledger.html`
+  - `docs/prototypes/direction-2-executive-clarity.html`
+  - `docs/design/prototypes-comparison.md`
+  - `docs/design/design-system.md`
+  - `src/styles/globals.css`
+  - `src/components/AppNavigation.tsx`
+  - `src/App.tsx`
+  - `scripts/capture_ui1_screenshots.js`
+  - `brain/architecture.md`
+  - `brain/sessions.md`
+- **Verification Evidence:**
+  - `npm run test:layout`: 906/906 layout states passed across 10 viewports, 3 languages, and light/dark modes with 0 failures.
+  - `npm run test:theme`: 104/104 computed WCAG AA contrast checks passed with 0 failures and 0 overflow.
+  - `npm run test:responsive`: 6/6 viewports passed with 0px horizontal scroll.
+  - `npm run test:matrix`: 4/4 printable A4 matrix scenarios passed (`scenario_short_oracle`, `scenario_multipage`, `scenario_kwd_3decimal`, `scenario_long_text`).
+  - `npm test`: 53/53 Vitest unit tests passed.
+  - `npm run build`: Passed cleanly (`tsc && vite build`, 1.63s).
+- **Next Steps:**
+  - Commit and push Phase UI-1 per `AGENTS.md` and report remote CI status.
+  - Proceed with Phase UI-2: Dashboard View migration (Today default, featured `#ceeaa0` card, cash breakdown, 5-entry ledger, and SVG analytics chart).
+

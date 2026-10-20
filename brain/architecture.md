@@ -431,3 +431,27 @@ The More sheet uses the existing `useBackHandler` LIFO stack for Escape/Android 
 Dashboard custom dates stack on narrow phones. Dashboard/Reports amount summaries use one column below 400px and allow large values to wrap without losing digits. Guide, restore and cashbook confirmation panels are bounded by dynamic viewport height; their content scrolls. Fixed-size printable paper remains unchanged, with horizontal scrolling confined to its on-screen preview. No financial schema, calculation, persistence or updater protocol changes are part of this correction.
 
 `npm run test:layout` builds and audits rendered layouts across ten widths, three languages and both themes. It checks navigation geometry/touch targets, hidden-container clipping, large amounts/long account labels, dialogs, setup, paper scrolling, Escape/Android-back dismissal and breakpoint cleanup. Browser and Android regression helpers navigate through More instead of clicking hidden desktop controls.
+
+## Precision Ledger Design System & Shell Architecture (UI-1) — 2026-10-20
+
+BillZen's visual direction follows the owner-approved **Direction 1 — Precision Ledger**:
+- **Design Tokens & Palette**:
+  - Semantic Surfaces: Light canvas `--bg-canvas: #f8f9f6`, light surface `--bg-surface: #ffffff`; Dark canvas `--bg-canvas: #0c0f0d`, dark surface `--bg-surface: #141915`.
+  - Brand & Accents: Primary Forest Green `--brand-primary: #1f3d23` (dark: `#2e5733`), Accent Lime `--brand-lime: #ceeaa0`, Muted Lime `--brand-lime-muted: #eef8f0` (dark: `#1e261f`).
+  - Text Hierarchy: Primary `#141915` / `#f0f3ee`, Secondary `#576356` / `#9eaba0`, Tertiary/Muted `#788677` / `#6f7c71`.
+  - Borders: `--border-subtle: #e5e9df` / `#242c26`, `--border-strong: #c8d1bf` / `#364239`.
+- **Typography & Numerical Integrity**:
+  - Strict `tabular-nums font-mono` enforcement across all financial amounts, currency symbols, percentages, codes, dates, and counters.
+  - Zero-emoji policy across all production interfaces; clean SVG icons (Lucide React) with accessible labels and semantic colors.
+- **Application Shell & Navigation (`AppNavigation.tsx`, `App.tsx`)**:
+  - Reusable Precision Ledger foundation: Header with authentic BillZen SVG mark, high-contrast title, `#ceeaa0` beta badge, system status indicator, and unobtrusive language selector.
+  - Responsive layout: Dedicated 7-item desktop pill row (`lg:flex`); 4-column thumb-friendly bottom nav (`lg:hidden`) for primary views (Dashboard, Cashbook, Reports) plus More drawer trigger.
+  - Accessible More Drawer: Accessible modal sheet (`role="dialog" aria-modal="true"`) with backdrop blur, focus trap, trigger focus restoration upon dismissal, body scroll lock (`overflow: hidden`), Escape key listener, Android back button handler (`useBackHandler`), and `>= 1024px` desktop resize dismiss.
+  - Multi-language & RTL: Comprehensive support for English, Malayalam, and Arabic (RTL) across all navigation items and drawer controls.
+- **Automated Verification**:
+  - `npm run test:layout`: 906/906 layout states passed across 10 viewports, 3 languages, and light/dark modes.
+  - `npm run test:theme`: 104/104 computed WCAG AA contrast checks passed.
+  - `npm run test:responsive`: 6/6 viewports passed with 0px horizontal scroll.
+  - `npm test`: 53/53 Vitest unit tests passed.
+  - `npm run test:matrix`: 4/4 printable A4 matrix scenarios passed.
+
