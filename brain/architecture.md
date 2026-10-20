@@ -484,3 +484,13 @@ BillZen's visual direction follows the owner-approved **Direction 1 — Precisio
   - 104/104 computed WCAG AA contrast checks passed (`npm run test:theme`).
   - 39/39 native assertions passed across 13 steps on temporary SQLite database (`npm run test:native-cashbook`).
   - 8 production screenshots captured into `test_artifacts/ui2_dashboard/`.
+
+## Cashbook Precision Ledger UI boundary (UI-3) — 2026-10-20
+
+`CashbookView` now consumes the existing semantic surface/text/border/financial tokens and a typed Cashbook copy dictionary (`src/i18n/cashbook.ts`) for English/Malayalam/Arabic. Monetary values retain integer-minor-unit domain formatting and tabular figures; narrow summaries stack below 400px, mobile ledger rows reflow and mixed RTL amounts use isolated LTR content. Loading/read failures show unavailable values rather than invented zero balances.
+
+`CashbookDialog` is a presentation-only shell: named dialog, initial focus, top-layer Tab containment, reversible background inert/ARIA leases, nested scroll locking and deferred trigger return. The existing `useBackHandler` continues to own Escape/Android Back. Local error notices remain inside the accessible dialog. Dashboard receipt/payment shortcuts now call the same entry initializer as Cashbook actions once accounts load; this corrects a pre-existing payment shortcut whose displayed option hid stale submitted income classification.
+
+No financial schema, adapter, transaction, numbering, idempotency, backup, signing or updater protocol changed. The browser Cashbook adapter already persists in IndexedDB; its storage notice now accurately distinguishes browser-site data from native SQLite. Printable voucher/invoice documents retain their existing contract and independent scrolling preview. Dark semantic coral is `#f87171` after a measured normal-text contrast failure at the earlier color.
+
+See `docs/design/cashbook-ui3.md` and the verification record. Android distribution is unchanged; native evidence applies only to the rebuilt Linux executable and isolated test database.

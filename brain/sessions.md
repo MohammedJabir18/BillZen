@@ -1425,3 +1425,19 @@
   - `npm run test:layout`: 906/906 layout states passed across 10 viewports, 3 languages, and light/dark modes with 0 failures.
   - `npm run test:native-cashbook`: 39/39 native assertions passed across 13 steps on temporary SQLite database.
 - **Next:** Commit and push Phase UI-2.1 to `origin/main` and verify CI. Proceed to Phase UI-3: Cashbook View migration.
+
+### 2026-10-20 — Codex takeover after Antigravity quota; UI-3 Cashbook
+
+- Restored the second brain and inspected the Antigravity handoff. Confirmed `aa118aa` was pushed and GitHub CI 39381822767 succeeded; baseline 70 frontend tests passed.
+- Continued the already approved Precision Ledger direction inline. Migrated Cashbook semantic colors, closing-balance emphasis, responsive summaries/actions/mobile rows, RTL spacing and tabular amounts; translated application-owned screen copy and enum labels to Malayalam/Arabic.
+- Added named Cashbook dialogs with focus containment/return, nested background inert/ARIA leases, scroll restoration and associated form labels. Kept error feedback inside active dialogs and preserved existing Escape/Android Back handling.
+- Reproduced/fixed a pre-existing Dashboard Add Payment bug: displayed expense option concealed submitted income classification. Both shortcuts now use the shared initialized entry form after accounts load. Domain validation is unchanged.
+- Corrected the stale browser memory-only banner against the actual IndexedDB adapter. Kept financial, backup, print and updater contracts intact.
+- Added real browser coverage for nested keyboard/assistive behavior, translated actual balances, invalid amounts, 3-decimal KWD and successful Dashboard payment submission. Added this gate to CI. PDF harness now initializes its independent guide state deterministically and reliably cleans up its browser.
+- Independent review identified background isolation, unnamed optional selects and English enum labels; corrected and reviewed the final deltas with no important outstanding finding.
+- Files: `CashbookView.tsx`, new `CashbookDialog.tsx`, new `i18n/cashbook.ts`, semantic CSS, browser regression/CI/package scripts, PDF test harness, design plan/review/skill usage, verification and second-brain notes.
+- Verification and final build identity: recorded in the UI-3 section of `docs/verification-status.md` at completion.
+- Next UI migration: Reports, followed by inventory/CRM/settings according to the approved full-app direction. Android APK remains the older distribution build; no application release is published in this section.
+- **Final results:** frontend70; CashbookUI55 (including KWD3 and real Dashboard payment submit); Cashbook12; Dashboard25/9; responsive6; PDF3; theme104; layout906. Final Linux native39 passed including cold restart and unchanged real-data fingerprints. Linux SHA-256 `77ee980e39cec2086bd5857b86163f7a88d75b14f45d4628226eaf284d4a7edc` (20,669,112 bytes). See verification note for broad-gate/final-targeted ordering.
+- **Graphify:** mandatory semantic/Obsidian command blocked by absent semantic API key. Code-only AST fallback refreshed 1,448 nodes/3,018 edges; SQL parser missing. Full semantic/vault refresh is not claimed.
+- **Delivery:** coherent UI-3 section prepared for owner-authorized main commit/push; report actual remote CI separately. No APK/live release published.

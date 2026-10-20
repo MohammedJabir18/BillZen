@@ -191,3 +191,30 @@ Empirical runtime verification and production packaging completed for BillZen Be
   - Path: `src-tauri/target/release/billzen` (v0.1.2)
   - SHA-256: `41c83acc495d24e5cb3c0b3da9b800c593233effa714c4d92463296317e7621e`
   - Exact Size: 20,665,016 bytes (19.71 MB)
+
+## 2026-10-20 — UI-3 Cashbook continuation
+
+Baseline UI-2.1 commit `aa118aa` is confirmed on GitHub; CI [39381822767](https://github.com/MohammedJabir18/BillZen/actions/runs/39381822767) completed successfully.
+
+UI-3 migrates Cashbook to the existing semantic Precision Ledger design, responsive/RTL layouts, localized screen copy and accessible nested dialogs. See [design and review evidence](design/cashbook-ui3.md). A browser reproduction also caught the pre-existing Dashboard payment shortcut's stale classification; both shortcuts now initialize through the normal Cashbook entry flow. Domain/adapters/schema/print/updater contracts are unchanged.
+
+Verified locally during the migration:
+- Frontend unit suite: 70/70 across 12 files; production TypeScript/Vite build passed.
+- Dashboard: 25 assertions across 9 scenarios; responsive: 6 viewports.
+- Cashbook: all 12 receipt/payment/reversal/negative-confirmation/print/backup steps.
+- Cashbook/invoice PDF isolation: all 3 scenarios, including A4 geometry and cross-document text isolation.
+- Computed theme/contrast: 104/104 states; full layout: 906/906 states, zero failures.
+
+The 906/104 gates ran after visual/dialog corrections; final shortcut initialization and dialog-local error feedback received targeted final regression runs recorded below. An earlier parallel test attempt was invalidated by concurrent `dist/` regeneration; final broad browser gates were serialized. First contrast run found 4.44:1 dark payment text; the corrected dark coral passed the full contrast gate. Initial PDF test hit late guide appearance; the harness now isolates guide-completed state without disabling onboarding product behavior.
+
+Final targeted/browser/native results, Linux hash and GitHub delivery are appended after completion. Existing build warnings remain: large frontend chunk and ineffective mixed static/dynamic imports. These are warnings, not failed compilation.
+
+Final acceptance after shortcut/error-feedback corrections:
+- `npm test`: 70/70 passed.
+- `npm run test:cashbook-ui`: 55 browser assertions passed, including Malayalam/Arabic, 320px populated balances, 3-decimal KWD, dialog focus/background restoration, invalid-amount feedback and successful Dashboard Add Payment posting.
+- `npm run test:cashbook`: all 12 steps passed again; `npm run test:cashbook-pdf`: all 3 PDF scenarios passed again; Dashboard: 25 assertions across 9 scenarios passed again.
+- Linux rebuilt from the final UI source; `npm run test:native-cashbook`: 39/39 assertions passed, including cold restart, negative confirmations, idempotency and unchanged real-database fingerprints. Physical printer invocation was not exercised; native preview DOM and generated PDFs were checked.
+- Executable: `src-tauri/target/release/billzen`, version 0.1.2, 20,669,112 bytes, SHA-256 `77ee980e39cec2086bd5857b86163f7a88d75b14f45d4628226eaf284d4a7edc`.
+- Frontend main JS: 655.82 kB / gzip 164.76 kB in the release build. No new dependency or runtime cloud service.
+- Mandatory Graphify semantic/Obsidian update could not finish: no semantic API key. Local `--code-only` fallback refreshed `graphify-out/graph.json` to 1,448 nodes / 3,018 edges. SQL extraction remains unavailable (`tree_sitter_sql` missing); this is not a full semantic/vault refresh.
+- Android APK/signing/versionCode unchanged. No GitHub application release, updater manifest or installer was published. Windows/macOS/iOS/Android native acceptance remains outside this Linux/browser section.

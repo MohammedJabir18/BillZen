@@ -84,7 +84,7 @@ html.dark {
   --brand-lime-muted: #1e261f;
   --brand-emerald: #22c55e;
   --brand-emerald-subtle: #132a18;
-  --brand-coral: #ef4444;
+  --brand-coral: #f87171;
   --brand-coral-subtle: #2d1414;
 }
 
@@ -209,3 +209,38 @@ html.dark {
 .app-more-navigation { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)); }
 .app-main { padding-bottom: calc(7rem + max(env(safe-area-inset-bottom, 0px), var(--sab, 0px))); }
 @media (min-width: 1024px) { .app-main { padding-bottom: 1.5rem; } }
+
+/* Cashbook screen controls: touch-sized and keyboard-visible without affecting paper. */
+.cashbook-screen :is(button, input:not([type="checkbox"]), select, textarea) {
+  min-height: 44px;
+}
+.cashbook-screen :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  color: var(--text-main);
+}
+.cashbook-screen button {
+  overflow-wrap: normal;
+}
+.cashbook-screen :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+.cashbook-screen button:has(> svg:only-child) {
+  min-width: 44px;
+  flex-shrink: 0;
+}
+.cashbook-screen [data-cashbook-amount] {
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+  direction: ltr;
+  text-align: start;
+}
+.cashbook-screen [role="dialog"] :is(input:not([type="checkbox"]), select, textarea) {
+  font-size: 1rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cashbook-screen *, .cashbook-screen *::before, .cashbook-screen *::after {
+    transform: none !important;
+  }
+}

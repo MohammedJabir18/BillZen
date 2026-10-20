@@ -55,7 +55,7 @@ The color system uses CSS custom properties defined at `:root` (light) and `body
 | **Brand Hover** | `#17301b` | `#17301b` | `#3b6d41` | `#3b6d41` |
 | **Featured Closing Card** | `#142811` (Text) | `#ceeaa0` (Lime Surface) | `#ceeaa0` (Text) | `#1e3518` (Dark Forest) |
 | **Inflow (Receipts)** | `#15803d` (Emerald) | `#eef8f0` (Subtle Mint) | `#22c55e` (Bright Emerald)| `#132a18` (Deep Mint) |
-| **Outflow (Payments)**| `#b91c1c` (Crimson) | `#fef2f2` (Subtle Coral) | `#ef4444` (Bright Coral) | `#2d1414` (Deep Coral) |
+| **Outflow (Payments)**| `#b91c1c` (Crimson) | `#fef2f2` (Subtle Coral) | `#f87171` (Bright Coral, UI-3 contrast correction) | `#2d1414` (Deep Coral) |
 | **Focus Ring** | `rgba(31, 61, 35, 0.4)` | — | `rgba(206, 234, 160, 0.5)`| — |
 
 ---
