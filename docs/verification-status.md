@@ -171,3 +171,23 @@ Empirical runtime verification and production packaging completed for BillZen Be
   - `node --test scripts/release/tests/*.mjs`: 7/7 passed.
   - `npm run test:cashbook-pdf`: 3/3 passed.
   - `npm run test:theme`: 104/104 passed.
+
+## 2026-10-20 — Phase UI-2 / UI-2.1: Precision Ledger Dashboard Migration & Correctness Pass
+
+- **Scope & Delivery**:
+  - `src/components/DashboardView.tsx` migrated to Precision Ledger design tokens (`var(--brand-primary)`, `var(--brand-lime)`, `var(--bg-canvas)`, `var(--bg-surface)`).
+  - Explicit Account & Date Scope: When "All Accounts" is active, display all active accounts and ensure sum strictly equals closing balance. When a specific account is filtered, strip displays only the selected account with `(filtered)` badge so it never contradicts the single-account closing total. Explicitly renders `[Archived]` indicator for archived accounts when selected.
+  - Honest Loading & Error Handling: Eliminated unverified fallbacks. Skeletons (`···` / `Loading…`) and error retry banners render when queries are pending or fail; no fake zero balances (`0.00`) are shown on query error.
+  - Accessible HTML/CSS Bar Visualization: Semantic bars (`role="graphics-symbol"`, `tabIndex={0}`, focus rings, descriptive `aria-label`). Zero-value inflows/outflows render with strictly `height: 0%`.
+  - Comprehensive Localization: Added 17 new translation keys across English, Malayalam (`ml`), and Arabic (`ar`).
+- **Automated Verification Matrix**:
+  - `npm test`: 70/70 Vitest unit/behavioral tests passing across 12 files (including 13/13 in `src/components/DashboardView.test.tsx`).
+  - `npm run test:dashboard`: 9/9 Playwright scenarios passed (25/25 assertions).
+  - `npm run test:responsive`: 6/6 viewports passed with 0px horizontal scroll (320px, 360px, 390px, 412px, 768px, 1280px).
+  - `npm run test:theme`: 104/104 computed WCAG AA contrast checks passed with 0 failures and 0 overflow.
+  - `npm run test:layout`: 906/906 layout matrix checks passed across 10 viewports, 3 languages, and light/dark modes.
+  - `npm run test:native-cashbook`: 39/39 native assertions passed across 13 steps on temporary SQLite database using standalone release executable.
+- **Rebuilt Linux Standalone Executable**:
+  - Path: `src-tauri/target/release/billzen` (v0.1.2)
+  - SHA-256: `41c83acc495d24e5cb3c0b3da9b800c593233effa714c4d92463296317e7621e`
+  - Exact Size: 20,665,016 bytes (19.71 MB)

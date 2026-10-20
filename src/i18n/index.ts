@@ -151,6 +151,24 @@ export interface Translations {
   analytics_helper_notice: string;
   inflow_legend: string;
   outflow_legend: string;
+  // Dashboard correctness pass — additional keys
+  transactions_count: string;
+  clear_selection: string;
+  chart_net_label: string;
+  no_active_accounts: string;
+  total_receipts_in_period: string;
+  total_payments_in_period: string;
+  receipts_minus_payments: string;
+  at_end_of_period: string;
+  cash_flow_subtitle: string;
+  cash_receipt_default: string;
+  cash_payment_default: string;
+  chart_comparison_subtitle: string;
+  category_expenses_subtitle: string;
+  no_expenses_period: string;
+  account_filtered_label: string;
+  balance_loading: string;
+  balance_error_retry: string;
   report_title: string;
   report_subtitle: string;
   btn_print_pdf: string;
@@ -316,6 +334,23 @@ export const translations: Record<Language, Translations> = {
     analytics_helper_notice: 'Loans and capital injections are classified separately and never treated as sales revenue or business profit.',
     inflow_legend: 'Receipts',
     outflow_legend: 'Payments',
+    transactions_count: 'transactions',
+    clear_selection: 'Clear selection',
+    chart_net_label: 'Net',
+    no_active_accounts: 'No active accounts configured',
+    total_receipts_in_period: 'Total receipts in period',
+    total_payments_in_period: 'Total payments in period',
+    receipts_minus_payments: 'Receipts − Payments',
+    at_end_of_period: 'At end of selected period',
+    cash_flow_subtitle: 'Breakdown of cash flow in selected period',
+    cash_receipt_default: 'Cash Receipt',
+    cash_payment_default: 'Cash Payment',
+    chart_comparison_subtitle: 'Comparison of inflows and outflows',
+    category_expenses_subtitle: 'Outflows distributed by category',
+    no_expenses_period: 'No expenses in this period',
+    account_filtered_label: 'filtered',
+    balance_loading: 'Loading…',
+    balance_error_retry: 'Failed to load. Retry',
     report_title: 'Transaction Reports',
     report_subtitle: 'Review by date range, account, and counterparty',
     btn_print_pdf: 'Print / Save PDF',
@@ -479,6 +514,23 @@ export const translations: Record<Language, Translations> = {
     analytics_helper_notice: 'വായ്പയും ഉടമ ചേർത്ത പണവും വരവിൽ ഉൾപ്പെടാം. അവയെ വിൽപ്പനയോ ലാഭമോ ആയി കാണിക്കില്ല.',
     inflow_legend: 'വരവ്',
     outflow_legend: 'ചെലവ്',
+    transactions_count: 'ഇടപാടുകൾ',
+    clear_selection: 'തിരഞ്ഞെടുത്തത് മാറ്റുക',
+    chart_net_label: 'ബാക്കി',
+    no_active_accounts: 'സജീവമായ അക്കൗണ്ടുകൾ ലഭ്യമല്ല',
+    total_receipts_in_period: 'വരവായി രേഖപ്പെടുത്തിയ തുക',
+    total_payments_in_period: 'ചെലവായി രേഖപ്പെടുത്തിയ തുക',
+    receipts_minus_payments: 'വരവ് − ചെലവ്',
+    at_end_of_period: 'ഈ കാലയളവിന്റെ അവസാനം',
+    cash_flow_subtitle: 'ഈ കാലയളവിലെ മാറ്റം എളുപ്പത്തിൽ',
+    cash_receipt_default: 'വരവ് രസീത്',
+    cash_payment_default: 'ചെലവ് രസീത്',
+    chart_comparison_subtitle: 'തിരഞ്ഞെടുത്ത കാലയളവിലെ cash flow',
+    category_expenses_subtitle: 'Category അനുസരിച്ചുള്ള തുക',
+    no_expenses_period: 'ഈ കാലയളവിൽ ചെലവുകളില്ല',
+    account_filtered_label: 'തിരഞ്ഞെടുത്തത്',
+    balance_loading: 'കണക്കാക്കുന്നു…',
+    balance_error_retry: 'ലോഡ് ചെയ്യാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കുക',
     report_title: 'ഇടപാടുകളുടെ റിപ്പോർട്ട്',
     report_subtitle: 'തീയതി, account, വിശദാംശങ്ങൾ അനുസരിച്ച് പരിശോധിക്കുക',
     btn_print_pdf: 'Print / Save PDF',
@@ -642,6 +694,23 @@ export const translations: Record<Language, Translations> = {
     analytics_helper_notice: 'قد تشمل المقبوضات القروض ورأس المال المودع. ولا تظهر كأرباح أو مبيعات.',
     inflow_legend: 'المقبوضات',
     outflow_legend: 'المدفوعات',
+    transactions_count: 'معاملة',
+    clear_selection: 'إلغاء التحديد',
+    chart_net_label: 'الصافي',
+    no_active_accounts: 'لا توجد حسابات نشطة مهيأة',
+    total_receipts_in_period: 'إجمالي المقبوضات في الفترة',
+    total_payments_in_period: 'إجمالي المدفوعات في الفترة',
+    receipts_minus_payments: 'المقبوضات - المدفوعات',
+    at_end_of_period: 'الرصيد في نهاية الفترة المحددة',
+    cash_flow_subtitle: 'تفاصيل حركة النقد لهذه الفترة',
+    cash_receipt_default: 'سند قبض نقدي',
+    cash_payment_default: 'سند صرف نقدي',
+    chart_comparison_subtitle: 'مقارنة المقبوضات والمدفوعات',
+    category_expenses_subtitle: 'المصروفات موزعة حسب البند',
+    no_expenses_period: 'لا توجد مصروفات في هذه الفترة',
+    account_filtered_label: 'محدد',
+    balance_loading: 'جار التحميل...',
+    balance_error_retry: 'فشل التحميل. إعادة المحاولة',
     report_title: 'تقرير المعاملات',
     report_subtitle: 'مراجعة حسب التاريخ، الحساب، والتفاصيل',
     btn_print_pdf: 'طباعة / حفظ PDF',

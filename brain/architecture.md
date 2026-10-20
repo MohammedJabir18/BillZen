@@ -464,16 +464,22 @@ BillZen's visual direction follows the owner-approved **Direction 1 — Precisio
   - Period filter pill with active lime indicator, chevron step controls, custom date inputs, account dropdown, and Simple/Analytics toggle.
   - 4 Summary Cards: Money Received (emerald badge), Money Paid (coral badge), Net Cash Change (liquidity indicator), and Featured Closing Balance (`bg-[#ceeaa0] border-[#b8d98b] text-[#142811]` light / `bg-[#1e3518] border-[#2e5733] text-[#ceeaa0]` dark).
 - **Dynamic Account Balance & Date Scope Parity**:
-  - Employs TanStack React Query `useQueries` to query active period closing balances per account.
-  - Guarantees $\sum \text{account closing balances} \equiv \text{summary.closing\_balance\_minor}$ across any period (Today, Month, Year, Custom) and account filter.
+  - Employs TanStack React Query `useQueries` to query period closing balances per account for the exact active cutoff date.
+  - When "All Accounts" is selected, the strip displays all active accounts and $\sum \text{account closing balances} \equiv \text{summary.closing\_balance\_minor}$.
+  - When a specific account is selected, the strip strictly displays only that account with an explicit `(filtered)` badge, ensuring the strip never contradicts the single-account closing total.
+  - If an archived account is explicitly selected, it is rendered in the strip with `[Archived]` indicator and `(filtered)` badge.
+  - Honest Loading & Error Handling: Queries track loading states with animated skeletons (`···` / `Loading…`) and surface retry controls (`Failed to load. Retry`) on query failure. Unverified historical/opening balances and fake zero balances are strictly avoided.
 - **Simple View**:
   - 5 recent ledger entries with direction badge, party, and formatted amount.
   - Visual cash movement equation: $\text{Opening} + \text{Inflows} - \text{Outflows} = \text{Closing}$.
   - Statutory/accounting footnote: "Receipts − Payments = Net cash change. This is not business profit."
-- **Detailed Analytics View & Accessible SVG Chart**:
-  - Pure SVG bar chart with accessible semantic markup: `role="graphics-symbol"`, `tabIndex={0}`, descriptive `aria-label`, tap/keyboard selection popover, legend, category progress bars, and loan/capital classification helper notice.
+- **Detailed Analytics View & Accessible HTML/CSS Bar Visualization**:
+  - Responsive semantic HTML/CSS bar chart with accessible markup: `role="graphics-symbol"`, `tabIndex={0}`, focus rings, descriptive `aria-label`, tap/keyboard selection popover, legend, category progress bars, and loan/capital classification helper notice.
+  - Zero-inflow or zero-outflow bars render with strictly `height: 0%` instead of misleading minimum heights.
 - **Verification Matrix**:
-  - 63/63 Vitest tests (including 6/6 `DashboardView.test.tsx`).
+  - 70/70 Vitest unit/behavioral tests (including 13/13 `DashboardView.test.tsx` verifying multi-account consistency, single-account filtering, 3-decimal currencies like KWD, loading/error states, and bar geometry).
+  - 9/9 scenarios (25/25 assertions) passed in Playwright Dashboard E2E (`npm run test:dashboard`).
+  - 6/6 viewports passed with 0px horizontal scroll (`npm run test:responsive`).
   - 906/906 layout states checked with zero failures (`npm run test:layout`).
   - 104/104 computed WCAG AA contrast checks passed (`npm run test:theme`).
   - 39/39 native assertions passed across 13 steps on temporary SQLite database (`npm run test:native-cashbook`).
