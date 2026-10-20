@@ -57,6 +57,16 @@ function renderDashboardHtml(language: 'en' | 'ml' | 'ar' = 'en') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  queryClient.setQueryData(['money_accounts'], [
+    {
+      id: 'acc_cash',
+      account_name: 'Cash Drawer',
+      account_type: 'cash',
+      opening_balance_minor: 15000,
+      current_balance_minor: 35000,
+      is_archived: false,
+    },
+  ]);
   return renderToStaticMarkup(
     <QueryClientProvider client={queryClient}>
       <DashboardView settings={testSettings} language={language} />
@@ -91,5 +101,35 @@ describe('DashboardView component', () => {
     const arHtml = renderDashboardHtml('ar');
     expect(arHtml).toContain('ملخص اليوم');
     expect(arHtml).toContain('المقبوضات - المدفوعات = صافي التدفق النقدي. هذا لا يعبر عن أرباح المنشأة.');
+  });
+
+  it('applies Precision Ledger featured styling (#ceeaa0) to Closing Balance card', () => {
+    const html = renderDashboardHtml('en');
+    expect(html).toContain('bg-[#ceeaa0]');
+    expect(html).toContain('tabular-nums font-mono');
+  });
+
+  it('renders quick action buttons with tactile active compression and test IDs', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <DashboardView
+          settings={testSettings}
+          language="en"
+          onOpenReceiptModal={() => {}}
+          onOpenPaymentModal={() => {}}
+        />
+      </QueryClientProvider>
+    );
+    expect(html).toContain('data-testid="dashboard-add-receipt"');
+    expect(html).toContain('data-testid="dashboard-add-payment"');
+    expect(html).toContain('active:scale-[0.975]');
+  });
+
+  it('renders account balances strip with clear labels and tabular numeric formatting', () => {
+    const html = renderDashboardHtml('en');
+    expect(html).toContain('Account Balances:');
+    expect(html).toContain('Cash Drawer:');
+    expect(html).toContain('tabular-nums font-mono');
   });
 });

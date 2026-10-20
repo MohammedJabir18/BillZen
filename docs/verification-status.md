@@ -2,6 +2,20 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Phase UI-2 Dashboard migration — 2026-10-20, 11:27 IST
+
+Migrated Dashboard (`src/components/DashboardView.tsx`) to Precision Ledger design system tokens. Rebuilt standalone release executable and executed complete local verification suite.
+
+- `npm test`: **63/63 tests passed across 12 files** (including 6/6 in `DashboardView.test.tsx` verifying `#ceeaa0` featured styling, tactile button compression, and dynamic account balances).
+- `npm run test:dashboard`: **25/25 assertions passed across 9 scenarios** (Today default, 4 summary cards, non-profit disclaimer, interactive SVG analytics chart, period filtering, search decoupling, CSV export, printable root, and mobile/dark modes).
+- `npm run test:responsive`: **6/6 viewports passed with 0px horizontal scroll** (320, 360, 390, 412, 768, 1280).
+- `npm run test:theme`: **104/104 dark/light state contrast checks passed** with zero contrast failures and zero overflow.
+- `npm run test:layout`: **906/906 layout states passed** across 10 viewports, 3 languages, and light/dark modes with 0 failures.
+- Production screenshots: **8 genuine screenshots captured** across viewports, themes, and views (`test_artifacts/ui2_dashboard/`).
+- Linux standalone release executable: Rebuilt `src-tauri/target/release/billzen` (v0.1.2, SHA-256 `8d27d447c2f873235c2b90d264abb6146fbb06443117937b680ad6559e9b68ee`, size 20,665,016 bytes).
+- Native desktop runtime verification (`npm run test:native-cashbook`): **39/39 assertions across 13 steps passed** using isolated temporary SQLite database; cold restart, balances, idempotency/conflicts, and real business database fingerprints confirmed untouched.
+- Android APKs, AppImage/deb installers, and live GitHub release assets were not rebuilt or published in this phase. UI-3 Cashbook redesign is the next phase.
+
 ## Linux desktop UI-1 rebuild — 2026-10-20, 10:49 IST
 
 Rebuilt the existing standalone executable from verified UI-1 source `ea854d8d47c953376f9ca07028966648f9a662a1`. No application source or version change was required.

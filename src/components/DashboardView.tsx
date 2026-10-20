@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -8,6 +8,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Wallet,
+  BarChart2,
+  List,
+  CheckCircle2,
 } from 'lucide-react';
 import type { BusinessSettings } from '../types';
 import type { Language } from '../i18n';
@@ -49,6 +52,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [customStartDate, setCustomStartDate] = useState<string>(todayStr);
   const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
 
+  // Selected bar in analytics view for accessible details
+  const [selectedBarLabel, setSelectedBarLabel] = useState<string | null>(null);
+
   // Reference date for navigating days, months, years
   const [referenceDate, setReferenceDate] = useState<string>(todayStr);
 
@@ -71,7 +77,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     if (period === 'month') {
       const ym = referenceDate.slice(0, 7);
       const start = `${ym}-01`;
-      // If reference date is in current month, end date is todayStr, otherwise last day of month
       const [y, m] = ym.split('-').map(Number);
       const lastDay = new Date(y, m, 0).getDate();
       const end = ym === todayStr.slice(0, 7) ? todayStr : `${ym}-${String(lastDay).padStart(2, '0')}`;
@@ -126,6 +131,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     queryFn: getMoneyAccounts,
   });
 
+  const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts]);
+
+  // Main ledger query for the dashboard
   const { data: ledgerData } = useQuery({
     queryKey: ['cashbook_ledger', startDate, endDate, selectedAccountId],
     queryFn: () =>
@@ -136,6 +144,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         include_archived: false,
       }),
   });
+
+  // Query individual accounts to ensure account strip balances consistently reflect
+  // the exact closing balance for the active period cutoff date
+  const accountLedgerQueries = useQueries({
+    queries: activeAccounts.map((acc) => ({
+      queryKey: ['cashbook_ledger', startDate, endDate, acc.id],
+      queryFn: () =>
+        getCashbookLedger({
+          start_date: startDate,
+          end_date: endDate,
+          account_id: acc.id,
+          include_archived: false,
+        }),
+      staleTime: 30000,
+    })),
+  });
+
+  const accountBalancesMap = useMemo(() => {
+    const map = new Map<string, number>();
+    activeAccounts.forEach((acc, i) => {
+      const qData = accountLedgerQueries[i]?.data;
+      if (qData?.summary) {
+        map.set(acc.id, qData.summary.closing_balance_minor);
+      } else if (acc.current_balance_minor !== undefined && endDate >= todayStr) {
+        map.set(acc.id, acc.current_balance_minor);
+      } else {
+        map.set(acc.id, acc.opening_balance_minor);
+      }
+    });
+    return map;
+  }, [activeAccounts, accountLedgerQueries, endDate, todayStr]);
 
   const summary = ledgerData?.summary;
   const entries = ledgerData?.entries || [];
@@ -153,13 +192,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Analytics: daily / monthly grouping for bar chart
   const barChartData = useMemo(() => {
-    const groups: Record<string, { label: string; inflows: number; outflows: number }> = {};
+    const groups: Record<string, { label: string; inflows: number; outflows: number; count: number }> = {};
     for (const item of entries) {
       const v = item.voucher;
       const key = period === 'year' ? v.business_date.slice(0, 7) : v.business_date.slice(5);
       if (!groups[key]) {
-        groups[key] = { label: key, inflows: 0, outflows: 0 };
+        groups[key] = { label: key, inflows: 0, outflows: 0, count: 0 };
       }
+      groups[key].count += 1;
       if (v.direction === 'inflow') {
         groups[key].inflows += v.amount_minor;
       } else {
@@ -170,6 +210,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const peak = Math.max(1, ...list.flatMap((g) => [g.inflows, g.outflows]));
     return { list, peak };
   }, [entries, period]);
+
+  // Active bar details for accessible chart popover
+  const selectedBarData = useMemo(() => {
+    if (!selectedBarLabel) return null;
+    return barChartData.list.find((g) => g.label === selectedBarLabel) || null;
+  }, [selectedBarLabel, barChartData.list]);
 
   // Analytics: category breakdown for outflows
   const categoryBreakdown = useMemo(() => {
@@ -196,10 +242,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 1. Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-subtle)]">
             {settings.business_name || 'BillZen Workspace'} · {timezone}
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-zinc-100">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--text-main)]">
             {period === 'today'
               ? t.today_summary
               : period === 'month'
@@ -208,7 +254,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               ? t.this_year_summary
               : t.custom_period_summary}
           </h1>
-          <p className="text-sm text-slate-600 dark:text-zinc-400 mt-0.5">
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">
             {periodLabel} · {entries.length}{' '}
             {language === 'ml' ? 'ഇടപാടുകൾ' : language === 'ar' ? 'معاملة' : 'transactions'}
           </p>
@@ -220,7 +266,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <button
               onClick={onOpenReceiptModal}
               data-testid="dashboard-add-receipt"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand-primary)] hover:bg-[#17301b] dark:bg-[#2e5733] dark:hover:bg-[#3b6d41] text-white text-xs font-bold shadow-sm transition-all duration-120 active:scale-[0.975] focus-ring cursor-pointer min-h-[38px]"
             >
               <ArrowDownLeft className="w-4 h-4" />
               <span>{t.btn_add_receipt}</span>
@@ -230,7 +276,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <button
               onClick={onOpenPaymentModal}
               data-testid="dashboard-add-payment"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#b91c1c] hover:bg-[#991b1b] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] text-white text-xs font-bold shadow-sm transition-all duration-120 active:scale-[0.975] focus-ring cursor-pointer min-h-[38px]"
             >
               <ArrowUpRight className="w-4 h-4" />
               <span>{t.btn_add_payment}</span>
@@ -240,19 +286,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* 2. Filter Bar: Period buttons, date step, account selector */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm">
         {/* Segmented Period Switcher */}
-        <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl max-w-full">
+        <div className="flex flex-wrap items-center gap-1 bg-[var(--bg-surface-subtle)] p-1 rounded-xl max-w-full">
           <button
             onClick={() => {
               setPeriod('today');
               setReferenceDate(todayStr);
             }}
             data-testid="period-today"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
               period === 'today'
-                ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
             }`}
           >
             {t.period_today}
@@ -263,10 +309,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               setReferenceDate(todayStr);
             }}
             data-testid="period-month"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
               period === 'month'
-                ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
             }`}
           >
             {t.period_month}
@@ -277,10 +323,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               setReferenceDate(todayStr);
             }}
             data-testid="period-year"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
               period === 'year'
-                ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
             }`}
           >
             {t.period_year}
@@ -288,10 +334,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             onClick={() => setPeriod('custom')}
             data-testid="period-custom"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
               period === 'custom'
-                ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
-                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
             }`}
           >
             {t.period_custom}
@@ -300,20 +346,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Previous / Next period step controls (disabled in custom mode) */}
         {period !== 'custom' ? (
-          <div className="flex items-center gap-1 text-slate-600 dark:text-zinc-400">
+          <div className="flex items-center gap-1 text-[var(--text-muted)]">
             <button
               onClick={() => handleStepPeriod(-1)}
               aria-label="Previous period"
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-[var(--bg-surface-subtle)] active:scale-[0.975] transition-all focus-ring cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-xs font-medium px-2">{periodLabel}</span>
+            <span className="text-xs font-semibold px-2 text-[var(--text-main)]">{periodLabel}</span>
             <button
               onClick={() => handleStepPeriod(1)}
               aria-label="Next period"
               disabled={referenceDate >= todayStr && period === 'today'}
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-[var(--bg-surface-subtle)] active:scale-[0.975] disabled:opacity-30 transition-all focus-ring cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -325,15 +371,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               aria-label="Start date"
               value={customStartDate}
               onChange={(e) => setCustomStartDate(e.target.value)}
-              className="min-w-0 w-full px-2.5 py-1 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-zinc-200"
+              className="min-w-0 w-full px-2.5 py-1.5 text-xs border border-[var(--border-medium)] bg-[var(--bg-surface)] rounded-lg text-[var(--text-main)] focus-ring font-mono"
             />
-            <span className="hidden min-[400px]:inline text-xs text-slate-400">→</span>
+            <span className="hidden min-[400px]:inline text-xs text-[var(--text-muted)]">→</span>
             <input
               type="date"
               aria-label="End date"
               value={customEndDate}
               onChange={(e) => setCustomEndDate(e.target.value)}
-              className="min-w-0 w-full px-2.5 py-1 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-zinc-200"
+              className="min-w-0 w-full px-2.5 py-1.5 text-xs border border-[var(--border-medium)] bg-[var(--bg-surface)] rounded-lg text-[var(--text-main)] focus-ring font-mono"
             />
           </div>
         )}
@@ -344,7 +390,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             value={selectedAccountId}
             onChange={(e) => setSelectedAccountId(e.target.value)}
             aria-label="Filter Account"
-            className="flex-1 sm:flex-initial px-3 py-1.5 text-xs font-medium border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg text-slate-800 dark:text-zinc-200 focus:outline-none min-w-[120px] max-w-full"
+            className="flex-1 sm:flex-initial px-3 py-1.5 text-xs font-medium border border-[var(--border-medium)] bg-[var(--bg-surface)] rounded-lg text-[var(--text-main)] focus-ring min-w-[130px] max-w-full"
           >
             <option value="all">{t.all_accounts}</option>
             {accounts.map((acc) => (
@@ -355,28 +401,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </select>
 
           {/* Simple vs Detailed Analytics Mode */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg">
+          <div className="flex items-center gap-1 bg-[var(--bg-surface-subtle)] p-0.5 rounded-xl border border-[var(--border-subtle)]">
             <button
               onClick={() => setMode('simple')}
               data-testid="tab-simple"
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
                 mode === 'simple'
-                  ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-main)] font-bold shadow-xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)] font-medium'
               }`}
             >
-              {t.simple_view}
+              <List className="w-3.5 h-3.5" />
+              <span>{t.simple_view}</span>
             </button>
             <button
               onClick={() => setMode('analytics')}
               data-testid="tab-analytics"
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
                 mode === 'analytics'
-                  ? 'bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-main)] font-bold shadow-xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)] font-medium'
               }`}
             >
-              {t.analytics_view}
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>{t.analytics_view}</span>
             </button>
           </div>
         </div>
@@ -387,17 +435,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 1: Money Received */}
         <div
           data-testid="card-received"
-          className="p-3.5 sm:p-5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm flex flex-col justify-between"
+          className="p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-xs font-medium">
+          <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.money_received}</span>
-            <ArrowDownLeft className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <div className="w-7 h-7 rounded-lg bg-[#eef8f0] dark:bg-[#132a18] text-[#15803d] dark:text-[#22c55e] flex items-center justify-center shrink-0">
+              <ArrowDownLeft className="w-4 h-4" />
+            </div>
           </div>
           <div className="mt-3">
-            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-emerald-700 dark:text-emerald-400 tabular-nums">
+            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#15803d] dark:text-[#22c55e] tabular-nums font-mono">
               {currencySymbol} {formatMinorUnits(moneyReceivedMinor, currencyExponent)}
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
+            <p className="text-[11px] text-[var(--text-subtle)] mt-1 font-medium">
               {language === 'ml' ? 'വരവായി രേഖപ്പെടുത്തിയ തുക' : language === 'ar' ? 'إجمالي المقبوضات' : 'Total receipts in period'}
             </p>
           </div>
@@ -406,17 +456,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 2: Money Paid */}
         <div
           data-testid="card-paid"
-          className="p-3.5 sm:p-5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm flex flex-col justify-between"
+          className="p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-xs font-medium">
+          <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.money_paid}</span>
-            <ArrowUpRight className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+            <div className="w-7 h-7 rounded-lg bg-[#fef2f2] dark:bg-[#2d1414] text-[#b91c1c] dark:text-[#ef4444] flex items-center justify-center shrink-0">
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
           </div>
           <div className="mt-3">
-            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-rose-700 dark:text-rose-400 tabular-nums">
+            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#b91c1c] dark:text-[#ef4444] tabular-nums font-mono">
               {currencySymbol} {formatMinorUnits(moneyPaidMinor, currencyExponent)}
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
+            <p className="text-[11px] text-[var(--text-subtle)] mt-1 font-medium">
               {language === 'ml' ? 'ചെലവായി രേഖപ്പെടുത്തിയ തുക' : language === 'ar' ? 'إجمالي المدفوعات' : 'Total payments in period'}
             </p>
           </div>
@@ -425,28 +477,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 3: Net Cash Change */}
         <div
           data-testid="card-net"
-          className="p-3.5 sm:p-5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-sm flex flex-col justify-between"
+          className="p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-xs font-medium">
+          <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.net_change}</span>
-            {netCashChangeMinor >= 0 ? (
-              <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-            )}
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                netCashChangeMinor >= 0
+                  ? 'bg-[#eef8f0] dark:bg-[#132a18] text-[#15803d] dark:text-[#22c55e]'
+                  : 'bg-[#fef2f2] dark:bg-[#2d1414] text-[#b91c1c] dark:text-[#ef4444]'
+              }`}
+            >
+              {netCashChangeMinor >= 0 ? (
+                <TrendingUp className="w-4 h-4" />
+              ) : (
+                <TrendingDown className="w-4 h-4" />
+              )}
+            </div>
           </div>
           <div className="mt-3">
             <div
-              className={`text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight tabular-nums ${
+              className={`text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight tabular-nums font-mono ${
                 netCashChangeMinor >= 0
-                  ? 'text-slate-900 dark:text-zinc-100'
-                  : 'text-rose-700 dark:text-rose-400'
+                  ? 'text-[var(--text-main)]'
+                  : 'text-[#b91c1c] dark:text-[#ef4444]'
               }`}
             >
               {netCashChangeMinor < 0 ? '−' : '+'} {currencySymbol}{' '}
               {formatMinorUnits(Math.abs(netCashChangeMinor), currencyExponent)}
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">
+            <p className="text-[11px] text-[var(--text-subtle)] mt-1 font-medium">
               {language === 'ml' ? 'വരവ് − ചെലവ്' : language === 'ar' ? 'المقبوضات - المدفوعات' : 'Receipts − Payments'}
             </p>
           </div>
@@ -455,48 +515,67 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 4: Closing Balance (Featured Card matching mockup #ceeaa0) */}
         <div
           data-testid="card-closing"
-          className="p-3.5 sm:p-5 bg-[#ceeaa0] dark:bg-lime-950/60 text-[#223d18] dark:text-lime-200 border border-[#b8d98b] dark:border-lime-800/80 rounded-2xl shadow-sm flex flex-col justify-between"
+          className="p-3.5 sm:p-5 bg-[#ceeaa0] dark:bg-[#1e3518] border border-[#b8d98b] dark:border-[#2e5733] text-[#142811] dark:text-[#ceeaa0] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:shadow-md"
         >
-          <div className="flex items-center justify-between text-[#36532b] dark:text-lime-300 text-xs font-semibold">
+          <div className="flex items-center justify-between text-[#142811] dark:text-[#ceeaa0] text-xs font-bold uppercase tracking-wide">
             <span>{t.closing_balance}</span>
-            <Wallet className="w-4 h-4" />
+            <Wallet className="w-5 h-5 text-[#142811] dark:text-[#ceeaa0]" />
           </div>
           <div className="mt-3">
-            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#1b3213] dark:text-lime-100 tabular-nums">
+            <div className="text-xl md:text-2xl font-black [overflow-wrap:anywhere] tracking-tight text-[#142811] dark:text-[#f0f3ee] tabular-nums font-mono">
               {currencySymbol} {formatMinorUnits(closingBalanceMinor, currencyExponent)}
             </div>
-            <p className="text-[11px] text-[#36532b] dark:text-lime-400 mt-1 font-medium">
+            <p className="text-[11px] text-[#2d4926] dark:text-[#a8cb88] mt-1 font-medium">
               {language === 'ml' ? 'ഈ കാലയളവിന്റെ അവസാനം' : language === 'ar' ? 'الرصيد في نهاية الفترة' : 'At end of selected period'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* 4. Account Balances Row */}
-      <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-zinc-400 overflow-x-auto py-1 w-full max-w-full min-w-0">
-        <span className="font-semibold text-slate-700 dark:text-zinc-300 shrink-0">
+      {/* 4. Account Balances Strip with Guaranteed Date/Account Scope Consistency */}
+      <div className="flex items-center gap-2.5 text-xs text-[var(--text-muted)] overflow-x-auto py-1.5 w-full max-w-full min-w-0">
+        <span className="font-bold text-[var(--text-main)] shrink-0 flex items-center gap-1.5">
           {t.cash_breakdown}:
         </span>
-        {accounts.map((acc, idx) => (
-          <React.Fragment key={acc.id}>
-            {idx > 0 && <span>·</span>}
-            <span className="shrink-0">
-              {acc.account_name}:{' '}
-              <strong className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
-                {currencySymbol} {formatMinorUnits(acc.opening_balance_minor, currencyExponent)}
-              </strong>
-            </span>
-          </React.Fragment>
-        ))}
+        {activeAccounts.length > 0 ? (
+          activeAccounts.map((acc, idx) => {
+            const accClosingBal = accountBalancesMap.get(acc.id) ?? acc.current_balance_minor ?? acc.opening_balance_minor;
+            const isFiltered = selectedAccountId === acc.id;
+            return (
+              <React.Fragment key={acc.id}>
+                {idx > 0 && <span className="text-[var(--border-medium)]">·</span>}
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg shrink-0 border transition-colors ${
+                    isFiltered
+                      ? 'bg-[var(--brand-lime-muted)] border-[var(--border-focus)] dark:bg-[#1e3518] text-[var(--text-main)]'
+                      : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-muted)]'
+                  }`}
+                >
+                  <span className="font-medium">{acc.account_name}:</span>
+                  <strong className="text-[var(--text-main)] font-bold tabular-nums font-mono">
+                    {currencySymbol} {formatMinorUnits(accClosingBal, currencyExponent)}
+                  </strong>
+                  {isFiltered && (
+                    <span className="text-[10px] uppercase font-bold text-[var(--brand-primary)] dark:text-[var(--brand-lime)]">
+                      (active)
+                    </span>
+                  )}
+                </div>
+              </React.Fragment>
+            );
+          })
+        ) : (
+          <span className="text-[var(--text-subtle)]">No active accounts configured</span>
+        )}
       </div>
 
       {/* 5. View Mode: Simple View */}
       {mode === 'simple' && (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
           {/* Left Panel: Recent 5 Transactions */}
-          <div className="md:col-span-7 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm">
+          <div className="md:col-span-7 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+              <h2 className="text-base font-bold text-[var(--text-main)]">
                 {t.recent_transactions}
               </h2>
               {(onNavigateToReports || onNavigateToCashbook) && (
@@ -508,26 +587,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       onNavigateToCashbook();
                     }
                   }}
-                  className="text-xs font-semibold text-emerald-700 dark:text-lime-400 hover:underline"
+                  className="text-xs font-bold text-[var(--brand-primary)] dark:text-[var(--brand-lime)] hover:underline active:scale-[0.975] transition-all focus-ring cursor-pointer"
                 >
                   {t.view_all}
                 </button>
               )}
             </div>
 
-            <div className="divide-y divide-slate-100 dark:divide-zinc-800" data-testid="recent-transactions-list">
+            <div className="divide-y divide-[var(--border-subtle)]" data-testid="recent-transactions-list">
               {recentEntries.length > 0 ? (
                 recentEntries.map((entry) => {
                   const v = entry.voucher;
                   const isInflow = v.direction === 'inflow';
                   return (
-                    <div key={v.id} className="py-3 flex items-center justify-between gap-3">
+                    <div
+                      key={v.id}
+                      className="py-3 px-1.5 flex items-center justify-between gap-3 hover:bg-[var(--bg-surface-subtle)] rounded-xl transition-colors cursor-pointer"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                             isInflow
-                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'
+                              ? 'bg-[#eef8f0] dark:bg-[#132a18] text-[#15803d] dark:text-[#22c55e]'
+                              : 'bg-[#fef2f2] dark:bg-[#2d1414] text-[#b91c1c] dark:text-[#ef4444]'
                           }`}
                         >
                           {isInflow ? (
@@ -537,19 +619,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 truncate">
+                          <p className="text-xs font-bold text-[var(--text-main)] truncate">
                             {v.party_name_snap || (isInflow ? 'Cash Receipt' : 'Cash Payment')}
                           </p>
-                          <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                          <p className="text-[11px] text-[var(--text-muted)] truncate font-mono">
                             {v.voucher_number} · {v.payment_method} · {v.business_date}
                           </p>
                         </div>
                       </div>
                       <div
-                        className={`text-xs font-bold tabular-nums shrink-0 ${
+                        className={`text-xs font-bold tabular-nums font-mono shrink-0 ${
                           isInflow
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-rose-700 dark:text-rose-400'
+                            ? 'text-[#15803d] dark:text-[#22c55e]'
+                            : 'text-[#b91c1c] dark:text-[#ef4444]'
                         }`}
                       >
                         {isInflow ? '+' : '−'} {currencySymbol}{' '}
@@ -559,7 +641,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   );
                 })
               ) : (
-                <div className="py-8 text-center text-xs text-slate-400 dark:text-zinc-500">
+                <div className="py-8 text-center text-xs text-[var(--text-subtle)]">
                   {t.no_transactions_period}
                 </div>
               )}
@@ -567,12 +649,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Right Panel: Cash Movement Explanation & Shortcuts */}
-          <div className="md:col-span-5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div className="md:col-span-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-sm flex flex-col justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+              <h2 className="text-base font-bold text-[var(--text-main)]">
                 {t.cash_movement_explainer}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
                 {language === 'ml'
                   ? 'ഈ കാലയളവിലെ മാറ്റം എളുപ്പത്തിൽ'
                   : language === 'ar'
@@ -582,30 +664,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               {/* Math Equation Lines */}
               <div
-                className="mt-4 space-y-2 text-xs divide-y divide-slate-100 dark:divide-zinc-800"
+                className="mt-4 space-y-2 text-xs divide-y divide-[var(--border-subtle)]"
                 data-testid="cash-movement-explanation"
               >
-                <div className="flex justify-between items-center py-1.5 text-slate-600 dark:text-zinc-400">
-                  <span>{t.opening_balance}</span>
-                  <span className="font-semibold tabular-nums text-slate-800 dark:text-zinc-200">
+                <div className="flex justify-between items-center py-2 text-[var(--text-muted)]">
+                  <span className="font-medium">{t.opening_balance}</span>
+                  <span className="font-semibold tabular-nums font-mono text-[var(--text-main)]">
                     {currencySymbol} {formatMinorUnits(openingBalanceMinor, currencyExponent)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 text-emerald-700 dark:text-emerald-400">
-                  <span>＋ {t.money_received}</span>
-                  <span className="font-semibold tabular-nums">
+                <div className="flex justify-between items-center py-2 text-[#15803d] dark:text-[#22c55e]">
+                  <span className="font-medium">＋ {t.money_received}</span>
+                  <span className="font-semibold tabular-nums font-mono">
                     {currencySymbol} {formatMinorUnits(moneyReceivedMinor, currencyExponent)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 text-rose-700 dark:text-rose-400">
-                  <span>− {t.money_paid}</span>
-                  <span className="font-semibold tabular-nums">
+                <div className="flex justify-between items-center py-2 text-[#b91c1c] dark:text-[#ef4444]">
+                  <span className="font-medium">− {t.money_paid}</span>
+                  <span className="font-semibold tabular-nums font-mono">
                     {currencySymbol} {formatMinorUnits(moneyPaidMinor, currencyExponent)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pt-2 font-bold text-slate-900 dark:text-zinc-100">
-                  <span>＝ {t.closing_balance}</span>
-                  <span className="tabular-nums text-sm font-black">
+                <div className="flex justify-between items-center pt-2.5 font-bold text-[var(--text-main)]">
+                  <span className="font-bold">＝ {t.closing_balance}</span>
+                  <span className="tabular-nums font-mono text-sm font-black">
                     {currencySymbol} {formatMinorUnits(closingBalanceMinor, currencyExponent)}
                   </span>
                 </div>
@@ -613,10 +695,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Explanatory Footnote */}
-            <div className="mt-5 pt-4 border-t border-slate-100 dark:border-zinc-800">
+            <div className="mt-5 pt-4 border-t border-[var(--border-subtle)]">
               <p
                 data-testid="footnote-cash-flow"
-                className="text-[11px] leading-relaxed text-slate-500 dark:text-zinc-400"
+                className="text-[11px] leading-relaxed text-[var(--text-subtle)]"
               >
                 {t.cash_flow_notice}
               </p>
@@ -630,13 +712,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
             {/* Receipts vs Payments Bar Chart */}
-            <div className="md:col-span-7 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm">
+            <div className="md:col-span-7 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                  <h2 className="text-base font-bold text-[var(--text-main)]">
                     {t.inflows_outflows}
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  <p className="text-xs text-[var(--text-muted)]">
                     {language === 'ml'
                       ? 'തിരഞ്ഞെടുത്ത കാലയളവിലെ cash flow'
                       : language === 'ar'
@@ -644,53 +726,103 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       : 'Comparison of inflows and outflows'}
                   </p>
                 </div>
+                {selectedBarData && (
+                  <button
+                    onClick={() => setSelectedBarLabel(null)}
+                    className="text-[11px] text-[var(--brand-primary)] dark:text-[var(--brand-lime)] font-semibold hover:underline"
+                  >
+                    Clear selection
+                  </button>
+                )}
               </div>
 
-              {/* Bar Chart Bars */}
+              {/* Bar Chart Bars with Tap and Keyboard Accessibility */}
               <div
                 data-testid="analytics-bars-container"
-                className="mt-6 h-48 flex items-end justify-around gap-2 pb-6 border-b border-slate-200 dark:border-zinc-800 relative"
+                role="region"
+                aria-label="Cash flow bar chart"
+                className="mt-6 h-48 flex items-end justify-around gap-2 pb-6 border-b border-[var(--border-subtle)] relative"
               >
                 {barChartData.list.length > 0 ? (
                   barChartData.list.map((group) => {
-                    const inHeight = Math.max(2, (group.inflows / barChartData.peak) * 100);
-                    const outHeight = Math.max(2, (group.outflows / barChartData.peak) * 100);
+                    const inHeight = Math.max(3, (group.inflows / barChartData.peak) * 100);
+                    const outHeight = Math.max(3, (group.outflows / barChartData.peak) * 100);
+                    const isSelected = selectedBarLabel === group.label;
+                    const groupAria = `${group.label}: Inflows ${currencySymbol}${formatMinorUnits(group.inflows, currencyExponent)}, Outflows ${currencySymbol}${formatMinorUnits(group.outflows, currencyExponent)}`;
+
                     return (
                       <div
                         key={group.label}
-                        className="flex-1 max-w-[60px] h-full flex items-end justify-center gap-1 relative group"
+                        tabIndex={0}
+                        role="graphics-symbol"
+                        aria-label={groupAria}
+                        onClick={() => setSelectedBarLabel(isSelected ? null : group.label)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedBarLabel(isSelected ? null : group.label);
+                          }
+                        }}
+                        className={`flex-1 max-w-[64px] h-full flex items-end justify-center gap-1.5 relative group cursor-pointer focus:outline-none rounded-t-lg p-0.5 transition-all duration-120 ${
+                          isSelected ? 'bg-[var(--brand-lime-muted)] dark:bg-[#1e3518]' : 'hover:bg-[var(--bg-surface-subtle)]'
+                        }`}
                       >
+                        {/* Inflow Bar */}
                         <div
                           style={{ height: `${inHeight}%` }}
                           title={`${t.inflow_legend}: ${currencySymbol} ${formatMinorUnits(group.inflows, currencyExponent)}`}
-                          className="w-1/2 bg-emerald-600 hover:bg-emerald-500 rounded-t-md transition-all cursor-pointer"
+                          className="w-1/2 bg-[#15803d] hover:bg-[#16a34a] dark:bg-[#22c55e] dark:hover:bg-[#4ade80] rounded-t-[4px] transition-all"
                         />
+                        {/* Outflow Bar */}
                         <div
                           style={{ height: `${outHeight}%` }}
                           title={`${t.outflow_legend}: ${currencySymbol} ${formatMinorUnits(group.outflows, currencyExponent)}`}
-                          className="w-1/2 bg-rose-600 hover:bg-rose-500 rounded-t-md transition-all cursor-pointer"
+                          className="w-1/2 bg-[#b91c1c] hover:bg-[#dc2626] dark:bg-[#ef4444] dark:hover:bg-[#f87171] rounded-t-[4px] transition-all"
                         />
-                        <span className="absolute -bottom-5 text-[10px] text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                        <span className="absolute -bottom-5 text-[10px] text-[var(--text-subtle)] font-mono whitespace-nowrap">
                           {group.label}
                         </span>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
+                  <div className="w-full h-full flex items-center justify-center text-xs text-[var(--text-subtle)]">
                     {t.no_transactions_period}
                   </div>
                 )}
               </div>
 
+              {/* Accessible Selected Bar Details Callout (Touch & Keyboard Friendly) */}
+              {selectedBarData && (
+                <div className="mt-3 p-3 bg-[var(--brand-lime-muted)] dark:bg-[#1e3518] border border-[var(--border-subtle)] rounded-xl text-xs flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-bold text-[var(--text-main)]">
+                    {selectedBarData.label} ({selectedBarData.count} transactions):
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[#15803d] dark:text-[#22c55e] font-bold font-mono tabular-nums">
+                      + {currencySymbol} {formatMinorUnits(selectedBarData.inflows, currencyExponent)}
+                    </span>
+                    <span className="text-[#b91c1c] dark:text-[#ef4444] font-bold font-mono tabular-nums">
+                      − {currencySymbol} {formatMinorUnits(selectedBarData.outflows, currencyExponent)}
+                    </span>
+                    <span className="font-bold text-[var(--text-main)] font-mono tabular-nums">
+                      Net:{' '}
+                      {selectedBarData.inflows - selectedBarData.outflows >= 0 ? '+' : '−'}
+                      {currencySymbol}{' '}
+                      {formatMinorUnits(Math.abs(selectedBarData.inflows - selectedBarData.outflows), currencyExponent)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Legend */}
-              <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-zinc-400 mt-4">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm bg-emerald-600" />
+              <div className="flex items-center gap-5 text-xs text-[var(--text-muted)] mt-5">
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <span className="w-3 h-3 rounded-[3px] bg-[#15803d] dark:bg-[#22c55e]" />
                   {t.inflow_legend}
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm bg-rose-600" />
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <span className="w-3 h-3 rounded-[3px] bg-[#b91c1c] dark:bg-[#ef4444]" />
                   {t.outflow_legend}
                 </span>
               </div>
@@ -699,12 +831,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* Category Breakdown */}
             <div
               data-testid="analytics-category-breakdown"
-              className="md:col-span-5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-5 shadow-sm"
+              className="md:col-span-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-sm"
             >
-              <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+              <h2 className="text-base font-bold text-[var(--text-main)]">
                 {t.spending_by_category}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
                 {language === 'ml'
                   ? 'Category അനുസരിച്ചുള്ള തുക'
                   : language === 'ar'
@@ -717,23 +849,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   categoryBreakdown.map((cat) => (
                     <div key={cat.name} className="space-y-1">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                        <span className="font-semibold text-[var(--text-main)] truncate max-w-[180px]">
                           {cat.name}
                         </span>
-                        <span className="text-slate-600 dark:text-zinc-400 tabular-nums">
+                        <span className="text-[var(--text-muted)] tabular-nums font-mono">
                           {currencySymbol} {formatMinorUnits(cat.amount, currencyExponent)} ({cat.percentage}%)
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-[var(--bg-surface-subtle)] rounded-full overflow-hidden">
                         <div
                           style={{ width: `${cat.percentage}%` }}
-                          className="h-full bg-rose-500 rounded-full"
+                          className="h-full bg-[#b91c1c] dark:bg-[#ef4444] rounded-full transition-all"
                         />
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="py-8 text-center text-xs text-slate-400">
+                  <div className="py-8 text-center text-xs text-[var(--text-subtle)]">
                     {language === 'ml' ? 'ചെലവുകളില്ല' : language === 'ar' ? 'لا توجد مصروفات' : 'No expenses in this period'}
                   </div>
                 )}
@@ -742,8 +874,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Helper Callout */}
-          <div className="p-3.5 bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-800 rounded-xl text-xs text-slate-600 dark:text-zinc-400">
-            {t.analytics_helper_notice}
+          <div className="p-4 bg-[var(--bg-surface-subtle)] border border-[var(--border-subtle)] rounded-xl text-xs text-[var(--text-muted)] flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-[var(--brand-primary)] dark:text-[var(--brand-lime)] shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              {t.analytics_helper_notice}
+            </div>
           </div>
         </div>
       )}
