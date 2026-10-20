@@ -2,6 +2,18 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Linux desktop UI-1 rebuild — 2026-10-20, 10:49 IST
+
+Rebuilt the existing standalone executable from verified UI-1 source `ea854d8d47c953376f9ca07028966648f9a662a1`. No application source or version change was required.
+
+- `npm run tauri build -- --no-bundle`: passed; TypeScript/Vite passed and optimized Rust build completed. Existing chunk-size/static-dynamic import warnings remain.
+- Executable: `src-tauri/target/release/billzen`, v0.1.2, 20,661,096 bytes.
+- SHA-256: `cf0b9085fcf439475ed1053a22e386209a737eabbd5c058af204929ff27d9187`.
+- Native isolated-database verification: **42/42 assertions across 14 steps passed**. Three additional build-specific checks confirmed the `Offline Business Suite` header, Precision Ledger active navigation colors and semantic canvas token inside the actual native executable.
+- Receipt/payment creation, negative-balance confirmation, reversal, light/dark print-preview visibility, cold restart, idempotency/conflict rejection and unchanged real-business-database fingerprints passed.
+- Build receipt and temporary verification runner are under ignored `test_artifacts/native_ui1_rebuild/`; the native result is under ignored `test_artifacts/native_cashbook/`.
+- This updates the loose Linux executable only. Android APKs, AppImage/deb installers and live GitHub release assets were not rebuilt or published. UI-2 Dashboard redesign is not part of this build. Physical printing was not exercised.
+
 ## Responsive correction — fresh local verification, 2026-10-20
 
 The responsive UI was audited against baseline `a31b95c` and corrected in the shared React source. See [responsive-layout-audit.md](responsive-layout-audit.md) for reproduced defects and [antigravity-next-task.md](antigravity-next-task.md) for packaging handoff.
