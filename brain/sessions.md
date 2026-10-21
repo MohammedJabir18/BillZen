@@ -1451,3 +1451,14 @@
 - Verified: 72 frontend tests; 14 header/Settings assertions; 68 populated Reports/filter/CSV/date-validation/A4 PDF checks; 906 layout states; 104 theme states; 6 responsive viewports; Dashboard25 assertions; catalog localization; onboarding; 4 invoice PDFs. Relevant harnesses now navigate through Settings and wait for it to render. PDF checks tolerate normal sub-point rounding and verify wrapped category-name words, not artificial single-line text.
 - UI code/docs/tests are ready for owner-authorized main delivery. Linux rebuild is intentionally combined with the upcoming versioned Android packaging stage. No live release published.
 - Android preparation: original signing access recovered from owner-provided build logs and validated without disclosing/storing credentials in Git. Dedicated billzen_test_avd booted; snapshot/upgrade harness being prepared. Existing test installation is versionCode1006. No uninstall or data clearing.
+
+
+### 2026-10-21 — Complete UI-4 Android/Linux candidate acceptance
+
+- Resumed owner-authorized Reports/APK work after an approval-service usage-limit interruption. UI-4 source commit `2484a89` is on origin/main and GitHub CI39388863149 succeeded.
+- Built version0.1.3/code1008 ARM64 distribution APK and x86_64 automation APK on October20 with original signing identity and existing update public pin. Linux standalone executable also rebuilt. Signing inputs remain outside Git; temporary credential file was removed. No new signing identity or live GitHub release.
+- Preserved dedicated Android AVD baseline (code1006, five synthetic vouchers, one account/product/customer); installed code1008 in place. Added bounded progress diagnostics to the test harness; final22 Android checks passed, including state comparison, Settings Malayalam/Arabic, responsive Reports and cold-restart preservation. No uninstall or data clearing. ARM64 physical device and new end-to-end signed-feed installer handoff remain unverified.
+- Final Linux39 native checks, frontend72 tests, release-contract3 files and version monotonicity guard passed. Independent signed-manifest verification matches ARM64 hash/size/version. Detailed artifacts/hashes: `docs/android-v0.1.3-candidate.md`.
+- Files changed: seven version metadata/lock/config files, new `scripts/verify_android_candidate.js`, candidate delivery notes, verification status and second-brain architecture/session notes. APKs, local manifest, screenshots, baseline and generated graph remain ignored.
+- Mandatory Graphify semantic/Obsidian refresh blocked by absent semantic key; AST-only fallback1466nodes/3055edges succeeded; SQL parser unavailable. Full semantic/vault sync is not claimed.
+- Next: physical ARM64 smoke acceptance and publish a verified release/manifest when explicitly requested. Source push does not publish an app update. Continue remaining approved UI migrations separately.

@@ -500,3 +500,8 @@ See `docs/design/cashbook-ui3.md` and the verification record. Android distribut
 The shared App header no longer renders a language selector or platform/framework badge, and the diagnostic footer/backend ping polling are removed. Settings owns the language control through the same App callback/localStorage preference; document language/direction update with the preference. Initial setup still offers language selection. Financial locale, currency and timezone remain separate.
 
 Reports use the approved semantic tokens, accessible named/touch-sized filters, wrapping monetary summaries and a labelled narrow-screen table scroll region. Invalid/read-pending/read-failed ranges show unavailable values; CSV/print wait for the ledger and category/account lookups. Category filters now use IDs, and optional category-name maps feed CSV and printable report presentation without changing monetary values or formula protection. Full-period statement totals remain independent of matching transaction totals. Arabic period labels explicitly use Gregorian dates matching the ledger.
+
+
+### UI-4 distribution candidate (2026-10-21)
+
+Version 0.1.3 / Android code1008 aligns package, Cargo, Tauri, release metadata and Gradle fallback. Shared UI language is a Settings-only persisted device preference; onboarding retains language selection. Reports migration does not change storage/domain contracts. Original APK signer and Android manifest public pin are retained. The local ARM64 distribution APK disables debug WebView; the separate x86_64 test APK enables it for automation. Release publication remains a separate delivery action. Candidate paths/hashes and actual verification scope are in `docs/android-v0.1.3-candidate.md`.

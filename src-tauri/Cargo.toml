@@ -1,6 +1,6 @@
 [package]
 name = "billzen"
-version = "0.1.2"
+version = "0.1.3"
 default-run = "billzen"
 description = "Offline-first desktop billing and inventory management"
 authors = ["BillZen Team"]
