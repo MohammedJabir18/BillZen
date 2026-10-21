@@ -224,3 +224,14 @@ Final acceptance after shortcut/error-feedback corrections:
 The previous UI-3 commit's GitHub CI succeeded. UI-4 removes language/platform controls from the shared header and the implementation-diagnostic footer. Language is now changed in Settings and persists through the existing device preference. Reports use the approved semantic design, named controls, readable narrow/RTL amounts, honest loading/error/date validation, correct category identity and human-readable category names in screen/CSV/PDF output. See [UI-4 design evidence](design/reports-ui4.md).
 
 Observed local verification: 72 frontend tests, 14 Settings/header assertions, 68 Reports assertions (including filtered CSV, invalid ranges and genuine A4 PDF/category-name extraction), 906 layout states, 104 theme checks, 6 responsive viewports, Dashboard25 assertions, catalog localization, onboarding and all four invoice PDF scenarios passed. No physical printer was invoked. Readiness regression verifies a ready ledger cannot export until category names resolve. Native Linux and Android packaging/acceptance follow in the next section; this UI section alone does not certify native Android.
+
+
+## 2026-10-21 — Versioned UI-4 Android/Linux candidate
+
+UI-4 commit `2484a89caf12a133cd534e74d9180194dd2a0fde` matches origin/main; [CI 39388863149](https://github.com/MohammedJabir18/BillZen/actions/runs/39388863149) succeeded. Version metadata now aligns at 0.1.3/code1008, above distributed code1007.
+
+Final acceptance: frontend72 tests, release-contract3 files, Android22 assertions (code1006 →1008 data comparison, Settings language, responsive Arabic Reports, cold restart), Linux39 native assertions. All passed. Native tests use isolated synthetic data; no uninstall/data clear or real-business-data mutation. The first Android automation run stalled after a session interruption; a bounded progress-reporting rerun completed. Saved test baseline was preserved.
+
+See [candidate identity, hashes and scope](android-v0.1.3-candidate.md). ARM64 distribution is signed by the original certificate, retains the updater public pin and disables WebView debugging. APK hash/size and signed Ed25519 metadata were independently matched. No public release, tag or installer upload was performed; source CI alone does not distribute updates. Physical ARM64 and a new signed-feed installer handoff remain unverified in this section.
+
+Graphify semantic/Obsidian refresh was attempted but requires an unavailable semantic API key. Code-only fallback succeeded: 1,466 nodes /3,055 edges, 112 communities. SQL extraction remains unavailable (`tree_sitter_sql` missing). This is not a full semantic/vault refresh.
