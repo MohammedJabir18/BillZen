@@ -235,3 +235,12 @@ Final acceptance: frontend72 tests, release-contract3 files, Android22 assertion
 See [candidate identity, hashes and scope](android-v0.1.3-candidate.md). ARM64 distribution is signed by the original certificate, retains the updater public pin and disables WebView debugging. APK hash/size and signed Ed25519 metadata were independently matched. No public release, tag or installer upload was performed; source CI alone does not distribute updates. Physical ARM64 and a new signed-feed installer handoff remain unverified in this section.
 
 Graphify semantic/Obsidian refresh was attempted but requires an unavailable semantic API key. Code-only fallback succeeded: 1,466 nodes /3,055 edges, 112 communities. SQL extraction remains unavailable (`tree_sitter_sql` missing). This is not a full semantic/vault refresh.
+
+
+## 2026-10-21 — Owner-authorized Android release published
+
+Published [v0.1.3](https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.3) as the latest non-draft/non-prerelease release at 16:22:07 UTC (21:52:07 IST), targeting `99239635db043b0d2bf239461306a5ff4770eb02`. That source commit's CI39631174172 succeeded. Remote v0.1.3 tag matches it.
+
+Uploaded only ARM64 distribution APK, `android-update.json` and `SHA256SUMS.txt`; no automation APK, keys, database or business records. GitHub asset digests matched local files before publication. After publication, unauthenticated HTTPS downloads from the exact app latest-feed URL and signed APK URL succeeded. The downloaded manifest's Ed25519 signature verified against the app public pin; its package/channel/code1008, APK size/hash and byte-for-byte equality with the local signed candidate passed.
+
+Release notes: `docs/releases/v0.1.3.md`. This verifies public distribution bytes, not a new on-device installer handoff or physical ARM64 acceptance. Desktop updater metadata/installers are not published by this Android release. Future source pushes alone still do not distribute signed updates.

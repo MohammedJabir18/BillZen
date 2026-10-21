@@ -1462,3 +1462,13 @@
 - Files changed: seven version metadata/lock/config files, new `scripts/verify_android_candidate.js`, candidate delivery notes, verification status and second-brain architecture/session notes. APKs, local manifest, screenshots, baseline and generated graph remain ignored.
 - Mandatory Graphify semantic/Obsidian refresh blocked by absent semantic key; AST-only fallback1466nodes/3055edges succeeded; SQL parser unavailable. Full semantic/vault sync is not claimed.
 - Next: physical ARM64 smoke acceptance and publish a verified release/manifest when explicitly requested. Source push does not publish an app update. Continue remaining approved UI migrations separately.
+
+
+### 2026-10-21 — Publish Android v0.1.3 on explicit owner request
+
+- Owner instructed publication of the prepared release. Confirmed public original repository, no existing release/tag conflict and successful source CI39631174172.
+- Created draft with signed ARM64 distribution APK, signed Android manifest and checksums; verified GitHub asset sizes/digests, then published latest v0.1.3 targeting9923963. Remote tag matches the verified source commit.
+- Downloaded the exact unauthenticated latest manifest feed and APK; signature, package/channel/versionCode1008, size/hash and byte equality all passed. Release URL: https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.3 . No test APK/private signing inputs/business records published.
+- Added `docs/releases/v0.1.3.md`, updated candidate delivery status and verification evidence. Desktop installers/updater metadata are outside this Android release; physical ARM64 and fresh on-device installer handoff remain pending.
+- Graphify semantic/Obsidian refresh again requires the unavailable API key; code-only fallback succeeded (1466nodes/3055edges). Full semantic refresh and SQL extraction are not claimed.
+- Next: future releases need higher versionCode and same signing identities; source push alone is not app distribution. Continue remaining UI work separately.

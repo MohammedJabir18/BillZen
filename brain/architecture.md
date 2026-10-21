@@ -505,3 +505,8 @@ Reports use the approved semantic tokens, accessible named/touch-sized filters, 
 ### UI-4 distribution candidate (2026-10-21)
 
 Version 0.1.3 / Android code1008 aligns package, Cargo, Tauri, release metadata and Gradle fallback. Shared UI language is a Settings-only persisted device preference; onboarding retains language selection. Reports migration does not change storage/domain contracts. Original APK signer and Android manifest public pin are retained. The local ARM64 distribution APK disables debug WebView; the separate x86_64 test APK enables it for automation. Release publication remains a separate delivery action. Candidate paths/hashes and actual verification scope are in `docs/android-v0.1.3-candidate.md`.
+
+
+### Android release feed live (2026-10-21)
+
+Owner-authorized v0.1.3 publishes the ARM64 APK, signed Android manifest and checksums on the original public repository. `releases/latest/download/android-update.json` now serves the verified code1008 manifest. Public download bytes/signature were verified; future releases require higher codes and unchanged APK/manifest signing identities. This release contains no desktop updater metadata. Publication evidence: `docs/verification-status.md`.

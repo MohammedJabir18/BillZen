@@ -16,7 +16,7 @@ This candidate includes the Precision Ledger Dashboard/Cashbook/Reports work, Se
 
 Install the signed ARM64 APK over the previous BillZen installation. Preserve the package/signing identity; do not uninstall or clear storage to update. Android may require permission to install an APK and user confirmation.
 
-The updater-enabled APK checks the existing BillZen GitHub release feed. A source push runs CI; it does not itself publish an app update. Future higher-code releases need the verified APK and signed `android-update.json` published under the original public BillZen repository. A prepared local candidate/manifest is not a live update feed. No live release is published by this build task.
+The updater-enabled APK checks the existing BillZen GitHub release feed. A source push runs CI; it does not itself publish an app update. Future higher-code releases need the verified APK and signed `android-update.json` published under the original public BillZen repository. The candidate was published on October 21, 2026 after explicit owner authorization: [v0.1.3 release](https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.3). Android ARM64 APK, signed manifest and checksums are public. The unauthenticated latest update feed and APK were downloaded and verified after publication. Desktop updater artifacts are not included.
 
 ## Verification scope
 
@@ -31,7 +31,7 @@ Static packaging checks cover certificate, version/package, ABI, 16KB zip/ELF al
 - ARM64 APK: **20,544,136 bytes**, SHA-256 `5bc9716964545174155b63097bf5f988a3d5f4c321adacfa9f2e91bed3dd21dd`.
 - Automation-only x86_64 APK SHA-256: `429ff5b42b7ff1bf84411cb8b50479badfa16831ce15075178ea2752ee168636`.
 - Linux executable: `src-tauri/target/release/billzen`, **20,671,560 bytes**, SHA-256 `0ba1ff05cb027e9d938d12bca06ec41c569b64e27e81dc67f62aec86088685af`.
-- Local release candidate files: `dist-android/v0.1.3/manifest-payload.json` and `android-update.json`. The Ed25519 envelope verifies against the existing app public pin; APK hash, size and versionCode match. The asset URL is a future release location, not evidence of publication.
+- Local release candidate files: `dist-android/v0.1.3/manifest-payload.json` and `android-update.json`. The Ed25519 envelope verifies against the existing app public pin; APK hash, size and versionCode match. The asset URL became live when the owner-authorized release was published; downloaded bytes match this candidate.
 - Evidence: ignored `test_artifacts/android_candidate/report.json`, `reports-arabic.png` and `before.json`; `scripts/verify_android_candidate.js` captures a baseline before installing the candidate and verifies it afterwards. Use a populated dedicated `billzen_test_avd`; capture each baseline once, before upgrade. Verification intentionally changes only test-device language to Arabic.
 - This run does **not** establish physical ARM64 handset compatibility, a fresh end-to-end signed-feed download/Android installer handoff, physical printing, or Windows/macOS/iOS native acceptance. Historical updater tests are not presented as newly rerun.
 - Distribution APK has WebView debugging disabled. Build emitted existing Gradle DSL/NDK-selection warnings; packaging and 16KB checks succeeded. No replacement signing key was created.
