@@ -540,3 +540,7 @@ Central metadata is0.1.4/Android1009 with the original package, APK certificate 
 GSAP owns summary/screen translation/opacity and chart scale; animated bars/cards use color-only CSS transitions. Bar origin is set to 50% 100% before scale writes, with simultaneous 420ms baseline growth. `useEntryMotion` gates on initial data readiness and remembers entered DOM nodes with a WeakSet so ordinary refetch/filter changes do not replay entrances. Chart group-label identity detects newly mounted groups. Live reduced motion settles without replay; input modality is shared with navigation/panels.
 
 Reports, Products, Customers and Settings animate explicitly marked content sections (260ms,35ms stagger,10px/0.85 opacity). Fixed dialog/printing ancestors are excluded. Product/customer modals reuse `usePanelMotion`; dismissal remains immediate. Settled layout/contrast audits also await these targets. No domain/schema/updater/version contract changes.
+
+### Chart period replay (2026-10-22)
+
+Chart entries intentionally replay the complete series on a selected period/date/account or group-identity change, including keyed DOM bars retained between Today and Month. Chart dependencies include mode, period, resolved date bounds, account and group labels, plus data readiness. `useEntryMotion`'s per-node entrance memory applies to ordinary cards/sections; bars animate as one dataset. Scoped cleanup cancels replaced growth and live preference changes settle without replay. Same-dataset background refetches do not restart the entrance.

@@ -2,6 +2,12 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Period-switch chart replay correction — 2026-10-22
+
+- Retained Today/Month bars previously skipped entry through per-node memory and label-only dependencies. Chart series now replay together on selected period/date/account/group changes, while cards retain non-replaying behavior. Async readiness, zero-valued heights, bottom origin and reduced-motion settling are preserved.
+- Test-first regression reproduced min scale1 for a retained small bar. Final23/23 motion scenarios include24 directed period transitions across desktop/mobile, cold/cached data, all positive bar scales from0 through intermediate values to1, rapid switching and live reduced-motion cancellation/no preference replay. Calendar-independent fixture preserves Date.now progression and native RAF/timers. Unit72, build and39 isolated native assertions passed; known build warnings remain. Independent review found no remaining source issue.
+- Rebuilt standalone and existing Linux installation SHA256:`190d26b1793e288f7e7b322a4e3d444f2bb271b6792e220dbe4780f570a94834`. Previous executable backed up; business records untouched. Reopen app to load it. Existing APK/Windows/deb/AppImage candidates and public update feed were not rebuilt/promoted for this correction.
+
 ## Chart/screen motion continuity — 2026-10-22
 
 - Reproduced overlapping animation ownership: browser traces showed inline bar scale0 while computed scale remained1 with CSS transition-all; origin initially sat at half height. Removed transform/height CSS interpolation, fixed bottom origin before scaling and removed per-bar delay. Summary/data entrances do not replay during routine filters/refetches; new chart groups remain eligible for entry.

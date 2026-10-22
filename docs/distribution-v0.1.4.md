@@ -1,5 +1,8 @@
 # BillZen v0.1.4 distribution candidates
 
+> Latest local period-replay correction (2026-10-22): standalone and installed Linux executable SHA256 is now `190d26b1793e288f7e7b322a4e3d444f2bb271b6792e220dbe4780f570a94834`, verified with39 isolated native assertions. This supersedes the standalone hash in the earlier note below. Packaged installers/APK remain the historical candidates listed here.
+
+
 > Later local motion correction (2026-10-22): the standalone `src-tauri/target/release/billzen` and existing per-user installed executable were rebuilt after these candidates. Their current SHA256 is `edb5c7e3be5b7fbd0884d69b7360b18bd313d4864f4d1802583aad12ddc3966a`;39 isolated native assertions passed. The archived Linux installers, Windows setup and APK below retain their original bytes and do **not** contain this later chart/screen correction. No release/feed promotion was performed.
 
 

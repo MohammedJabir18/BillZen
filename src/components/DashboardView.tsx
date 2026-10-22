@@ -246,7 +246,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [entries, period]);
 
   useEntryMotion(containerRef, '.summary-card', [mode, Boolean(ledgerData)], 'cards', Boolean(ledgerData));
-  useEntryMotion(chartRef, '.analytics-bar', [mode, barChartData.list.map(group => group.label).join('|')], 'bars', Boolean(ledgerData));
+  useEntryMotion(chartRef, '.analytics-bar', [mode, period, startDate, endDate, selectedAccountId, barChartData.list.map(group => group.label).join('|')], 'bars', Boolean(ledgerData));
 
   const selectedBarData = useMemo(() => {
     if (!selectedBarLabel) return null;

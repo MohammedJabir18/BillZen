@@ -17,11 +17,13 @@ export function useEntryMotion(
   useGSAP(() => {
     const nodes = scope.current?.querySelectorAll<HTMLElement>(selector);
     if (!ready || !nodes?.length) return;
-    const fresh = Array.from(nodes).filter(node => !seen.current.has(node));
+    // Chart dependencies describe a new selected dataset: replay the whole
+    // series, including keyed bars React retained from the previous period.
+    const fresh = Array.from(nodes).filter(node => kind === 'bars' || !seen.current.has(node));
     const final = kind === 'bars' ? { scaleY: 1 } : { y: 0, opacity: 1 };
     // Set the origin before the first scale write; it must never interpolate.
     if (kind === 'bars') gsap.set(nodes, { transformOrigin: '50% 100%' });
-    gsap.set(Array.from(nodes).filter(node => seen.current.has(node)), final);
+    if (kind !== 'bars') gsap.set(Array.from(nodes).filter(node => seen.current.has(node)), final);
     let entered = false;
     const keyboard = input.keyboard;
     const media = gsap.matchMedia();
