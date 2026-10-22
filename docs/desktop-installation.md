@@ -27,8 +27,24 @@ No business database, private key or credential is included in these installer a
 
 - [Windows Installer run39775472312](https://github.com/MohammedJabir18/BillZen/actions/runs/39775472312) succeeded in8m36s, including frontend tests and NSIS packaging.
 - Source commit: `3429893be3cf5fdfca353b48eed682b3927cc67d` (includes Print Probe removal).
-- Downloaded local installer: `dist-desktop/windows/v0.1.3/BillZen_0.1.3_x64-setup.exe`.
+- Original candidate (now archived): `dist-desktop/windows/v0.1.3-before-icon-fix/BillZen_0.1.3_x64-setup.exe`. The normal v0.1.3 path now contains the corrected branded build described below.
 - Exact size: **5,363,984 bytes**; SHA-256 `94143328dacab8e90fa6d95e7865ebe92a779dc4f945cad1cdd3f16d26fdf5db`.
 - Local file's checksum, size, PE header and source provenance match the successful runner artifact. NSIS uses a32-bit installer bootstrap executable for the x64 application payload; the setup file itself is not a raw64-bit app executable.
 - This is an unsigned Windows beta candidate. No physical Windows runtime or printer test has been claimed. No Windows asset was added to the Android GitHub release, and no desktop updater feed was configured.
 - The hosted workflow emits a non-fatal action Node20 deprecation warning (runner executes those actions under Node24); this did not fail the build. Node22 remains the selected application build toolchain.
+
+## Linux menu icon repair
+
+The October22 user-local launcher now uses the absolute icon path `~/.local/share/icons/hicolor/128x128/apps/billzen.png` expanded to the user's real home directory in its `Icon=` entry. The previous name-only entry failed GTK theme lookup because the user hicolor theme was missing its index. A standard hicolor index was installed and its cache refreshed; both Gio's file icon and GTK's named-icon lookup now resolve the canonical BillZen PNG. This changes launcher metadata, not business records or the app database.
+
+For Windows, the NSIS installer/uninstaller icons are explicitly configured to use `src-tauri/icons/icon.ico`. The workflow checks actual application and setup PE icon resources against every canonical ICO frame before uploading the installer. Installer hash/provenance verification alone does not establish correct branding.
+
+
+## Current icon-corrected Windows candidate — 2026-10-22
+
+- [Windows run39778796695](https://github.com/MohammedJabir18/BillZen/actions/runs/39778796695) succeeded (2m43s), source `6abdf931bc56a1f6b1b45ea4ee3a395bcb02fdf3`.
+- **Send `dist-desktop/windows/v0.1.3/BillZen_0.1.3_x64-setup.exe`**. This previously shared path now contains the corrected installer. Identical verified build is retained in `v0.1.3-icon-fix`; the old file is archived in `v0.1.3-before-icon-fix`.
+- Size **5,348,901 bytes**; SHA-256 `6ab698cdbe9ba66282e0c6445e34b228ccdde246059817027a9a6fdb7833a67a`.
+- Hosted verification compared actual PE icon resources in both `billzen.exe` and the setup executable with the canonical BillZen ICO at16/24/32/48/64/256px. All six frames matched in each executable. Downloaded setup independently passed the same resource check locally; checksum/size/source/iconVerified metadata matched.
+- `icon-verification.json` accompanies the workflow artifact. The older installer fails this check, establishing a real regression reproduction. Installer/uninstaller use the same configured icon asset. This does not claim Windows shell/physical runtime acceptance or Authenticode signing.
+- No business data, new Android release, desktop updater feed or public Windows release was changed by this icon correction.

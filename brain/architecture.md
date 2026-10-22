@@ -517,3 +517,8 @@ Owner-authorized v0.1.3 publishes the ARM64 APK, signed Android manifest and che
 ### Desktop installer delivery (2026-10-22)
 
 Linux per-user installation copies the verified native executable into `~/.local/opt/billzen` with an application-menu launcher; existing `~/.local/share/billzen` data stays in place. Manual `.github/workflows/windows-installer.yml` builds on hosted Windows x64 via Tauri NSIS, records source/hash/size and retains installer artifacts14days. Successful packaging does not establish physical runtime acceptance. This unsigned candidate does not configure desktop automatic updates or publish a Windows release. Delivery identity is documented in `docs/desktop-installation.md`.
+
+
+### Desktop icon identity (2026-10-22)
+
+Installed Linux launcher uses an absolute canonical PNG path; the user hicolor theme index/cache also resolves the named icon. Windows NSIS installer and uninstaller explicitly use `icons/icon.ico`, matching the app bundle. `scripts/verify_windows_icons.py` compares real PE group/image resources against every canonical ICO frame; Windows artifact upload requires app/setup matches and includes `icon-verification.json`. This is artifact branding verification, not physical shell/runtime certification. Corrected candidate identity: `docs/desktop-installation.md`.

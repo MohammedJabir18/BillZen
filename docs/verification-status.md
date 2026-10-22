@@ -266,3 +266,14 @@ New manual Windows workflow source commit3429893 pushed/confirmed on origin. [Ru
 Packaging success is distinct from Windows runtime acceptance. Installer is not code-signed; no physical Windows app/printing check or desktop automatic updater setup is claimed. No public Windows release asset published. Hosted run's Node20-action deprecation warning is non-fatal; actions ran under Node24. See `docs/desktop-installation.md` for user instructions and limitations.
 
 Source CI39775452548 for3429893 completed successfully.
+
+
+## 2026-10-22 — Desktop branding correction
+
+Linux GTK icon lookup reproducedNOT FOUND for the name-only launcher. Canonical PNG was correct. Installed launcher now uses an absolute icon path; added missing user hicolor index and refreshed cache. Gio loads the file icon, GTK resolves the named icon, desktop validation passes and installed PNG digest matches source. This proves icon resolution rather than a captured GNOME screenshot; reopening the applications menu may be required for its cached view.
+
+Original Windows setup failed a new real PE resource comparison. Configured NSIS installer/uninstaller icons explicitly, added a package-free resource verifier and gated workflow upload on matching app/setup icon frames. Tauri config validates against installed JSON schema; Python/YAML/whitespace checks passed. Independent static review found no important issue.
+
+[Windows run39778796695](https://github.com/MohammedJabir18/BillZen/actions/runs/39778796695), source6abdf93, succeeded including frontend tests and all6 canonical icon-frame matches in both application and setup PE resources. Downloaded installer independently passes the same comparison locally. Its source, size5,348,901bytes, SHA2566ab698cdbe9ba66282e0c6445e34b228ccdde246059817027a9a6fdb7833a67a and iconVerified metadata match. The previously shared local `dist-desktop/windows/v0.1.3` path is refreshed; original installer archived under `v0.1.3-before-icon-fix`.
+
+No physical Windows shell/runtime or printer acceptance claimed. Still unsigned; no public Windows/Android release changed, no signing identity or data mutation. Linux installed executable itself is unchanged; correction is desktop icon metadata/cache.
