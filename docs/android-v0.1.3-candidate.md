@@ -1,5 +1,7 @@
 # BillZen 0.1.3 Android candidate
 
+This records the published v0.1.3 release. For the newer local v0.1.4 build candidate, see [distribution verification](distribution-v0.1.4.md); local builds do not change the public update feed.
+
 Version: **0.1.3 / Android versionCode 1008** (strictly above the previous distributed code 1007).
 
 This candidate includes the Precision Ledger Dashboard/Cashbook/Reports work, Settings-only language selection, removal of shell platform/framework/diagnostic labels, corrected Reports category filtering and readable category names in CSV/PDF exports. Company records stay on the device.

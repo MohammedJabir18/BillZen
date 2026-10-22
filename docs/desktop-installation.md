@@ -1,5 +1,7 @@
 # BillZen desktop installation
 
+**Latest verified local build candidates: v0.1.4.** See [distribution files and checksums](distribution-v0.1.4.md). Windows friend file: `dist-desktop/windows/v0.1.4/BillZen_0.1.4_x64-setup.exe`. Linux per-user installation has been refreshed to this build. These candidates have not been promoted to a public release.
+
 ## Linux — installed for this user
 
 The current verified build is installed at `~/.local/opt/billzen/billzen`; its launcher is `~/.local/share/applications/billzen.desktop`. Search **BillZen** in the applications menu. No administrator password is needed for this user-local installation.
@@ -40,10 +42,10 @@ The October22 user-local launcher now uses the absolute icon path `~/.local/shar
 For Windows, the NSIS installer/uninstaller icons are explicitly configured to use `src-tauri/icons/icon.ico`. The workflow checks actual application and setup PE icon resources against every canonical ICO frame before uploading the installer. Installer hash/provenance verification alone does not establish correct branding.
 
 
-## Current icon-corrected Windows candidate — 2026-10-22
+## Historical icon-corrected Windows v0.1.3 candidate — 2026-10-22
 
 - [Windows run39778796695](https://github.com/MohammedJabir18/BillZen/actions/runs/39778796695) succeeded (2m43s), source `6abdf931bc56a1f6b1b45ea4ee3a395bcb02fdf3`.
-- **Send `dist-desktop/windows/v0.1.3/BillZen_0.1.3_x64-setup.exe`**. This previously shared path now contains the corrected installer. Identical verified build is retained in `v0.1.3-icon-fix`; the old file is archived in `v0.1.3-before-icon-fix`.
+- Historical file: `dist-desktop/windows/v0.1.3/BillZen_0.1.3_x64-setup.exe`. Use the v0.1.4 candidate linked above for the newer motion work. Identical v0.1.3 icon-corrected build is retained in `v0.1.3-icon-fix`; the older file is archived in `v0.1.3-before-icon-fix`.
 - Size **5,348,901 bytes**; SHA-256 `6ab698cdbe9ba66282e0c6445e34b228ccdde246059817027a9a6fdb7833a67a`.
 - Hosted verification compared actual PE icon resources in both `billzen.exe` and the setup executable with the canonical BillZen ICO at16/24/32/48/64/256px. All six frames matched in each executable. Downloaded setup independently passed the same resource check locally; checksum/size/source/iconVerified metadata matched.
 - `icon-verification.json` accompanies the workflow artifact. The older installer fails this check, establishing a real regression reproduction. Installer/uninstaller use the same configured icon asset. This does not claim Windows shell/physical runtime acceptance or Authenticode signing.

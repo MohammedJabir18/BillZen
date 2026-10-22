@@ -2,6 +2,15 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Verified v0.1.4 build delivery — 2026-10-22
+
+- Source39d6b99 (0.1.4/Android1009) and motion sourceb19430b both passed full GitHub CI. Hosted Windows39820175490 succeeded; downloaded x64 setup passed source/hash/size and canonical icon verification. Unsigned beta; physical Windows runtime untested.
+- Linux executable and deb/AppImage built. Standalone and actual packaged AppImage each passed39 native assertions with isolated temporary databases, cold restart and real-data fingerprints. AppImage first restart attempt failed after26 checks because the standalone harness killed only the launcher; a temporary process-group harness rerun passed39 without changing app/package bytes. The AppImage bundled ELF's adjusted RUNPATH explains its different hash. Existing per-user Linux launcher binary refreshed atomically with a backup; no business records relocated/changed.
+- ARM64 distribution APK retains original certificate/public pin; actual package/version1009/ABI/minSDK, signatures,16KB zip/ELF alignment, embedded assets/fonts and disabled distribution WebView debugging passed. Original signing access was used only after the owner's explicit approval; no secret values were written to Git, prompts or output. Resolved the automatic approval review's prior credential-source objection through that explicit authorization.
+- Internal x86_64 test APK upgraded the dedicated AVD1008→1009 in place:22 assertions passed, preserving company/accounts/categories/parties,5 synthetic vouchers,1 product,1 customer and preferences. Settings Malayalam/Arabic, populated Reports and cold restart passed. An interrupted build was resumed before installing; no uninstall/storage clear. Physical ARM64 handset and fresh signed-feed installer handoff remain untested.
+- Exact shareable paths, sizes and SHA256 values are in `docs/distribution-v0.1.4.md` and ignored distribution build-info/checksum files. No public v0.1.4 release, update manifest/feed promotion or desktop updater configuration was published. Source push/build alone is not automatic delivery to existing recipients. macOS/iOS packaging outside this request.
+- Local metadata guard against code1008,3 release-contract test files and72 unit tests passed. Semantic Graphify sync lacks an API key; code-only refresh1508nodes/3127edges succeeded; SQL parser remains unavailable.
+
 ## Drawer/dialog entry section — 2026-10-22
 
 - More drawer:220ms/12px; shared Cashbook dialog panels:240ms/8px; opacity0.85→1, `power3.out`. No deferred close, form submission, focus, inert/scroll-lock or print behavior changes. Other modal families retain existing behavior.
