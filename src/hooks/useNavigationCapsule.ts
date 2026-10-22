@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
 import gsap from 'gsap';
+import { useInputModality } from './useInputModality';
 
 // One owned timeline; geometry always comes from physical button bounds (also RTL).
 export function useNavigationCapsule(
@@ -10,20 +11,7 @@ export function useNavigationCapsule(
 ) {
   const edges = useRef({ left: 0, right: 0, top: 0, bottom: 0 });
   const initialized = useRef(false);
-  const keyboard = useRef(false);
-
-  // Focus can disappear when the More sheet unmounts, before layout effects run.
-  // Remember the initiating input instead of inferring it from the final target.
-  useEffect(() => {
-    const onKey = () => { keyboard.current = true; };
-    const onPointer = () => { keyboard.current = false; };
-    document.addEventListener('keydown', onKey, true);
-    document.addEventListener('pointerdown', onPointer, true);
-    return () => {
-      document.removeEventListener('keydown', onKey, true);
-      document.removeEventListener('pointerdown', onPointer, true);
-    };
-  }, []);
+  const input = useInputModality();
 
   useLayoutEffect(() => {
     const nav = navRef.current, capsule = capsuleRef.current;
@@ -51,7 +39,7 @@ export function useNavigationCapsule(
       measured = signature;
       timeline?.kill();
       capsule.style.visibility = 'visible';
-      if (!animate || !initialized.current || media.matches || keyboard.current || target.matches(':focus-visible')) {
+      if (!animate || !initialized.current || media.matches || input.keyboard) {
         Object.assign(edges.current, next); paint();
       } else {
         // Independent physical edges: leading edge first, trailing edge follows.

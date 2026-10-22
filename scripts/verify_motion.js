@@ -12,6 +12,11 @@ const results = [];
 let browser;
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4208', '--strictPort'], { stdio: 'ignore' });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Media events and computed styles become observable on rendering frames, not
+// on an arbitrary automation timer under CI load. Require the settled state
+// after two frames, well before an ordinary entry tween would finish.
+const afterMediaPaint = page => page.evaluate(() => new Promise(resolve =>
+  requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
 async function check(name, run) {
   try { await run(); results.push({ name, passed: true }); console.log('PASS:', name); }
@@ -46,10 +51,46 @@ function aligned(state) {
 async function settledCards(page) {
   const cards = await page.locator('.summary-card').evaluateAll(elements => elements.map(e => {
     const s = getComputedStyle(e), m = s.transform === 'none' ? new DOMMatrix() : new DOMMatrix(s.transform);
-    return { opacity: Number(s.opacity), y: m.m42 };
+    return { opacity: Number(s.opacity), y: m.m42, inline: e.style.transform,
+      reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, transition: s.transitionDuration };
   }));
   assert.equal(cards.length, 4);
   assert.ok(cards.every(c => c.opacity > .999 && Math.abs(c.y) < .1), JSON.stringify(cards));
+}
+async function panelState(panel) {
+  return panel.evaluate(e => {
+    const s = getComputedStyle(e), matrix = new DOMMatrix(s.transform === 'none' ? undefined : s.transform);
+    return { y: matrix.m42, opacity: Number(s.opacity), reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      label: e.closest('[role="dialog"]')?.getAttribute('aria-label'), inline: e.style.transform };
+  });
+}
+async function settledPanel(panel) {
+  const state = await panelState(panel);
+  assert.ok(Math.abs(state.y) < .1 && state.opacity > .999, JSON.stringify(state));
+}
+async function tracePanelOpening(page, selector) {
+  await page.evaluate(selector => {
+    window.__billzenPanelTrace?.observer.disconnect();
+    const frames = [];
+    // Observe inside the browser during opening, before a slow automation
+    // round-trip could miss the entire short entry animation.
+    const observer = new MutationObserver(() => {
+      const panel = document.querySelector(selector);
+      if (!panel) return;
+      const style = getComputedStyle(panel);
+      const matrix = new DOMMatrix(style.transform === 'none' ? undefined : style.transform);
+      frames.push({ y: matrix.m42, opacity: Number(style.opacity) });
+    });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+    window.__billzenPanelTrace = { observer, frames };
+  }, selector);
+}
+async function openingFrames(page) {
+  return page.evaluate(() => {
+    const trace = window.__billzenPanelTrace;
+    trace.observer.disconnect(); delete window.__billzenPanelTrace;
+    return trace.frames;
+  });
 }
 
 try {
@@ -81,14 +122,14 @@ try {
   });
   await check('Enabling reduced motion cancels an in-flight navigation tween', async () => {
     await page.getByTestId('tab-reports').click(); await page.waitForTimeout(40);
-    await page.emulateMedia({ reducedMotion: 'reduce' }); await page.waitForTimeout(50);
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await afterMediaPaint(page);
     aligned(await capsule(page)); await page.waitForTimeout(130); aligned(await capsule(page));
   });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.getByTestId('tab-dashboard').click(); await page.waitForTimeout(650);
   await check('Enabling reduced motion settles summary cards immediately', async () => {
     await page.getByTestId('period-month').click();
-    await page.emulateMedia({ reducedMotion: 'reduce' }); await page.waitForTimeout(50);
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await afterMediaPaint(page);
     await settledCards(page);
   });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -107,7 +148,7 @@ try {
     await page.getByTestId('tab-dashboard').click();
     await page.getByTestId('tab-analytics').click();
     await page.locator('.analytics-bar').first().waitFor({ state: 'attached' });
-    await page.emulateMedia({ reducedMotion: 'reduce' }); await page.waitForTimeout(50);
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await afterMediaPaint(page);
     const bars = await page.locator('.analytics-bar').evaluateAll(els => els.map(e => {
       const s = getComputedStyle(e); return { scale: new DOMMatrix(s.transform === 'none' ? undefined : s.transform).m22, height: e.getBoundingClientRect().height };
     }));
@@ -130,7 +171,7 @@ try {
   await check('Cashbook cards settle immediately on a live reduced-motion change', async () => {
     await page.getByTestId('tab-reports').click(); await page.waitForTimeout(500);
     await page.getByTestId('tab-cashbook').click(); await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.waitForTimeout(50); await settledCards(page);
+    await afterMediaPaint(page); await settledCards(page);
   });
   await check('Mobile secondary destination marks More', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -144,6 +185,65 @@ try {
     await page.getByTestId('mobile-nav-more').focus(); await page.keyboard.press('Enter');
     await page.getByTestId('mobile-tab-customers').focus(); await page.keyboard.press('Enter');
     await page.waitForTimeout(35); aligned(await capsule(page, true));
+  });
+  await check('Pointer opens More with a short entry and Escape closes without waiting', async () => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await tracePanelOpening(page, '#mobile-more-navigation');
+    await page.getByTestId('mobile-nav-more').click();
+    const drawer = page.locator('#mobile-more-navigation');
+    const frames = await openingFrames(page);
+    assert.ok(await drawer.evaluate(e => e.contains(document.activeElement)), 'Focus enters immediately');
+    await page.waitForTimeout(300); await settledPanel(drawer);
+    await page.screenshot({ path: path.join(output, 'drawer-open.png') });
+    await page.keyboard.press('Escape'); assert.equal(await drawer.count(), 0);
+    assert.ok(await page.getByTestId('mobile-nav-more').evaluate(e => e === document.activeElement));
+    assert.ok(frames.some(s => s.y > 0 && s.y <= 16 && s.opacity < 1), 'No drawer entry motion: ' + JSON.stringify(frames));
+  });
+  await check('Drawer reduced-motion change settles live; rapid reopen leaves no stale motion', async () => {
+    await page.getByTestId('mobile-nav-more').click();
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await afterMediaPaint(page);
+    await settledPanel(page.locator('#mobile-more-navigation'));
+    await page.keyboard.press('Escape');
+    await page.getByTestId('mobile-nav-more').focus(); await page.keyboard.press('Enter');
+    await settledPanel(page.locator('#mobile-more-navigation')); await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => document.body.style.overflow), '');
+  });
+  await check('Pointer receipt dialog enters and remains immediately usable', async () => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.getByTestId('mobile-tab-cashbook').click();
+    await tracePanelOpening(page, '.cashbook-screen [role="dialog"] > div');
+    await page.getByTestId('action-receive-money').click();
+    const dialog = page.getByRole('dialog'); const panel = dialog.locator(':scope > div').first();
+    const frames = await openingFrames(page);
+    assert.ok(await dialog.evaluate(e => e.contains(document.activeElement)));
+    await page.getByTestId('input-voucher-amount').fill('25.50');
+    assert.equal(await page.getByTestId('input-voucher-amount').inputValue(), '25.50');
+    await page.waitForTimeout(300); await settledPanel(panel);
+    await page.screenshot({ path: path.join(output, 'receipt-dialog.png') });
+    await page.keyboard.press('Escape'); assert.equal(await page.getByRole('dialog').count(), 0);
+    assert.ok(frames.some(s => s.y > 0 && s.y <= 12 && s.opacity < 1), 'No dialog entry motion: ' + JSON.stringify(frames));
+  });
+  await check('Dialog live reduced motion, nested focus and immediate dismissal remain correct', async () => {
+    await page.getByTestId('action-receive-money').click();
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await afterMediaPaint(page);
+    await settledPanel(page.getByRole('dialog').locator(':scope > div').first());
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.getByTestId('action-new-category').focus(); await page.keyboard.press('Enter');
+    const child = page.getByRole('dialog'); assert.equal(await child.count(), 1);
+    await settledPanel(child.locator(':scope > div').first());
+    for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); assert.ok(await child.evaluate(e => e.contains(document.activeElement))); }
+    await page.keyboard.press('Escape'); assert.equal(await page.getByRole('dialog').count(), 1);
+    assert.ok(await page.getByTestId('action-new-category').evaluate(e => e === document.activeElement));
+    assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => document.body.style.overflow), '');
+  });
+  await check('Android Back bridge event dismisses a dialog during entry', async () => {
+    await page.getByTestId('action-receive-money').click();
+    await page.evaluate(() => window.dispatchEvent(new Event('billzen-back-button')));
+    await page.waitForFunction(() => !document.querySelector('.cashbook-screen [role="dialog"]'));
+    assert.equal(await page.evaluate(() => document.body.style.overflow), '');
+    assert.ok(await page.getByTestId('action-receive-money').evaluate(e => e === document.activeElement));
   });
   await check('RTL capsule and selected text remain aligned in both themes', async () => {
     for (const theme of ['light', 'dark']) {

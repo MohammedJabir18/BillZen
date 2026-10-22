@@ -46,6 +46,7 @@ try {
     check(`${language}: initial focus enters dialog`, await page.getByRole('dialog').evaluate(el => el.contains(document.activeElement)));
     await page.getByTestId('input-voucher-amount').fill('0');
     await page.getByTestId('btn-submit-voucher').click();
+    await page.getByRole('dialog').getByRole('alert').waitFor({state:'visible'});
     check(`${language}: invalid amount stays visible inside entry dialog`, await page.getByRole('dialog').getByRole('alert').isVisible());
     // A new category must trap focus above its still-open receipt form.
     await page.getByTestId('action-new-category').click();

@@ -2,6 +2,15 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Drawer/dialog entry section — 2026-10-22
+
+- More drawer:220ms/12px; shared Cashbook dialog panels:240ms/8px; opacity0.85→1, `power3.out`. No deferred close, form submission, focus, inert/scroll-lock or print behavior changes. Other modal families retain existing behavior.
+- Added shared ref-counted keyboard/pointer modality tracking, entry-only scoped/reversible effects, immediate keyboard/reduced-motion handling and live preference settling without replaying an already visible panel. Fixed universal reduced-motion transition duration from0.01ms to0s after observing inline final transforms while computed styles still interpolated.
+- Test-first:before implementation, the drawer/dialog positive-entry checks failed (16/18 existing/new scenarios passed). Final motion19/19 passed, including MutationObserver opening traces, nested focus/scroll-lock, keyboard/reduced motion and simulated Android Back dismissal. No physical Android claim. Unit72, Cashbook UI55 and slow-category Reports UI68 passed. Build720.42kB/gzip193.83kB, existing chunk/import warnings remain.
+- Full layout816 states passed with original bounds assertions after waiting for actual panel settlement; initial quick audit9 failures had measured entry travel. Final reduced-motion CSS follow-up uses the quick104-state matrix. Settled theme96 states passed, and PDF suite passed. Screenshots:ignored `test_artifacts/motion/drawer-open.png`, `receipt-dialog.png`; synthetic data only. No device FPS/native runtime/physical printer validation.
+- Prior source CI39815498589 failed on Arabic Reports category identity. Reproduced the same assertion deterministically with delayed synthetic category reads; corrected the test to wait for the selected option/refetch and rendered rows rather than capture a transient empty value or sleep150ms. Assertions remain intact; CI now exercises the slow-read fixture. Cashbook validation-alert assertion also waits for the rendered alert. A first naive timer-only fault probe lost the IndexedDB transaction-completion event; replaced it with a transaction-preserving keepalive before drawing conclusions.
+- Independent final review found no actionable implementation issue; its short-animation sampling concern was resolved with browser-side traces. One-frame/timer-sensitive reduced-motion observations led to actual-render-frame synchronization and the zero-duration CSS correction. No database/schema/domain/signing/updater/version or installed artifact changed. New source CI result must be reported separately.
+
 ## Hermes motion continuation — 2026-10-22
 
 Independently checked Hermes's repaired working tree, reproduced remaining defects, and completed the repair. Mobile label/icon layering, live reduced-motion cancellation, keyboard More selection and long-press geometry were still broken. Shared owned/cancellable hooks now handle navigation and summary/chart effects; original Cashbook amount wrapping/copy was restored. Independent final static review found no remaining actionable finding.

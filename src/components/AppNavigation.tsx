@@ -3,6 +3,7 @@ import { Building2, FileText, LayoutDashboard, MoreHorizontal, Package, Users, W
 import { translations, type Language } from '../i18n';
 import { useBackHandler } from '../hooks/useBackHandler';
 import { useNavigationCapsule } from '../hooks/useNavigationCapsule';
+import { usePanelMotion } from '../hooks/usePanelMotion';
 
 export type AppTab = 'dashboard' | 'reports' | 'cashbook' | 'products' | 'customers' | 'settings';
 interface NavigationProps { activeTab: AppTab; language: Language; onNavigate: (tab: AppTab) => void }
@@ -63,6 +64,7 @@ export function MobileNavigation({ activeTab, language, onNavigate }: Navigation
   const primary = items.slice(0, 3);
   const secondary = items.slice(3);
   const secondaryActive = secondary.some(item => item.id === activeTab);
+  usePanelMotion(dialog, open, 'drawer');
 
   useNavigationCapsule(navRef, capsuleRef, secondaryActive ? 'mobile-nav-more' : `mobile-tab-${activeTab}`, language);
 

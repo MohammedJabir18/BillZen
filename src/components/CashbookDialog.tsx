@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { usePanelMotion } from '../hooks/usePanelMotion';
 
 // Cashbook dialogs can nest (entry → category or balance confirmation).
 // Only the top layer owns focus. Escape/Android Back remain in useBackHandler.
@@ -40,6 +41,7 @@ export function CashbookDialog({ label, className, children }: {
   label: string; className: string; children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  usePanelMotion(ref, true, 'dialog');
   useEffect(() => {
     const root = ref.current!;
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { waitForPanelMotion } from './lib/motion.js';
 
 // Isolated synthetic browser contexts only. No native or real business database is opened.
 const output = path.resolve('test_artifacts/layout');
@@ -27,6 +28,7 @@ async function navigate(page, tab) {
 }
 
 async function audit(page, name, width, language, theme) {
+  await waitForPanelMotion(page);
   const failures = await page.evaluate(() => {
     const errors = [];
     const viewport = document.documentElement.clientWidth;

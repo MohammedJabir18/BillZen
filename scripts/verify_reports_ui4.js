@@ -13,6 +13,26 @@ try{
  for(const language of ['en','ml','ar'])for(const width of [320,1280]){
   const context=await browser.newContext({viewport:{width,height:850},colorScheme:width===320?'dark':'light'});
   await context.addInitScript(({language,dark})=>{localStorage.setItem('billzen_guide_status','completed');localStorage.setItem('billzen_ui_language',language);localStorage.setItem('billzen_appearance_pref',dark?'dark':'light');},{language,dark:width===320});
+  if(process.env.BILLZEN_TEST_CATEGORY_DELAY==='1') await context.addInitScript(()=>{
+    // Deterministically expose the category-refetch race seen on hosted CI.
+    const getAll=IDBObjectStore.prototype.getAll;
+    const success=Object.getOwnPropertyDescriptor(IDBRequest.prototype,'onsuccess');
+    IDBObjectStore.prototype.getAll=function(...args){
+      const request=getAll.apply(this,args), store=this;
+      if(this.name==='cashbook_categories') Object.defineProperty(request,'onsuccess',{
+        set(listener){success.set.call(request,typeof listener==='function'?event=>{
+          // Keep the read transaction alive while delaying delivery, otherwise
+          // an artificial timer could lose its subsequent completion listener.
+          const until=performance.now()+350;
+          const hold=()=>{if(performance.now()>=until) listener.call(request,event);
+            else store.count().onsuccess=hold;};
+          hold();
+        }:listener);},
+        get(){return success.get.call(request);}
+      });
+      return request;
+    };
+  });
   const page=await context.newPage();
   await page.goto('http://127.0.0.1:4197/?tab=cashbook',{waitUntil:'networkidle'});
   await page.getByTestId('action-receive-money').click();
@@ -22,6 +42,10 @@ try{
   await dialog.locator('input[type=text]').fill(categoryName);
   await dialog.locator('button[type=submit]').click();
   await page.waitForFunction(()=>document.querySelectorAll('[role=dialog]').length===1);
+  await page.waitForFunction(name=>{
+    const select=document.querySelector('[data-testid=select-voucher-category]');
+    return select?.value && select.selectedOptions[0]?.textContent.trim()===name;
+  },categoryName);
   const categoryId=await page.getByTestId('select-voucher-category').inputValue();
   await page.getByTestId('input-voucher-amount').fill('125.50');
   await page.getByTestId('btn-submit-voucher').click();
@@ -35,7 +59,8 @@ try{
   const closing=await page.getByTestId('report-closing-balance').innerText();
   const categorySelect=page.getByTestId('report-category-select');
   await categorySelect.selectOption({label:categoryName});
-  await page.waitForTimeout(150);
+  await page.waitForFunction(id=>document.querySelector('[data-testid=report-category-select]')?.value===id &&
+    document.querySelectorAll('[data-testid^=report-row-]').length===1,categoryId);
   check(`${language}/${width}: category selection uses identity`,await categorySelect.inputValue()===categoryId);
   check(`${language}/${width}: category filter retains matching receipt`,await page.locator('[data-testid^=report-row-]').count()===1);
   check(`${language}/${width}: human-readable category`,(await page.locator('[data-testid=report-row-0]').innerText()).includes(categoryName));

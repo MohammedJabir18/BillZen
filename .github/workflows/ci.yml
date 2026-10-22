@@ -107,7 +107,7 @@ jobs:
         run: |
           node scripts/verify_updates_browser.js
           npm run test:cashbook
-          npm run test:reports-ui
+          BILLZEN_TEST_CATEGORY_DELAY=1 npm run test:reports-ui
           npm run test:cashbook-ui
           node scripts/verify_theme_contrast.js
           npm run test:cashbook-pdf

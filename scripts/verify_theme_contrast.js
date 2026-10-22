@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { waitForPanelMotion } from './lib/motion.js';
 
 // Isolated browser contexts use synthetic records; no native/user database is opened.
 // This checks rendered solid-color text contrast, not full accessibility conformance.
@@ -17,6 +18,7 @@ let prefix;
 async function audit(name) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(120);
+  await waitForPanelMotion(page);
   const failures = await page.evaluate(() => {
     const rgb = value => (value.match(/[\d.]+/g) || []).map(Number);
     const composite = (foreground, background) => {
