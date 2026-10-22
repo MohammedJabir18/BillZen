@@ -46,4 +46,6 @@ The owner explicitly requests a commit and GitHub push after each completed logi
 5. Verify the remote commit matches, inspect the triggered CI run and report its actual state. Local success and remote CI success are separate facts.
 6. Continue to the next independent section. If verification fails, fix it before marking that section complete; report any external blocker honestly.
 
+Before committing, inspect `git var GIT_AUTHOR_IDENT` and `git var GIT_COMMITTER_IDENT`. Use the human contributor's GitHub-associated email or account-specific GitHub noreply address; never invent a `.local` placeholder identity. Owner-driven sessions in this checkout use `Mohammed Jabir <113545300+MohammedJabir18@users.noreply.github.com>`. Do not overwrite a different collaborator's identity or rewrite past commits merely to pass this check.
+
 Never force-push, rewrite shared history, reset user changes or bypass a failed safety check to satisfy this rule. Do not put credentials in remote URLs, tracked files, prompts or logs. If authentication or push access is unavailable, retain the local commit and report the exact blocked step. Do not change repository visibility or publish application deployments without a separate user instruction.
