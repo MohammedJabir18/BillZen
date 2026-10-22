@@ -31,6 +31,14 @@ jobs:
         run: npm test
       - name: Build NSIS installer
         run: npm run tauri build -- --bundles nsis
+      - name: Verify app and setup icon resources
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe)
+          if ($installer.Count -ne 1) { throw "Expected exactly one NSIS installer" }
+          $setupPath = $installer[0].FullName
+          python scripts/verify_windows_icons.py src-tauri/target/release/billzen.exe $setupPath --output src-tauri/target/release/bundle/nsis/icon-verification.json
+          if ($LASTEXITCODE -ne 0) { throw "BillZen executable icon verification failed" }
       - name: Record installer provenance
         shell: pwsh
         run: |
@@ -47,6 +55,7 @@ jobs:
             file = $installer.Name
             sha256 = $digest
             sizeBytes = $installer.Length
+            iconVerified = $true
             codeSigned = $false
             runtimeTested = $false
           } | ConvertTo-Json | Set-Content -Encoding utf8 src-tauri/target/release/bundle/nsis/build-info.json
@@ -58,5 +67,6 @@ jobs:
             src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
             src-tauri/target/release/bundle/nsis/build-info.json
+            src-tauri/target/release/bundle/nsis/icon-verification.json
           if-no-files-found: error
           retention-days: 14

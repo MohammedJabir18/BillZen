@@ -37,6 +37,12 @@
     ],
     "android": {
       "versionCode": 1008
+    },
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
+      }
     }
   }
 }

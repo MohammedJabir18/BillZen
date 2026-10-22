@@ -1494,3 +1494,10 @@
 - **Windows delivery completed:** run39775472312 succeeded (8m36s), source3429893. Downloaded and independently checked setup PE signature, size5,363,984bytes and SHA25694143328dacab8e90fa6d95e7865ebe92a779dc4f945cad1cdd3f16d26fdf5db. Friend file: `dist-desktop/windows/v0.1.3/BillZen_0.1.3_x64-setup.exe`. First download briefly stalled; completed normal artifact download, REST retry was redundant. No runtime execution, code-signing or public Windows release claimed. Existing Android release untouched.
 - Added installation guide, README link and ignored desktop distribution output; updated verification/architecture. Workflow static review found no important issue. Hosted action deprecation warning did not fail Windows build.
 - Source CI39775452548 succeeded. Mandatory Graphify semantic/Obsidian refresh lacks API key; AST-only fallback1461nodes/3036edges succeeded. SQL/full semantic vault refresh remain unavailable.
+
+
+### 2026-10-22 — Diagnose and correct missing desktop/installer icons
+
+- Owner reports generic Linux menu icon and requests the Windows friend installer use BillZen branding. Canonical PNG inspected and correct. Reproduced GTK lookup returningNOT FOUND; user hicolor theme had no index. Fixed installed launcher to an absolute PNG path, installed standard user hicolor index and refreshed caches. Gio now loads a FileIcon and GTK also resolves the named icon; desktop entry validates. No business records modified.
+- Existing Windows setup failed actual PE resource comparison against canonical ICO frames. Config lacked explicit NSIS installer/uninstaller icons; supplied both and added package-free PE icon verification for application and setup in hosted Windows workflow. Real old-artifact regression observed before building the fix. App source logo/assets are reused rather than redesigned.
+- Prepared config/workflow/verifier section for authorized commit/push and Windows rebuild. Actual refreshed artifact verification/delivery results follow.
