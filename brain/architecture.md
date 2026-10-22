@@ -512,3 +512,8 @@ Version 0.1.3 / Android code1008 aligns package, Cargo, Tauri, release metadata 
 ### Android release feed live (2026-10-21)
 
 Owner-authorized v0.1.3 publishes the ARM64 APK, signed Android manifest and checksums on the original public repository. `releases/latest/download/android-update.json` now serves the verified code1008 manifest. Public download bytes/signature were verified; future releases require higher codes and unchanged APK/manifest signing identities. This release contains no desktop updater metadata. Publication evidence: `docs/verification-status.md`.
+
+
+### Desktop installer delivery (2026-10-22)
+
+Linux per-user installation copies the verified native executable into `~/.local/opt/billzen` with an application-menu launcher; existing `~/.local/share/billzen` data stays in place. Manual `.github/workflows/windows-installer.yml` builds on hosted Windows x64 via Tauri NSIS, records source/hash/size and retains installer artifacts14days. Successful packaging does not establish physical runtime acceptance. This unsigned candidate does not configure desktop automatic updates or publish a Windows release. Delivery identity is documented in `docs/desktop-installation.md`.

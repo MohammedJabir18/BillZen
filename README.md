@@ -71,6 +71,8 @@ The shop counter should keep moving when the internet stops. Your catalog, custo
 
 ## ⚡ Run it locally
 
+For application-menu installation and the Windows installer workflow, see the [desktop installation guide](docs/desktop-installation.md).
+
 **Requirements:** Node.js 22.12+ within the 22 series, npm, a compatible stable Rust toolchain and the native prerequisites for your host. Lockfiles define resolved dependencies.
 
 ```sh

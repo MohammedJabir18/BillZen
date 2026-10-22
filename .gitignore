@@ -78,4 +78,5 @@ dist-android/
 **/gen/android/app/src/main/jniLibs/
 **/.kotlin/
 
-
+# Generated desktop installers and downloaded workflow artifacts
+dist-desktop/

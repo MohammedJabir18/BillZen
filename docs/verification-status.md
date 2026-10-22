@@ -255,3 +255,14 @@ Removed the component, desktop/mobile destination, legacy tab selection and obso
 Observed regression: added navigation absence assertion failed against the previous build, then passed after removal (17 header/Settings checks). Final frontend72 tests, 3 cashbook/invoice PDF isolation scenarios (A4 and80mm), all4 invoice matrix scenarios, onboarding34, quick layout104 states and theme96 states passed. Fewer layout/theme cases reflect deletion of the diagnostic screen, not reduced coverage of the remaining six destinations. Independent static review found no actionable regressions.
 
 Linux executable rebuilt successfully; native39 assertions passed with isolated test data, including cold restart and unchanged real-data fingerprints. Path `src-tauri/target/release/billzen`, 20,671,560 bytes, SHA-256 `219d1486377ba75707359e3eacdf7dda3d0ee9db0539ada386df118cfb299596`. This is a local v0.1.3 rebuild with the removal; the published immutable Android v0.1.3 APK is unchanged. Android requires a future higher-code signed release to receive this source change; no new APK/release published in this task. No physical printer test claimed.
+
+
+## 2026-10-22 — Linux installation and Windows friend installer
+
+Installed the native39-tested Linux build per-user to `~/.local/opt/billzen/billzen`, with BillZen icon and `~/.local/share/applications/billzen.desktop`. Desktop entry validates, installed executable byte-compares equal to the verified source build; hash219d1486377ba75707359e3eacdf7dda3d0ee9db0539ada386df118cfb299596. Application data was not moved/cleared.
+
+New manual Windows workflow source commit3429893 pushed/confirmed on origin. [Run39775472312](https://github.com/MohammedJabir18/BillZen/actions/runs/39775472312) succeeded: frontend tests, Windows native release compilation and NSIS installer packaging. Downloaded `dist-desktop/windows/v0.1.3/BillZen_0.1.3_x64-setup.exe`,5,363,984bytes, SHA25694143328dacab8e90fa6d95e7865ebe92a779dc4f945cad1cdd3f16d26fdf5db. Hash/size/PE signature/provenance verified locally. Only installer/checksum/build-info uploaded; no databases/keys. Generated desktop artifacts are ignored. Static workflow review found no important issue.
+
+Packaging success is distinct from Windows runtime acceptance. Installer is not code-signed; no physical Windows app/printing check or desktop automatic updater setup is claimed. No public Windows release asset published. Hosted run's Node20-action deprecation warning is non-fatal; actions ran under Node24. See `docs/desktop-installation.md` for user instructions and limitations.
+
+Source CI39775452548 for3429893 completed successfully.

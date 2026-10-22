@@ -4,7 +4,7 @@
 
 Use Node.js 22.12+ in the 22 series, npm and a stable Rust compiler compatible with the checked-in Cargo lockfile. Install frontend dependencies with `npm ci`. Keep `package-lock.json` and `src-tauri/Cargo.lock` in version control. The exact host compiler versions recorded in older notes are observations, not portable setup prerequisites or promises of latest stable releases.
 
-Linux requires WebKitGTK 4.1 and the development packages shown in the README. PDF checks need `poppler-utils`. Windows requires the C++ build tools and WebView2 runtime; macOS requires Xcode command-line tools. These two native targets have not been validated by current CI. Android requires Android SDK/NDK tooling, and iOS requires macOS/Xcode; mobile project configuration is future work.
+Linux requires WebKitGTK 4.1 and the development packages shown in the README. PDF checks need `poppler-utils`. Windows requires the C++ build tools and WebView2 runtime; macOS requires Xcode command-line tools. Windows installer compilation is covered by the manual Windows Installer workflow; Windows runtime and macOS native behavior remain unverified. Android requires Android SDK/NDK tooling, and iOS requires macOS/Xcode; mobile project configuration is future work.
 
 ## Commands
 

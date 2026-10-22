@@ -2,6 +2,8 @@
 
 This document defines the cross-platform engineering specifications, hardware assumptions, IPC security policies, single-instance mechanisms, and printing abstraction strategies for BillZen across all supported platforms.
 
+**Delivery update — October 22, 2026:** Linux x86_64 user-local installation verified. Windows x64 NSIS installer packaging passed hosted CI and downloaded checksums match; physical Windows runtime/printing and Windows ARM64 remain unverified. See [desktop installation](desktop-installation.md). The older architectural status/implementation proposals below are historical, not evidence that every proposed mechanism shipped.
+
 **Status as of October 18, 2026**:
 - **Architecture**: Unified **Tauri 2.x + Rust Core + SQLite 3.45+ (WAL + FULL sync)** across all targets.
 - **Linux (x86_64)**: **IMPLEMENTED & VERIFIED** (Tauri 2.12.4, Rust 1.99.0, SQLite 3.45+, WebKitGTK 2.42).
