@@ -95,7 +95,9 @@ flowchart TD
    - Rounding: Standard half-up integer division: `(value + 500) / 1000`.
    - Implementation: Exact `BigInt` intermediate arithmetic in TypeScript (`src/domain/financial.ts`) and checked 64-bit/128-bit integer arithmetic in Rust (`src-tauri/src/domain/financial.rs`) eliminates floating-point drift.
 
-## 8. Print Feasibility & Dedicated Output Architecture
+## 8. Print Verification & Dedicated Output Architecture
+
+The former user-facing Print Feasibility Probe was removed on 2026-10-22. Invocation/dialog/output remain engineering verification concepts, not navigation or operator tasks in the product. Explicit `?scenario=...` synthetic fixtures still feed the isolated invoice print target for automated PDF checks, without a diagnostic screen. Real Reports/voucher printing continues through its own controls.
 - **Three-Stage Verification**:
   1. *Invocation*: Dispatched via `window.print()` (WebKitGTK print trigger).
   2. *Dialog Observation*: Interactive operator confirmation determining whether the host desktop environment actually rendered the native print modal window.
@@ -208,7 +210,7 @@ flowchart TD
    - NativeBridge integration: `MainActivity.kt` exposes `@JavascriptInterface setDarkMode(isDark: Boolean)` and `ThemeContext.tsx` synchronously invokes `window.BillZenNative?.setDarkMode(isDark)` on theme mutations.
    - Added `ACCESS_NETWORK_STATE` in `AndroidManifest.xml` and defensive try-catch in network monitoring.
 4. **Compact Mobile Navigation Localization**:
-   - Added `tab_print_probe_short` to `src/i18n/index.ts` (`'Print Probe'` in EN, `'പ്രിന്റ് ടെസ്റ്റ്'` in ML, `'فحص الطباعة'` in AR) with full `aria-label={t.tab_print_probe}`, preventing mobile bottom nav crowding on narrow screens.
+   - Historical compact Print Probe label was superseded on 2026-10-22: diagnostic destination and its translations were removed from desktop/mobile navigation.
 ## 15. Milestone 4A Architecture: Draft Invoices & Zero-Stock Decrement Invariant
 - **Specification**: Complete specification documented in `docs/m4a-invoice-drafts-spec.md`.
 - **Draft Lifecycle**: Invoices are created in `status = 'draft'` with draft line items stored directly in SQLite tables `invoices` and `invoice_items`.

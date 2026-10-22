@@ -10,7 +10,7 @@ const base = process.env.BILLZEN_LAYOUT_TEST_URL || 'http://127.0.0.1:4193';
 const quick = process.env.BILLZEN_LAYOUT_QUICK === '1';
 const widths = process.env.BILLZEN_LAYOUT_WIDTHS ? process.env.BILLZEN_LAYOUT_WIDTHS.split(',').map(Number) : quick ? [320, 568, 1024] : [320, 360, 390, 412, 568, 768, 1023, 1024, 1280, 1536];
 const variants = quick ? [['en', 'light'], ['ml', 'dark']] : [['en', 'light'], ['en', 'dark'], ['ml', 'light'], ['ml', 'dark'], ['ar', 'light'], ['ar', 'dark']];
-const tabs = ['dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings', 'print'];
+const tabs = ['dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings'];
 const results = [];
 let server, browser;
 let completed = false;
@@ -140,16 +140,6 @@ try {
         await audit(page, 'dashboard-custom', width, language, theme);
         await page.getByTestId('tab-analytics').click();
         await audit(page, 'dashboard-analytics', width, language, theme);
-      }
-      if (tab === 'print' && width <= 568) {
-        await page.getByRole('button', { name: 'Show In-App A4 Preview' }).click();
-        const accessible = await page.locator('main .overflow-x-auto').last().evaluate(scroller => {
-          scroller.scrollLeft = 0;
-          const paper = scroller.firstElementChild.getBoundingClientRect(), bounds = scroller.getBoundingClientRect();
-          return getComputedStyle(scroller).direction === 'rtl' ? paper.right <= bounds.right + 1 : paper.left >= bounds.left - 1;
-        });
-        results.push({ name: 'paper-preview-start', width, language, theme, failures: accessible ? [] : ['Left edge of paper cannot be reached by scrolling'] });
-        if (!accessible) console.log(`${language}/${theme}/${width}/paper-preview-start: Left edge of paper cannot be reached by scrolling`);
       }
       if (tab === 'reports') {
         await page.getByTestId('report-period-custom').click();

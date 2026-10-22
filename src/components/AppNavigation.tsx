@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, FileText, LayoutDashboard, MoreHorizontal, Package, Printer, Users, Wallet, X, type LucideIcon } from 'lucide-react';
+import { Building2, FileText, LayoutDashboard, MoreHorizontal, Package, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { translations, type Language } from '../i18n';
 import { useBackHandler } from '../hooks/useBackHandler';
 
-export type AppTab = 'dashboard' | 'reports' | 'cashbook' | 'products' | 'customers' | 'settings' | 'print';
+export type AppTab = 'dashboard' | 'reports' | 'cashbook' | 'products' | 'customers' | 'settings';
 interface NavigationProps { activeTab: AppTab; language: Language; onNavigate: (tab: AppTab) => void }
 interface Destination { id: AppTab; label: string; icon: LucideIcon }
 
@@ -16,14 +16,13 @@ function destinations(language: Language): Destination[] {
     { id: 'products', label: t.tab_products, icon: Package },
     { id: 'customers', label: t.tab_customers, icon: Users },
     { id: 'settings', label: t.tab_settings, icon: Building2 },
-    { id: 'print', label: t.tab_print_probe, icon: Printer },
   ];
 }
 
 export function DesktopNavigation({ activeTab, language, onNavigate }: NavigationProps) {
   return (
     <nav aria-label="Main Navigation" className="hidden lg:block border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] no-print transition-colors">
-      <div className="max-w-7xl mx-auto grid grid-cols-7 gap-1 px-4 py-1.5">
+      <div className="max-w-7xl mx-auto grid grid-cols-6 gap-1 px-4 py-1.5">
         {destinations(language).map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" data-testid={'tab-' + id} aria-current={activeTab === id ? 'page' : undefined}
             onClick={() => onNavigate(id)}

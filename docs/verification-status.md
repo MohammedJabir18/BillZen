@@ -244,3 +244,14 @@ Published [v0.1.3](https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.
 Uploaded only ARM64 distribution APK, `android-update.json` and `SHA256SUMS.txt`; no automation APK, keys, database or business records. GitHub asset digests matched local files before publication. After publication, unauthenticated HTTPS downloads from the exact app latest-feed URL and signed APK URL succeeded. The downloaded manifest's Ed25519 signature verified against the app public pin; its package/channel/code1008, APK size/hash and byte-for-byte equality with the local signed candidate passed.
 
 Release notes: `docs/releases/v0.1.3.md`. This verifies public distribution bytes, not a new on-device installer handoff or physical ARM64 acceptance. Desktop updater metadata/installers are not published by this Android release. Future source pushes alone still do not distribute signed updates.
+
+
+## 2026-10-22 — Remove customer-facing Print Feasibility Probe
+
+Owner asked what the diagnostic screen does and requested removal if unnecessary. It was an engineering utility for print invocation, manual native-dialog observation and output confirmation; it is not required for business entry or actual Reports/voucher printing.
+
+Removed the component, desktop/mobile destination, legacy tab selection and obsolete translations; desktop navigation now has six columns. Automated invoice PDF fixtures use explicit synthetic scenario URLs without displaying a diagnostic screen. Updated obsolete test interactions rather than removing PDF/print coverage. The native theme check now exercises normal Reports controls. Print-support backend diagnostics remain available to engineering tools; no database/domain/updater changes.
+
+Observed regression: added navigation absence assertion failed against the previous build, then passed after removal (17 header/Settings checks). Final frontend72 tests, 3 cashbook/invoice PDF isolation scenarios (A4 and80mm), all4 invoice matrix scenarios, onboarding34, quick layout104 states and theme96 states passed. Fewer layout/theme cases reflect deletion of the diagnostic screen, not reduced coverage of the remaining six destinations. Independent static review found no actionable regressions.
+
+Linux executable rebuilt successfully; native39 assertions passed with isolated test data, including cold restart and unchanged real-data fingerprints. Path `src-tauri/target/release/billzen`, 20,671,560 bytes, SHA-256 `219d1486377ba75707359e3eacdf7dda3d0ee9db0539ada386df118cfb299596`. This is a local v0.1.3 rebuild with the removal; the published immutable Android v0.1.3 APK is unchanged. Android requires a future higher-code signed release to receive this source change; no new APK/release published in this task. No physical printer test claimed.

@@ -1472,3 +1472,14 @@
 - Added `docs/releases/v0.1.3.md`, updated candidate delivery status and verification evidence. Desktop installers/updater metadata are outside this Android release; physical ARM64 and fresh on-device installer handoff remain pending.
 - Graphify semantic/Obsidian refresh again requires the unavailable API key; code-only fallback succeeded (1466nodes/3055edges). Full semantic refresh and SQL extraction are not claimed.
 - Next: future releases need higher versionCode and same signing identities; source push alone is not app distribution. Continue remaining UI work separately.
+
+
+### 2026-10-22 — Explain/remove unnecessary Print Feasibility Probe
+
+- Owner requested explanation and removal of the developer print diagnostic screen if not required. Confirmed it manually tracked print invocation, dialog observation and output, while Reports/voucher printing use separate controls.
+- Removed `PrintFeasibilityProbe.tsx`, App import/render and print-tab routing, navigation destination and obsolete translations. Six desktop tabs; mobile More retains Products/Customers/Settings. Explicit synthetic scenario URLs retain automated invoice print fixtures without a diagnostic UI.
+- Updated affected PDF/onboarding/layout/theme/native scripts. Observed failing navigation absence check on old production build and passing17 assertions after change. Unit72, PDF isolation3, invoice matrix4, onboarding34, quick layout104 and theme96 passed. Independent review found no actionable regression.
+- Rebuilt Linux executable; native39 checks passed including data isolation/cold restart. SHA-256219d1486377ba75707359e3eacdf7dda3d0ee9db0539ada386df118cfb299596,20,671,560bytes. No real business data modified.
+- Updated architecture and verification notes. No schema/updater changes; existing Android release APK is unchanged and needs a future higher-code build/release for this removal. Physical printer not exercised.
+- Next: commit/push this coherent section and inspect CI; remaining UI migrations or next Android release are separate work.
+- Graphify semantic/Obsidian sync attempted; semantic API key unavailable. Code-only fallback succeeded:1461nodes/3036edges, including deleted component removal. SQL parser remains unavailable; full semantic vault sync not claimed.

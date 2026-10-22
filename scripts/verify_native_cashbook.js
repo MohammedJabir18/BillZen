@@ -677,13 +677,13 @@ async function runNativeVerification() {
     });
 
     // Exercise actual WebKitGTK theme resolution, including native controls and
-    // the print-screen heading that previously disappeared on dark backgrounds.
+    // the normal Reports heading after removing the developer diagnostic screen.
     for (const theme of ['dark', 'light']) {
       await evalInApp(`document.querySelector('[data-testid="tab-settings"]').click()`);
       await waitForCondition(`Boolean(document.querySelector('[data-testid="appearance-option-${theme}"]'))`);
       await evalInApp(`document.querySelector('[data-testid="appearance-option-${theme}"]').click()`);
       await waitForCondition(`document.documentElement.classList.contains('dark') === ${theme === 'dark'}`);
-      await evalInApp(`document.querySelector('[data-testid="tab-print"]').click()`);
+      await evalInApp(`document.querySelector('[data-testid="tab-reports"]').click()`);
       await waitForCondition(`Boolean(document.querySelector('main h1'))`);
       const themeEvidence = JSON.parse(await evalInApp(`JSON.stringify((() => {
         const rgb = s => s.match(/[\\d.]+/g).slice(0, 3).map(Number);
@@ -699,9 +699,9 @@ async function runNativeVerification() {
         };
       })())`));
       assert(themeEvidence.colorScheme === theme, `Native ${theme} controls use matching color-scheme`);
-      assert(themeEvidence.headingContrast >= 4.5, `Native ${theme} print heading remains readable`, themeEvidence);
+      assert(themeEvidence.headingContrast >= 4.5, `Native ${theme} Reports heading remains readable`, themeEvidence);
     }
-    recordTest('native_dark_light_print_visibility', true);
+    recordTest('native_dark_light_reports_visibility', true);
     await evalInApp(`document.querySelector('[data-testid="tab-cashbook"]').click()`);
     await waitForCondition(`document.body.innerText.includes('Company Cashbook')`);
 

@@ -17,6 +17,8 @@ try {
   await page.goto('http://127.0.0.1:4194',{waitUntil:'networkidle'});
   check(`${width}: language selector absent from header`,await page.locator('header select').count()===0);
   check(`${width}: platform/framework diagnostics absent`,!/(Tauri 2|Desktop \(|Android \(|Browser Mode|SQLite WAL|IPC:)/.test(await page.locator('body').innerText()));
+  check(`${width}: developer print probe absent from navigation`,await page.getByTestId('tab-print').count()===0);
+  if(width===320){await page.getByTestId('mobile-nav-more').click();check('Mobile More excludes developer print probe',await page.getByTestId('mobile-tab-print').count()===0);}
   await navigateToAppTab(page,'settings');
   await page.getByTestId('language-select').selectOption('ml');
   check(`${width}: Malayalam preference applied`,await page.locator('html').getAttribute('lang')==='ml');

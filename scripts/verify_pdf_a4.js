@@ -23,7 +23,7 @@ async function run() {
     execSync(
       `google-chrome --headless=new --disable-gpu --no-sandbox ` +
       `--run-all-compositor-stages-before-draw ` +
-      `--print-to-pdf="${PDF_PATH}" http://localhost:4173/`,
+      `--print-to-pdf="${PDF_PATH}" http://localhost:4173/?scenario=short`,
       { stdio: 'inherit' }
     );
 

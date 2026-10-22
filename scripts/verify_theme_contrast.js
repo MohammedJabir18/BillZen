@@ -155,10 +155,6 @@ try {
       await tid('button-view-guide').click(); await audit('guide-1');
       await tid('guide-next-button').click(); await audit('guide-2');
       await tid('guide-next-button').click(); await audit('guide-3'); await tid('guide-close-button').click();
-      await openTab('print'); await audit('print');
-      await page.getByRole('button', { name: 'Yes, Native Dialog Appeared', exact: false }).click();
-      await page.getByRole('button', { name: 'Confirmed (Printed or Saved PDF)', exact: false }).click();
-      await audit('print-selected-states');
       // Audit onboarding independently without overwriting any existing browser profile.
       await page.evaluate(() => {
         localStorage.removeItem('billzen_browser_settings');

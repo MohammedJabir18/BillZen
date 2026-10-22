@@ -201,10 +201,10 @@ async function run() {
     await page.waitForTimeout(300);
 
     // -------------------------------------------------------------------------
-    // Scenario 3: Navigate to Print Tab and Generate Invoice A4 PDF
+    // Scenario 3: Load explicit synthetic invoice fixture and generate A4 PDF
     // -------------------------------------------------------------------------
     console.log('\n--- Scenario 3: Invoice A4 PDF & Absence of Cashbook Voucher Text ---');
-    await page.goto(`${BASE_URL}/?tab=print`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE_URL}/?scenario=short`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(600);
 
     await page.emulateMedia({ media: 'print' });

@@ -3,7 +3,6 @@ import {useUpdateStartupCheck} from './hooks/useUpdateStartupCheck';
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SettingsView } from './components/SettingsView';
-import { PrintFeasibilityProbe } from './components/PrintFeasibilityProbe';
 import { PrintableInvoiceDocument } from './components/PrintableInvoiceDocument';
 import { PrintableVoucherDocument } from './components/PrintableVoucherDocument';
 import { ProductCatalogView } from './components/ProductCatalogView';
@@ -73,24 +72,23 @@ const AppContent: React.FC = () => {
   const tabParam = urlParams?.get('tab') as ActiveTab | null;
 
   React.useEffect(() => {
-    if (scenario) {
-      setActiveTab('print');
-    } else if (tabParam && ['dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings', 'print'].includes(tabParam)) {
+    if (tabParam && ['dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
-  }, [tabParam, scenario]);
+  }, [tabParam]);
 
-  const activeInvoice = React.useMemo(() => getInvoiceForScenario(scenario), [scenario]);
+  const activeInvoice = React.useMemo(() => scenario ? getInvoiceForScenario(scenario) : null, [scenario]);
  
   React.useEffect(() => {
-    if (activeTab === 'print') {
+    // Explicit synthetic invoice fixtures keep automated PDF checks independent of navigation.
+    if (activeInvoice) {
       setActivePrintDocument({ type: 'invoice', invoice: activeInvoice, format: 'a4' });
       preparePrintStyles('a4');
     } else {
       setActivePrintDocument((prev) => (prev?.type === 'invoice' ? null : prev));
       cleanupPrintStyles();
     }
-  }, [activeTab, activeInvoice]);
+  }, [activeInvoice]);
 
   const { data: settings } = useQuery({
     queryKey: ['business_settings'],
@@ -262,7 +260,6 @@ const AppContent: React.FC = () => {
             }}
           />
         )}
-        {activeTab === 'print' && <PrintFeasibilityProbe invoice={activeInvoice} />}
       </main>
 
       <MobileNavigation activeTab={activeTab} language={language} onNavigate={setActiveTab} />

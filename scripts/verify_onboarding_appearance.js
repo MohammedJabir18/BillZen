@@ -257,8 +257,8 @@ async function main() {
     await page1.click('[data-testid="appearance-option-dark"]');
     await page1.waitForTimeout(200);
 
-    // Switch to Print Feasibility Probe tab
-    await page1.click('[data-testid="tab-print"]');
+    // Load a synthetic invoice for print-only CSS checks; no diagnostic screen.
+    await page1.goto('http://localhost:4178/?scenario=short', { waitUntil: 'networkidle' });
     await page1.waitForTimeout(300);
 
     // Emulate Print Media
