@@ -1483,3 +1483,10 @@
 - Updated architecture and verification notes. No schema/updater changes; existing Android release APK is unchanged and needs a future higher-code build/release for this removal. Physical printer not exercised.
 - Next: commit/push this coherent section and inspect CI; remaining UI migrations or next Android release are separate work.
 - Graphify semantic/Obsidian sync attempted; semantic API key unavailable. Code-only fallback succeeded:1461nodes/3036edges, including deleted component removal. SQL parser remains unavailable; full semantic vault sync not claimed.
+
+### 2026-10-22 — Linux desktop install and Windows installer preparation
+
+- Owner wants local desktop installation and an installer for a Windows friend. Assumed Windows x64; no Windows binary existed in current releases/build output.
+- Installed verified Linux executable to `~/.local/opt/billzen/billzen`, existing icon to hicolor user icons and a validated `~/.local/share/applications/billzen.desktop` menu entry. Installed SHA256 matches the native39-tested build219d1486377ba75707359e3eacdf7dda3d0ee9db0539ada386df118cfb299596. Existing `~/.local/share/billzen` records untouched.
+- Added manually dispatched Windows hosted-runner NSIS build with lockfile dependencies, frontend tests, artifact checksums/provenance and14day retention. No production signing secrets or automatic release publication; unsigned installer and untested physical Windows runtime must be reported honestly.
+- Workflow/plan prepared for authorized commit/push and actual build dispatch. Windows delivery outcome follows after run inspection.
