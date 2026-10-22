@@ -172,7 +172,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
     closing_balance_minor: 0,
   };
 
-  useEntryMotion(containerRef, '.summary-card', [ledgerData]);
+  useEntryMotion(containerRef, '.summary-card', [], 'cards', Boolean(ledgerData));
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts]);
 

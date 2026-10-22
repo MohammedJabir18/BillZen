@@ -1,5 +1,6 @@
+import { useEntryMotion } from '../hooks/useEntryMotion';
 import {UpdatesSettings} from './UpdatesSettings';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getBusinessSettings,
@@ -181,6 +182,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
+  const screenRef = useRef<HTMLDivElement>(null);
+  useEntryMotion(screenRef, '[data-screen-entry]', [], 'cards', !isLoading && Boolean(formData));
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12 text-gray-500 dark:text-zinc-400">
@@ -274,9 +278,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   ];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-24 lg:pb-8">
+    <div ref={screenRef} className="max-w-4xl mx-auto p-4 sm:p-6 pb-24 lg:pb-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-gray-200 dark:border-zinc-800">
+      <div data-screen-entry className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-gray-200 dark:border-zinc-800">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
             <Building2 className="w-6 h-6 text-lime-600 dark:text-lime-400" />
@@ -327,7 +331,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       <UpdatesSettings hasUnsavedChanges={JSON.stringify(formData) !== JSON.stringify(settings)} workspaceBusy={isRestoring || isExporting} />
 
-      <section className="mt-6 bg-surface p-5 sm:p-6 border border-border-subtle rounded-xl space-y-3">
+      <section data-screen-entry className="mt-6 bg-surface p-5 sm:p-6 border border-border-subtle rounded-xl space-y-3">
         <label htmlFor="settings-language" className="block text-base font-semibold text-text-main">
           {{en: 'Language', ml: 'ഭാഷ', ar: 'اللغة'}[currentLanguage]}
         </label>
@@ -344,7 +348,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </section>
 
       {/* 1. APPEARANCE SETTINGS (Strictly in Settings, no header/bottom toggles) */}
-      <div className="mt-6 bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
+      <div data-screen-entry className="mt-6 bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
         <div>
           <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
             {resolvedTheme === 'dark' ? (
@@ -406,7 +410,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* 2. STORE INFORMATION FORM */}
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-        <div className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
+        <div data-screen-entry className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">Store Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -461,7 +465,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* 3. ADDRESS DETAILS */}
-        <div className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
+        <div data-screen-entry className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">Address Details</h2>
           <div className="space-y-4">
             <div>
@@ -514,7 +518,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* 4. BILLING & REGIONAL PREFERENCES */}
-        <div className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
+        <div data-screen-entry className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100">Billing & Regional Preferences</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -573,7 +577,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* 5. HELP & GETTING STARTED SECTION */}
-        <div className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
+        <div data-screen-entry className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
@@ -599,7 +603,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* 6. BACKUP & RESTORE SECTION */}
-        <div className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
+        <div data-screen-entry className="bg-white dark:bg-zinc-900 p-6 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">

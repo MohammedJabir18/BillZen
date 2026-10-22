@@ -1,5 +1,8 @@
 # BillZen v0.1.4 distribution candidates
 
+> Later local motion correction (2026-10-22): the standalone `src-tauri/target/release/billzen` and existing per-user installed executable were rebuilt after these candidates. Their current SHA256 is `edb5c7e3be5b7fbd0884d69b7360b18bd313d4864f4d1802583aad12ddc3966a`;39 isolated native assertions passed. The archived Linux installers, Windows setup and APK below retain their original bytes and do **not** contain this later chart/screen correction. No release/feed promotion was performed.
+
+
 Source: `39d6b99a4c1aacd97f5da2f98613c93e5b68146c`. Includes the navigation/summary motion fixes, More drawer and shared Cashbook dialog entries, reduced-motion correction, icon fixes and removal of the developer print probe. No business database is included.
 
 Version: **0.1.4 / Android code1009**. Package/signing identities are retained. Public release promotion is separate from these local/hosted build candidates.

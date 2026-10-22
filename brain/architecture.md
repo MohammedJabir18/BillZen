@@ -534,3 +534,9 @@ Desktop/Mobile navigation share `useNavigationCapsule`: a clipped layer follows 
 ### v0.1.4 local distribution candidates (2026-10-22)
 
 Central metadata is0.1.4/Android1009 with the original package, APK certificate and updater public pin retained. Source39d6b99 includes the approved motion section. Windows NSIS and Linux deb/AppImage/executable candidates are recorded with provenance/checksums in `docs/distribution-v0.1.4.md`; the existing Linux per-user launcher executable is refreshed without relocating business records. Standalone and actual AppImage each passed39 isolated native assertions. Android ARM64 distribution is separate from the debugging x86_64 acceptance build. Local packaging does not publish a GitHub release, change the signed Android feed or activate desktop automatic updates; public v0.1.3 assets remain unchanged.
+
+### Entry-motion continuity correction (2026-10-22)
+
+GSAP owns summary/screen translation/opacity and chart scale; animated bars/cards use color-only CSS transitions. Bar origin is set to 50% 100% before scale writes, with simultaneous 420ms baseline growth. `useEntryMotion` gates on initial data readiness and remembers entered DOM nodes with a WeakSet so ordinary refetch/filter changes do not replay entrances. Chart group-label identity detects newly mounted groups. Live reduced motion settles without replay; input modality is shared with navigation/panels.
+
+Reports, Products, Customers and Settings animate explicitly marked content sections (260ms,35ms stagger,10px/0.85 opacity). Fixed dialog/printing ancestors are excluded. Product/customer modals reuse `usePanelMotion`; dismissal remains immediate. Settled layout/contrast audits also await these targets. No domain/schema/updater/version contract changes.

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import { useEntryMotion } from '../hooks/useEntryMotion';
+import React, { useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Calendar,
@@ -183,6 +184,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     enabled: validRange,
   });
 
+  const screenRef = useRef<HTMLDivElement>(null);
+  useEntryMotion(screenRef, '[data-screen-entry]', [], 'cards', !isLoading);
+
   const queryError = Boolean(ledgerError || accountsError || categoriesError);
   const unavailable = !validRange || !ledgerData || queryError;
   const canExport = !unavailable && !isFetching && !accountsLoading && !categoriesLoading;
@@ -303,13 +307,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   return (
-    <div className="reports-screen min-w-0 space-y-6 text-text-main">
+    <div ref={screenRef} className="reports-screen min-w-0 space-y-6 text-text-main">
       {(!validRange || queryError) && <div role="alert" data-testid="report-error" className="p-4 bg-brand-coral-subtle text-brand-coral border border-border-medium rounded-xl text-sm flex flex-wrap items-center justify-between gap-3">
         <span>{!validRange ? c('Choose a valid date range.') : c('Could not load the report. Please retry.')}</span>
         {validRange && <button className="focus-ring min-h-11 px-3 rounded-lg border border-border-medium" onClick={() => { refetchAccounts(); refetchCategories(); refetchLedger(); }}>{c('Retry')}</button>}
       </div>}
       {/* Top Header & Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
+      <div data-screen-entry className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
             <FileText className="w-6 h-6 text-brand-emerald" />
@@ -345,7 +349,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       </div>
 
       {/* Period Controls & Date Selector Bar */}
-      <div className="bg-surface border border-border-subtle rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-4">
+      <div data-screen-entry className="bg-surface border border-border-subtle rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-4">
         {/* Period Switcher (Today, Month, Year, Custom) */}
         <div className="flex flex-wrap items-center gap-1 bg-surface-subtle p-1 rounded-xl w-full sm:w-auto max-w-full">
           <button
@@ -460,7 +464,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       </div>
 
       {/* Detail Filters Row */}
-      <div className="bg-surface border border-border-subtle rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div data-screen-entry className="bg-surface border border-border-subtle rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {/* Search Input */}
         <div className="relative min-w-0 w-full sm:col-span-2">
           <Search className="w-4 h-4 text-text-muted absolute start-3 top-1/2 -translate-y-1/2" />
@@ -552,7 +556,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       </div>
 
       {/* Balance Summary Bar */}
-      <div className="bg-surface text-text-main border border-border-subtle rounded-2xl p-4 shadow-sm">
+      <div data-screen-entry className="bg-surface text-text-main border border-border-subtle rounded-2xl p-4 shadow-sm">
         <div className="grid grid-cols-1 min-[400px]:grid-cols-2 xl:grid-cols-4 gap-4 divide-y xl:divide-y-0 xl:divide-x divide-border-subtle">
           <div className="pt-2 xl:pt-0">
             <span className="text-xs text-text-muted font-medium uppercase">{t.opening_balance}</span>
@@ -605,7 +609,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-surface border border-border-subtle rounded-2xl overflow-hidden shadow-sm">
+      <div data-screen-entry className="bg-surface border border-border-subtle rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto" role="region" aria-label={c("Transaction details")} tabIndex={0}>
           <table className="w-full text-left text-xs border-collapse">
             <thead>

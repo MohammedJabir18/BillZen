@@ -134,10 +134,13 @@ try {
   });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await check('Rapid date filters leave every financial summary visible', async () => {
+    await tracePanelOpening(page, '.summary-card');
     await page.evaluate(async () => { for (const period of ['year', 'today', 'month', 'today']) {
       document.querySelector(`[data-testid="period-${period}"]`).click(); await new Promise(r => setTimeout(r, 45));
     } });
     await page.waitForTimeout(700); await settledCards(page);
+    const frames = await openingFrames(page);
+    assert.ok(frames.every(f => Math.abs(f.y) < .1 && f.opacity > .999), 'Filters restart a summary entrance: ' + JSON.stringify(frames.slice(0, 5)));
   });
   await check('Asynchronous nonempty analytics settle on live reduced motion', async () => {
     await page.getByTestId('tab-cashbook').click();
@@ -146,8 +149,23 @@ try {
     await page.getByTestId('btn-submit-voucher').click();
     await page.waitForFunction(() => document.querySelectorAll('[role="dialog"]').length === 0);
     await page.getByTestId('tab-dashboard').click();
+    await page.evaluate(() => {
+      window.__barFrames = [];
+      const observer = new MutationObserver(() => {
+        for (const e of document.querySelectorAll('.analytics-bar')) {
+          const s = getComputedStyle(e);
+          const inline = new DOMMatrix(e.style.transform || undefined).m22;
+          const actual = new DOMMatrix(s.transform === 'none' ? undefined : s.transform).m22;
+          window.__barFrames.push({ inline, actual, transition: s.transitionProperty, origin: s.transformOrigin,
+            bottom: e.getBoundingClientRect().bottom, height: e.offsetHeight });
+        }
+      });
+      observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+      window.__barObserver = observer;
+    });
     await page.getByTestId('tab-analytics').click();
     await page.locator('.analytics-bar').first().waitFor({ state: 'attached' });
+    await page.waitForTimeout(550);
     await page.emulateMedia({ reducedMotion: 'reduce' }); await afterMediaPaint(page);
     const bars = await page.locator('.analytics-bar').evaluateAll(els => els.map(e => {
       const s = getComputedStyle(e); return { scale: new DOMMatrix(s.transform === 'none' ? undefined : s.transform).m22, height: e.getBoundingClientRect().height };
@@ -157,6 +175,42 @@ try {
     assert.ok((await page.getByTestId('card-received').innerText()).includes('125.50'));
     await page.screenshot({ path: path.join(output, 'analytics.png') });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
+  });
+  await check('Chart has one animation owner and grows from its bottom baseline', async () => {
+    const frames = await page.evaluate(() => { window.__barObserver.disconnect(); return window.__barFrames; });
+    assert.ok(frames.length > 0);
+    assert.ok(frames.every(f => !['all', 'transform', 'height'].some(p => f.transition.split(',').map(s => s.trim()).includes(p))),
+      'CSS transitions compete with GSAP: ' + JSON.stringify(frames.slice(0, 3)));
+    assert.ok(frames.every(f => Math.abs(f.inline - f.actual) < .035), 'Computed bar scale lags behind GSAP');
+    const positive = frames.filter(f => f.height > 0);
+    assert.ok(positive.some(f => f.actual < .05) && positive.some(f => f.actual > .1 && f.actual < .95), 'Missing baseline-to-height progression');
+    assert.ok(positive.every(f => Math.abs(parseFloat(f.origin.split(' ')[1]) - f.height) < 1), 'Transform origin must remain at the bottom');
+    assert.ok(Math.max(...positive.map(f => f.bottom)) - Math.min(...positive.map(f => f.bottom)) < 1, 'Bar baseline moves during growth');
+  });
+  await check('New chart groups enter after period changes; existing summaries stay settled', async () => {
+    for (const period of ['month', 'year']) {
+      await tracePanelOpening(page, '.analytics-bar');
+      await page.getByTestId('period-' + period).click();
+      await page.waitForTimeout(650);
+      const frames = await openingFrames(page);
+      assert.ok(frames.some(f => f.opacity === 1), 'No chart data observed for ' + period);
+      const scales = await page.locator('.analytics-bar').evaluateAll(els => els.map(e => {
+        const s = getComputedStyle(e);
+        return { scale: new DOMMatrix(s.transform === 'none' ? undefined : s.transform).m22, origin: s.transformOrigin, height: e.offsetHeight };
+      }));
+      assert.ok(scales.length >= 2 && scales.every(f => Math.abs(f.scale - 1) < .001 && Math.abs(parseFloat(f.origin.split(' ')[1]) - f.height) < 1), JSON.stringify(scales));
+      await settledCards(page);
+    }
+  });
+  await check('Reports, products, customers and settings have scoped entry motion', async () => {
+    for (const tab of ['reports', 'products', 'customers', 'settings']) {
+      await tracePanelOpening(page, '[data-screen-entry]');
+      await page.getByTestId('tab-' + tab).click();
+      await page.waitForTimeout(600);
+      const frames = await openingFrames(page);
+      assert.ok(frames.some(f => f.y > 0 && f.opacity < 1), tab + ' has no screen entrance: ' + JSON.stringify(frames.slice(0, 5)));
+      await settledPanel(page.locator('[data-screen-entry]').first());
+    }
   });
   await check('Rapid route changes settle the final active capsule', async () => {
     await page.evaluate(async () => { for (const tab of ['reports', 'cashbook', 'dashboard', 'reports']) {

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { usePanelMotion } from '../hooks/usePanelMotion';
+import { useEntryMotion } from '../hooks/useEntryMotion';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Plus,
@@ -39,6 +41,9 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const screenRef = useRef<HTMLDivElement>(null);
+  useEntryMotion(screenRef, '[data-screen-entry]', [], 'cards', !loading);
+
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'archived'>('active');
@@ -46,6 +51,9 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+  usePanelMotion(modalRef, isModalOpen, 'dialog');
 
   useBackHandler(isModalOpen, () => setIsModalOpen(false));
 
@@ -195,9 +203,9 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
   };
 
   return (
-    <div className={`p-4 sm:p-6 pb-24 lg:pb-6 max-w-7xl mx-auto ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div ref={screenRef} className={`p-4 sm:p-6 pb-24 lg:pb-6 max-w-7xl mx-auto ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div data-screen-entry className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
             <Users className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
@@ -234,7 +242,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
       )}
 
       {/* Search & Filter Toolbar */}
-      <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div data-screen-entry className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
           <Search className="w-5 h-5 text-gray-500 dark:text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -261,7 +269,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
+      <div data-screen-entry className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-gray-500 dark:text-zinc-400 flex items-center justify-center gap-2">
             <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
@@ -479,7 +487,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
 
       {/* Modal Drawer for Create / Edit Customer */}
       {isModalOpen && (
-        <div role="dialog" aria-modal="true" data-testid="customer-modal-dialog" className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div ref={modalRef} role="dialog" aria-modal="true" data-testid="customer-modal-dialog" className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-gray-200 dark:border-zinc-800 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between sticky top-0 bg-white dark:bg-zinc-900 z-10">
               <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">

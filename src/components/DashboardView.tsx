@@ -245,8 +245,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return { list, peak };
   }, [entries, period]);
 
-  useEntryMotion(containerRef, '.summary-card', [period, referenceDate, mode, ledgerData]);
-  useEntryMotion(chartRef, '.analytics-bar', [mode, ledgerData, period], 'bars');
+  useEntryMotion(containerRef, '.summary-card', [mode, Boolean(ledgerData)], 'cards', Boolean(ledgerData));
+  useEntryMotion(chartRef, '.analytics-bar', [mode, barChartData.list.map(group => group.label).join('|')], 'bars', Boolean(ledgerData));
 
   const selectedBarData = useMemo(() => {
     if (!selectedBarLabel) return null;
@@ -503,7 +503,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 1: Money Received */}
         <div
           data-testid="card-received"
-          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
+          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-colors hover:border-[var(--border-medium)]"
         >
           <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.money_received}</span>
@@ -530,7 +530,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 2: Money Paid */}
         <div
           data-testid="card-paid"
-          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
+          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-colors hover:border-[var(--border-medium)]"
         >
           <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.money_paid}</span>
@@ -557,7 +557,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 3: Net Cash Change */}
         <div
           data-testid="card-net"
-          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
+          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-colors hover:border-[var(--border-medium)]"
         >
           <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.net_change}</span>
@@ -600,7 +600,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 4: Closing Balance (Featured Card matching mockup #ceeaa0) */}
         <div
           data-testid="card-closing"
-          className="summary-card p-3.5 sm:p-5 bg-[#ceeaa0] dark:bg-[#1e3518] border border-[#b8d98b] dark:border-[#2e5733] text-[#142811] dark:text-[#ceeaa0] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:shadow-md"
+          className="summary-card p-3.5 sm:p-5 bg-[#ceeaa0] dark:bg-[#1e3518] border border-[#b8d98b] dark:border-[#2e5733] text-[#142811] dark:text-[#ceeaa0] rounded-2xl shadow-sm flex flex-col justify-between transition-colors hover:shadow-md"
         >
           <div className="flex items-center justify-between text-[#142811] dark:text-[#ceeaa0] text-xs font-bold uppercase tracking-wide">
             <span>{t.closing_balance}</span>
@@ -886,13 +886,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div
                           style={{ height: `${inHeight}%` }}
                           title={`${t.inflow_legend}: ${currencySymbol} ${formatMinorUnits(group.inflows, currencyExponent)}`}
-                          className="analytics-bar w-1/2 bg-[#15803d] hover:bg-[#16a34a] dark:bg-[#22c55e] dark:hover:bg-[#4ade80] rounded-t-[4px] transition-all"
+                          className="analytics-bar w-1/2 bg-[#15803d] hover:bg-[#16a34a] dark:bg-[#22c55e] dark:hover:bg-[#4ade80] rounded-t-[4px] transition-colors"
                         />
                         {/* Outflow Bar */}
                         <div
                           style={{ height: `${outHeight}%` }}
                           title={`${t.outflow_legend}: ${currencySymbol} ${formatMinorUnits(group.outflows, currencyExponent)}`}
-                          className="analytics-bar w-1/2 bg-[#b91c1c] hover:bg-[#dc2626] dark:bg-[#ef4444] dark:hover:bg-[#f87171] rounded-t-[4px] transition-all"
+                          className="analytics-bar w-1/2 bg-[#b91c1c] hover:bg-[#dc2626] dark:bg-[#ef4444] dark:hover:bg-[#f87171] rounded-t-[4px] transition-colors"
                         />
                         <span className="absolute -bottom-5 text-[10px] text-[var(--text-subtle)] font-mono whitespace-nowrap">
                           {group.label}

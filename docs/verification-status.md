@@ -2,6 +2,13 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Chart/screen motion continuity — 2026-10-22
+
+- Reproduced overlapping animation ownership: browser traces showed inline bar scale0 while computed scale remained1 with CSS transition-all; origin initially sat at half height. Removed transform/height CSS interpolation, fixed bottom origin before scaling and removed per-bar delay. Summary/data entrances do not replay during routine filters/refetches; new chart groups remain eligible for entry.
+- Reports/Products/Customers/Settings now have scoped section entrances; product/customer modal panels share the existing dialog hook. Fixed modal ancestors remain untransformed. Existing navigation, Cashbook dialogs, keyboard/reduced-motion handling and immediate dismissal retain their contracts.
+- Regression red:19/21 scenarios passed, with CSS ownership and missing screen entrance checks failing. Final:22/22 motion checks passed, including intermediate computed-versus-inline scale, fixed baseline, zero-to-height progression, zero-valued bar, rapid filters, period group replacement, four screens, keyboard, live reduced motion, responsive navigation and RTL themes. Unit72, Reports68, catalog workflow, quick responsive104 and theme96 checks passed. Production build passed with existing chunk/mixed-import warnings. Browser data is synthetic; no hardware FPS claim.
+- Rebuilt Linux executable passed39 isolated native assertions and atomically refreshed the existing per-user installation with a retained backup. Standalone/installed SHA256:`edb5c7e3be5b7fbd0884d69b7360b18bd313d4864f4d1802583aad12ddc3966a`. Previously packaged APK/Windows/deb/AppImage files are not changed by this source section; no GitHub release/feed promotion.
+
 ## Verified v0.1.4 build delivery — 2026-10-22
 
 - Source39d6b99 (0.1.4/Android1009) and motion sourceb19430b both passed full GitHub CI. Hosted Windows39820175490 succeeded; downloaded x64 setup passed source/hash/size and canonical icon verification. Unsigned beta; physical Windows runtime untested.
