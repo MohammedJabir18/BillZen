@@ -91,6 +91,9 @@ jobs:
       - name: Verify Settings language preference and clean header
         run: node scripts/verify_header_tab_navigation.js
 
+      - name: Verify interruptible motion and live reduced-motion preferences
+        run: npm run test:motion
+
       - name: Audit navigation and screen layouts across languages and themes
         run: node scripts/verify_layout_regression.js
 

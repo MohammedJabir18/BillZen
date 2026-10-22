@@ -1524,3 +1524,20 @@
 - Created docs/reviews/2026-10-22-hermes-motion-review.md with prioritized evidence and a concrete Hermes repair prompt. Recommendation: fix regressions before expanding animations or distributing installers. Current full-length file/build are verified; intermediate restoration history and translation repair are not independently established by the final diff.
 - Local ignored evidence lives under test_artifacts/hermes-motion-review; browser preview and synthetic records were isolated from actual business data. Existing installed desktop app, Windows setup and Android APK were not rebuilt. No architecture change.
 - Mandatory semantic Graphify update failed for missing API key; code-only fallback succeeded:1478nodes/3067edges. SQL parser remains unavailable. Review documentation delivery must not be described as committing or CI-validating Hermes's still-uncommitted motion code.
+
+## 2026-10-22 — Motion Pass Repair & Stability Hardening
+- Goals: Resolve P1/P2 findings from independent motion review.
+- Completed Tasks:
+  - AppNavigation.tsx: Fixed positioning, responsive capsule tracking, signed-scale collapse, and reduced-motion handling.
+  - DashboardView.tsx & CashbookView.tsx: Fixed interrupted-tween opacity bugs via gsap.fromTo.
+  - Cleanup: Removed backup files and fixed Cashbook text drift.
+- Verification: npm run build passed.
+
+### 2026-10-22 — Codex takes over Hermes motion repair
+
+- Owner's Hermes limit expired; authorized continuation. Independently re-tested the repaired source, then completed a coherent stability section. Hermes fixed positioning, basic resize/More and explicit card endpoints, but mobile capsule still hid labels, live reduced motion failed to cancel old tweens, and summary/bar effects lacked scoped update cleanup.
+- Added shared useNavigationCapsule/useEntryMotion hooks, clipped leading/trailing edges, cleaned-up observers/font/media/input listeners, physical RTL layout geometry, cancellation on retarget and live reduced-motion settling. Restored original Cashbook wrapping/copy accidentally changed in Hermes's restoration. No business/database/print/signing/updater logic or release identity changed.
+- Test-first browser reproductions caught remaining failures, including independently reviewed long-press compressed bounds and keyboard selection inside More. Final motion14/14, unit72/72, Cashbook UI55, Reports UI68, full layout816, theme96 and PDF checks passed. Initial parallel Cashbook/Reports checks failed timing-sensitive observations; sequential final reruns passed without weakening assertions. Fresh production build719.76kB/gzip193.60kB retains known chunk/import warnings. No hardware FPS benchmark.
+- Added motion command/CI gate, replaced screenshot-only capture helper with checked runner, finalized motion spec/plan, updated review/verification/architecture. Independent final static review found no actionable findings. Local screenshots/JSON live under ignored test_artifacts/motion; only synthetic browser-site data used.
+- Semantic Graphify update again blocked by missing API key; code-only fallback1493nodes/3091edges succeeded, SQL parser unavailable. No full semantic/vault synchronization claimed.
+- Next: inspect pushed source CI; drawer/dialog choreography is a separate next section. Native Linux/Windows/Android executables/installers/APKs were not rebuilt or published by this source repair, and native runtime acceptance remains unverified.

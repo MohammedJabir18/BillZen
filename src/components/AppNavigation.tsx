@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Building2, FileText, LayoutDashboard, MoreHorizontal, Package, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { translations, type Language } from '../i18n';
 import { useBackHandler } from '../hooks/useBackHandler';
+import { useNavigationCapsule } from '../hooks/useNavigationCapsule';
 
 export type AppTab = 'dashboard' | 'reports' | 'cashbook' | 'products' | 'customers' | 'settings';
 interface NavigationProps { activeTab: AppTab; language: Language; onNavigate: (tab: AppTab) => void }
@@ -20,19 +21,31 @@ function destinations(language: Language): Destination[] {
 }
 
 export function DesktopNavigation({ activeTab, language, onNavigate }: NavigationProps) {
+  const capsuleRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+
+  useNavigationCapsule(navRef, capsuleRef, `tab-${activeTab}`, language);
+
   return (
-    <nav aria-label="Main Navigation" className="hidden lg:block border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] no-print transition-colors">
-      <div className="max-w-7xl mx-auto grid grid-cols-6 gap-1 px-4 py-1.5">
-        {destinations(language).map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" data-testid={'tab-' + id} aria-current={activeTab === id ? 'page' : undefined}
-            onClick={() => onNavigate(id)}
-            className={`min-w-0 min-h-11 flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${activeTab === id
-              ? 'bg-[var(--brand-primary)] text-[var(--text-on-accent)] shadow-sm dark:bg-[#2e5733] dark:text-[#ceeaa0]'
-              : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-main)]'}`}>
-            <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
-          </button>
-        ))}
+    <nav aria-label="Main Navigation" className="hidden lg:block relative border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] no-print transition-colors">
+      <div ref={navRef} className="max-w-7xl mx-auto grid grid-cols-6 gap-1 px-4 py-1.5 relative">
+        <div
+          ref={capsuleRef} data-nav-capsule aria-hidden="true"
+          className="absolute inset-0 z-0 bg-[var(--brand-primary)] dark:bg-[#2e5733] transition-none"
+          style={{ pointerEvents: 'none', clipPath: 'inset(0 100% 100% 0)' }}
+        />
+        {destinations(language).map(({ id, label, icon: Icon }) => {
+          return (
+            <button key={id} type="button" data-testid={`tab-${id}`} aria-current={activeTab === id ? 'page' : undefined}
+              onClick={() => onNavigate(id)}
+              className={`relative z-10 min-w-0 min-h-11 flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-sm font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${activeTab === id
+                ? 'bg-[var(--brand-primary)] text-[var(--text-on-accent)] shadow-sm dark:bg-[#2e5733] dark:text-[#ceeaa0]'
+                : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)] hover:text-[var(--text-main)]'}`}>
+              <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );
@@ -42,12 +55,16 @@ export function MobileNavigation({ activeTab, language, onNavigate }: Navigation
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
+  const capsuleRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   useBackHandler(open, () => setOpen(false));
   const t = translations[language];
   const items = destinations(language);
   const primary = items.slice(0, 3);
   const secondary = items.slice(3);
   const secondaryActive = secondary.some(item => item.id === activeTab);
+
+  useNavigationCapsule(navRef, capsuleRef, secondaryActive ? 'mobile-nav-more' : `mobile-tab-${activeTab}`, language);
 
   useEffect(() => {
     if (!open) return;
@@ -74,15 +91,20 @@ export function MobileNavigation({ activeTab, language, onNavigate }: Navigation
   }, [open]);
 
   const select = (tab: AppTab) => { setOpen(false); onNavigate(tab); };
-  const itemClass = (active: boolean) => `min-w-0 min-h-[60px] flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-lg text-[11px] leading-snug font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${active
+  const itemClass = (active: boolean) => `relative z-10 min-w-0 min-h-[60px] flex flex-col items-center justify-center gap-1 px-1 py-2 rounded-lg text-[11px] leading-snug font-semibold transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${active
     ? 'text-[var(--brand-primary)] dark:text-[#ceeaa0] bg-[var(--brand-lime-muted)] border border-[var(--brand-primary)]/20 dark:border-[#ceeaa0]/25'
     : 'text-[var(--text-muted)] hover:bg-[var(--bg-surface-subtle)]'}`;
 
   return (
     <>
-      <nav aria-label="Mobile Navigation" className="app-mobile-nav lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] shadow-lg px-2 pt-1 grid grid-cols-4 gap-1 no-print transition-colors">
+      <nav ref={navRef} aria-label="Mobile Navigation" className="app-mobile-nav lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] shadow-lg px-2 pt-1 grid grid-cols-4 gap-1 no-print transition-colors">
+        <div
+          ref={capsuleRef} data-nav-capsule aria-hidden="true"
+          className="absolute inset-0 z-0 bg-[var(--brand-lime-muted)] transition-none"
+          style={{ pointerEvents: 'none', clipPath: 'inset(0 100% 100% 0)' }}
+        />
         {primary.map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" data-testid={'mobile-tab-' + id} aria-current={activeTab === id ? 'page' : undefined}
+          <button key={id} type="button" data-testid={`mobile-tab-${id}`} aria-current={activeTab === id ? 'page' : undefined}
             onClick={() => select(id)} className={itemClass(activeTab === id)}>
             <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
             <span className="w-full [overflow-wrap:anywhere] text-center">{label}</span>
@@ -106,7 +128,7 @@ export function MobileNavigation({ activeTab, language, onNavigate }: Navigation
             </div>
             <div className="grid grid-cols-2 gap-3">
               {secondary.map(({ id, label, icon: Icon }) => (
-                <button key={id} type="button" data-testid={'mobile-tab-' + id} aria-current={activeTab === id ? 'page' : undefined}
+                <button key={id} type="button" data-testid={`mobile-tab-${id}`} aria-current={activeTab === id ? 'page' : undefined}
                   onClick={() => select(id)} className={`min-h-20 min-w-0 p-3 flex items-center justify-between gap-2.5 rounded-xl border text-start text-sm transition-all active:scale-[0.975] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] ${activeTab === id
                     ? 'border-[var(--brand-primary)] dark:border-[#ceeaa0] bg-[var(--brand-lime-muted)] text-[var(--brand-primary)] dark:text-[#ceeaa0] font-semibold shadow-sm'
                     : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-main)] hover:bg-[var(--bg-surface-subtle)] font-medium'}`}>

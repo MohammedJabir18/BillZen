@@ -522,3 +522,9 @@ Linux per-user installation copies the verified native executable into `~/.local
 ### Desktop icon identity (2026-10-22)
 
 Installed Linux launcher uses an absolute canonical PNG path; the user hicolor theme index/cache also resolves the named icon. Windows NSIS installer and uninstaller explicitly use `icons/icon.ico`, matching the app bundle. `scripts/verify_windows_icons.py` compares real PE group/image resources against every canonical ICO frame; Windows artifact upload requires app/setup matches and includes `icon-verification.json`. This is artifact branding verification, not physical shell/runtime certification. Corrected candidate identity: `docs/desktop-installation.md`.
+
+### Decorative motion ownership (2026-10-22)
+
+Desktop/Mobile navigation share `useNavigationCapsule`: a clipped layer follows independent leading/trailing physical edges, measured in layout coordinates to exclude press transforms. Active colors/labels update immediately; resizing, keyboard input and live reduced-motion changes settle without travel. Each hook owns a single cancellable timeline plus cleaned-up ResizeObserver/font/preference/input listeners. Secondary destinations map to More; physical offsets support RTL without signed scale.
+
+`useEntryMotion` scopes summary-card and analytics-bar GSAP effects, reverts before dependency updates/unmount, and responds live to reduced motion. Explicit final opacity/translation/scale prevents interrupted tweens retaining faded financial values. Analytics dependencies include ledger arrival. No schema/domain/IPC/print/update contract changes. `npm run test:motion` is part of browser CI; desktop installers/APK need separate verified builds to receive these source changes.

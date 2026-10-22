@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
+import { useEntryMotion } from '../hooks/useEntryMotion';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -55,6 +56,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [selectedAccountId, setSelectedAccountId] = useState<string>(initialAccountId || 'all');
   const [customStartDate, setCustomStartDate] = useState<string>(todayStr);
   const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   // Selected bar in analytics view for accessible details
   const [selectedBarLabel, setSelectedBarLabel] = useState<string | null>(null);
@@ -138,9 +141,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts]);
 
-  // Which accounts to display in the account balances strip:
-  // - When 'all' is selected: display all active accounts.
-  // - When a specific account is selected: display only that account (even if archived).
   const displayedAccounts = useMemo(() => {
     if (selectedAccountId === 'all') {
       return activeAccounts;
@@ -154,7 +154,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return accounts.find((a) => a.id === selectedAccountId)?.is_archived ?? false;
   }, [selectedAccountId, accounts]);
 
-  // Main ledger query for the dashboard
   const {
     data: ledgerData,
     isLoading: isLedgerLoading,
@@ -171,8 +170,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       }),
   });
 
-  // Query individual displayed accounts to ensure strip balances consistently reflect
-  // the exact closing balance for the active period cutoff date
   const accountLedgerQueries = useQueries({
     queries: displayedAccounts.map((acc) => ({
       queryKey: ['cashbook_ledger', startDate, endDate, acc.id],
@@ -198,7 +195,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const map = new Map<string, AccountStripState>();
     displayedAccounts.forEach((acc, i) => {
       const q = accountLedgerQueries[i];
-      // Leverage main ledger query data if querying the same selected account
       const data = q?.data || (selectedAccountId === acc.id ? ledgerData : undefined);
       const isErr = q?.isError || (selectedAccountId === acc.id && isLedgerError);
       const isLoad = (q?.isLoading ?? true) && (selectedAccountId === acc.id ? isLedgerLoading : true);
@@ -225,12 +221,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const closingBalanceMinor = summary?.closing_balance_minor ?? 0;
   const openingBalanceMinor = summary?.opening_balance_minor ?? 0;
 
-  // Recent 5 entries (reverse chronological)
   const recentEntries = useMemo(() => {
     return [...entries].reverse().slice(0, 5);
   }, [entries]);
 
-  // Analytics: daily / monthly grouping for bar chart
   const barChartData = useMemo(() => {
     const groups: Record<string, { label: string; inflows: number; outflows: number; count: number }> = {};
     for (const item of entries) {
@@ -251,13 +245,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return { list, peak };
   }, [entries, period]);
 
-  // Active bar details for accessible chart popover
+  useEntryMotion(containerRef, '.summary-card', [period, referenceDate, mode, ledgerData]);
+  useEntryMotion(chartRef, '.analytics-bar', [mode, ledgerData, period], 'bars');
+
   const selectedBarData = useMemo(() => {
     if (!selectedBarLabel) return null;
     return barChartData.list.find((g) => g.label === selectedBarLabel) || null;
   }, [selectedBarLabel, barChartData.list]);
 
-  // Analytics: category breakdown for outflows
   const categoryBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     for (const item of entries) {
@@ -501,11 +496,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       )}
 
       {/* 3. 4 Primary Summary Cards */}
-      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
+      <div
+        ref={containerRef}
+        className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5"
+      >
         {/* Card 1: Money Received */}
         <div
           data-testid="card-received"
-          className="p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
+          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
         >
           <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.money_received}</span>
@@ -532,7 +530,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 2: Money Paid */}
         <div
           data-testid="card-paid"
-          className="p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
+          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
         >
           <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.money_paid}</span>
@@ -559,7 +557,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 3: Net Cash Change */}
         <div
           data-testid="card-net"
-          className="p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
+          className="summary-card p-3.5 sm:p-5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:border-[var(--border-medium)]"
         >
           <div className="flex items-center justify-between text-[var(--text-muted)] text-xs font-semibold">
             <span>{t.net_change}</span>
@@ -602,7 +600,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 4: Closing Balance (Featured Card matching mockup #ceeaa0) */}
         <div
           data-testid="card-closing"
-          className="p-3.5 sm:p-5 bg-[#ceeaa0] dark:bg-[#1e3518] border border-[#b8d98b] dark:border-[#2e5733] text-[#142811] dark:text-[#ceeaa0] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:shadow-md"
+          className="summary-card p-3.5 sm:p-5 bg-[#ceeaa0] dark:bg-[#1e3518] border border-[#b8d98b] dark:border-[#2e5733] text-[#142811] dark:text-[#ceeaa0] rounded-2xl shadow-sm flex flex-col justify-between transition-all hover:shadow-md"
         >
           <div className="flex items-center justify-between text-[#142811] dark:text-[#ceeaa0] text-xs font-bold uppercase tracking-wide">
             <span>{t.closing_balance}</span>
@@ -636,7 +634,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-[10px] font-semibold text-[var(--brand-primary)] dark:text-[var(--brand-lime)] bg-[var(--brand-lime-muted)] dark:bg-[#1e3518] px-1.5 py-0.5 rounded">
               ({t.account_filtered_label})
             </span>
-          )}:
+          )}
+          :
         </span>
         {displayedAccounts.length > 0 ? (
           displayedAccounts.map((acc, idx) => {
@@ -854,6 +853,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {/* Bar Chart Bars with Tap and Keyboard Accessibility */}
               <div
                 data-testid="analytics-bars-container"
+                ref={chartRef}
                 role="region"
                 aria-label="Cash flow bar chart"
                 className="mt-6 h-48 flex items-end justify-around gap-2 pb-6 border-b border-[var(--border-subtle)] relative"
@@ -886,13 +886,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div
                           style={{ height: `${inHeight}%` }}
                           title={`${t.inflow_legend}: ${currencySymbol} ${formatMinorUnits(group.inflows, currencyExponent)}`}
-                          className="w-1/2 bg-[#15803d] hover:bg-[#16a34a] dark:bg-[#22c55e] dark:hover:bg-[#4ade80] rounded-t-[4px] transition-all"
+                          className="analytics-bar w-1/2 bg-[#15803d] hover:bg-[#16a34a] dark:bg-[#22c55e] dark:hover:bg-[#4ade80] rounded-t-[4px] transition-all"
                         />
                         {/* Outflow Bar */}
                         <div
                           style={{ height: `${outHeight}%` }}
                           title={`${t.outflow_legend}: ${currencySymbol} ${formatMinorUnits(group.outflows, currencyExponent)}`}
-                          className="w-1/2 bg-[#b91c1c] hover:bg-[#dc2626] dark:bg-[#ef4444] dark:hover:bg-[#f87171] rounded-t-[4px] transition-all"
+                          className="analytics-bar w-1/2 bg-[#b91c1c] hover:bg-[#dc2626] dark:bg-[#ef4444] dark:hover:bg-[#f87171] rounded-t-[4px] transition-all"
                         />
                         <span className="absolute -bottom-5 text-[10px] text-[var(--text-subtle)] font-mono whitespace-nowrap">
                           {group.label}

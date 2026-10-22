@@ -2,6 +2,23 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Hermes motion continuation — 2026-10-22
+
+Independently checked Hermes's repaired working tree, reproduced remaining defects, and completed the repair. Mobile label/icon layering, live reduced-motion cancellation, keyboard More selection and long-press geometry were still broken. Shared owned/cancellable hooks now handle navigation and summary/chart effects; original Cashbook amount wrapping/copy was restored. Independent final static review found no remaining actionable finding.
+
+Observed final verification:
+
+- Production build passed; main JavaScript 719.76 kB / gzip193.60 kB. Existing chunk-size/mixed-import warnings remain. No device FPS benchmark claimed.
+- Frontend unit tests:72/72 in12 files.
+- New real-browser motion suite:14/14 scenarios. Covers long press, keyboard primary/More, live reduced motion for navigation/cards/nonempty analytics, rapid routes/filters, responsive hidden navigation, More selection and animated RTL in light/dark themes. A synthetic125.50 receipt confirms visible Dashboard money and positive/zero chart geometry. Added to browser CI.
+- Cashbook UI:55/55 and Reports UI:68/68 passed sequentially on final code. Earlier resource-heavy parallel verification failed on Malayalam alert visibility and a Reports submit timeout; sequential reruns passed without weakening assertions. These remain useful timing observations, not silently discarded passes.
+- Full layout matrix:816 states, zero failures across10 widths,3 languages and both themes. Quick preliminary matrix:104 states, zero failures.
+- Theme contrast:96 states passed, zero reported contrast/overflow failures. This audits settled solid-color text, not complete accessibility or every animation frame.
+- Cashbook PDF suite:passed, including voucher/invoice separation and A4 checks. Physical printing not tested.
+- `git diff --check`:passed. Local screenshots/JSON under ignored `test_artifacts/motion/`; earlier failing reproductions retained in temporary logs.
+
+All browser data was isolated/synthetic. No native database, calculation/schema, signing/updater configuration, version or release asset changed. Native Linux/Windows/Android runtime and physical-device performance were not verified for this source section; existing executable/APK/installers still require separate builds. Drawer/dialog expansion remains a later section, not part of the completed stability claim. Graphify semantic sync lacks an API key; code-only refresh succeeded1493nodes/3091edges, SQL parser unavailable.
+
 ## Phase UI-2 Dashboard migration — 2026-10-20, 11:27 IST
 
 Migrated Dashboard (`src/components/DashboardView.tsx`) to Precision Ledger design system tokens. Rebuilt standalone release executable and executed complete local verification suite.

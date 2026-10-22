@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:motion": "node scripts/verify_motion.js",
     "test:catalog": "node scripts/verify_catalog_playwright.js",
     "test:reports-ui": "node scripts/verify_reports_ui4.js",
     "test:cashbook-ui": "node scripts/verify_cashbook_ui3.js",

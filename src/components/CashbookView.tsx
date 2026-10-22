@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import { useEntryMotion } from '../hooks/useEntryMotion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Wallet,
@@ -81,6 +82,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
   const [classificationFilter, setClassificationFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // State: Modals
   const [isEntryModalOpen, setIsEntryModalOpen] = useState<boolean>(false);
@@ -169,6 +171,8 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
     opening_balance_minor: 0,
     closing_balance_minor: 0,
   };
+
+  useEntryMotion(containerRef, '.summary-card', [ledgerData]);
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts]);
 
@@ -577,9 +581,9 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
       </div>
 
       {/* Financial Summary Cards */}
-      <div data-testid="cashbook-summary" aria-busy={isAccountsLoading || isLedgerLoading} className="grid grid-cols-1 min-[400px]:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+      <div ref={containerRef} data-testid="cashbook-summary" aria-busy={isAccountsLoading || isLedgerLoading} className="grid grid-cols-1 min-[400px]:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Cash Card */}
-        <div className="bg-surface border border-border-subtle rounded-xl p-3.5 sm:p-4 shadow-sm">
+        <div className="summary-card bg-surface border border-border-subtle rounded-xl p-3.5 sm:p-4 shadow-sm">
           <span className="text-xs font-medium text-text-muted tracking-wide block">
             {c("Total Cash (All Accounts)")}
           </span>
@@ -594,7 +598,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
         </div>
 
         {/* Period Inflows Card */}
-        <div className="bg-surface border border-border-subtle rounded-xl p-3.5 sm:p-4 shadow-sm">
+        <div className="summary-card bg-surface border border-border-subtle rounded-xl p-3.5 sm:p-4 shadow-sm">
           <span className="text-xs font-medium text-brand-emerald tracking-wide block flex items-center gap-1">
             <ArrowDownLeft className="w-3.5 h-3.5" />
             <span>{c("Money Received")}</span>
@@ -610,7 +614,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
         </div>
 
         {/* Period Outflows Card */}
-        <div className="bg-surface border border-border-subtle rounded-xl p-3.5 sm:p-4 shadow-sm">
+        <div className="summary-card bg-surface border border-border-subtle rounded-xl p-3.5 sm:p-4 shadow-sm">
           <span className="text-xs font-medium text-brand-coral tracking-wide block flex items-center gap-1">
             <ArrowUpRight className="w-3.5 h-3.5" />
             <span>{c("Money Paid")}</span>
@@ -626,7 +630,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
         </div>
 
         {/* Period Balances Card */}
-        <div className="bg-brand-lime border border-border-subtle rounded-xl p-3.5 sm:p-4">
+        <div className="summary-card bg-brand-lime border border-border-subtle rounded-xl p-3.5 sm:p-4">
           <span className="text-xs font-medium text-text-main tracking-wide block">
             {c("Closing Balance")}
           </span>
