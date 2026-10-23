@@ -544,3 +544,7 @@ Reports, Products, Customers and Settings animate explicitly marked content sect
 ### Chart period replay (2026-10-22)
 
 Chart entries intentionally replay the complete series on a selected period/date/account or group-identity change, including keyed DOM bars retained between Today and Month. Chart dependencies include mode, period, resolved date bounds, account and group labels, plus data readiness. `useEntryMotion`'s per-node entrance memory applies to ordinary cards/sections; bars animate as one dataset. Scoped cleanup cancels replaced growth and live preference changes settle without replay. Same-dataset background refetches do not restart the entrance.
+
+## 2026-10-23 — Durable browser catalogs (P0 partial)
+
+Browser catalog adapters now use the shared BillZen_Web_DB IndexedDB database, upgraded from version1 to2 with products/customers/categories stores. Synchronous catalog mutations are serialized within one readwrite transaction; reads use readonly transactions; completion is acknowledged after commit. No production memory-only catalog fallback remains. Native commands unchanged. Full web workspace restore and stock opening ledger parity remain pending; this change does not make the browser backup a complete native workspace round trip.

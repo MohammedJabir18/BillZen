@@ -21,7 +21,7 @@ import { getTodayBusinessDate } from '../domain/financial';
 import { computeClientIntentHash } from '../domain/backup_crypto';
 
 const DB_NAME = 'BillZen_Web_DB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const MAX_MONEY_MINOR = 100_000_000_000; // 10^11
 export const MAX_TOTAL_MINOR = 100_000_000_000_000; // 10^14
@@ -270,6 +270,9 @@ export async function openWebDb(): Promise<IDBDatabase | null> {
 
     req.onupgradeneeded = () => {
       const db = req.result;
+      for (const name of ['products', 'customers', 'categories']) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' });
+      }
 
       if (!db.objectStoreNames.contains('money_accounts')) {
         db.createObjectStore('money_accounts', { keyPath: 'id' });
