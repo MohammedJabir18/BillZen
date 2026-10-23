@@ -17,12 +17,12 @@ val tauriProperties = Properties().apply {
 val resolvedVersionCode = System.getenv("BILLZEN_VERSION_CODE")?.toIntOrNull()
     ?: (project.findProperty("versionCode") as? String)?.toIntOrNull()
     ?: tauriProperties.getProperty("tauri.android.versionCode")?.toIntOrNull()
-    ?: 1009
+    ?: 1010
 
 val resolvedVersionName = System.getenv("BILLZEN_VERSION_NAME")
     ?: (project.findProperty("versionName") as? String)
     ?: tauriProperties.getProperty("tauri.android.versionName")
-    ?: "0.1.4"
+    ?: "0.1.5"
 
 val resolvedWebviewDebugging = System.getenv("BILLZEN_ENABLE_WEBVIEW_DEBUGGING")?.toBooleanStrictOrNull()
     ?: (project.findProperty("enableWebviewDebugging") as? String)?.toBooleanStrictOrNull()
