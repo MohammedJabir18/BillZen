@@ -78,7 +78,7 @@ export function exportTransactionsToCsv(options: CsvExportOptions): string {
   rows.push(`${sanitizeCsvCell('Opening Balance')},${sanitizeCsvCell(formatMinorUnits(summary.opening_balance_minor, exp))}`);
   rows.push(`${sanitizeCsvCell('Total Receipts (Inflows)')},${sanitizeCsvCell(formatMinorUnits(summary.period_inflows_minor, exp))}`);
   rows.push(`${sanitizeCsvCell('Total Payments (Outflows)')},${sanitizeCsvCell(formatMinorUnits(summary.period_outflows_minor, exp))}`);
-  const net = summary.period_inflows_minor - summary.period_outflows_minor;
+  const net = summary.closing_balance_minor - summary.opening_balance_minor;
   rows.push(`${sanitizeCsvCell('Net Cash Change')},${sanitizeCsvCell(formatMinorUnits(net, exp))}`);
   rows.push(`${sanitizeCsvCell('Closing Balance')},${sanitizeCsvCell(formatMinorUnits(summary.closing_balance_minor, exp))}`);
   rows.push(`${sanitizeCsvCell('Total Transactions')},${sanitizeCsvCell(entries.length)}`);
@@ -98,15 +98,19 @@ export function exportTransactionsToCsv(options: CsvExportOptions): string {
     'Payment (-)',
     'Running Balance',
     'Reference / Notes',
+    'Transfer In',
+    'Transfer Out',
+    'Transfer Number',
   ];
   rows.push(columns.map(sanitizeCsvCell).join(','));
 
   // Transaction Rows
   for (const entry of entries) {
     const v = entry.voucher;
+    const transfer = v.classification === 'transfer';
     const isInflow = v.direction === 'inflow';
-    const inflowStr = isInflow ? formatMinorUnits(v.amount_minor, exp) : '';
-    const outflowStr = !isInflow ? formatMinorUnits(v.amount_minor, exp) : '';
+    const inflowStr = isInflow && !transfer ? formatMinorUnits(v.amount_minor, exp) : '';
+    const outflowStr = !isInflow && !transfer ? formatMinorUnits(v.amount_minor, exp) : '';
 
     const row = [
       v.business_date,
@@ -121,6 +125,9 @@ export function exportTransactionsToCsv(options: CsvExportOptions): string {
       outflowStr,
       formatMinorUnits(entry.running_balance_minor, exp),
       v.notes || v.reference_note || '',
+      transfer && isInflow ? formatMinorUnits(v.amount_minor, exp) : '',
+      transfer && !isInflow ? formatMinorUnits(v.amount_minor, exp) : '',
+      transfer ? v.voucher_number.replace(/-(IN|OUT)$/, '') : '',
     ];
 
     rows.push(row.map(sanitizeCsvCell).join(','));

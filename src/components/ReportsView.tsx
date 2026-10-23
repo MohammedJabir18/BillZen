@@ -1,3 +1,4 @@
+import { transferText } from '../i18n/transfers';
 import { useEntryMotion } from '../hooks/useEntryMotion';
 import React, { useState, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -254,6 +255,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     let inflows = 0;
     let outflows = 0;
     for (const entry of filteredEntries) {
+      if (entry.voucher.classification === 'transfer') continue;
       if (entry.voucher.direction === 'inflow') {
         inflows += entry.voucher.amount_minor;
       } else {
@@ -543,6 +545,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           <option value="loan">{c("Loan")}</option>
           <option value="advance">{c("Advance")}</option>
           <option value="refund">{c("Refund")}</option>
+          <option value="transfer">{c("Transfer")}</option>
         </select>
 
         {/* Payment Method Filter */}
@@ -647,21 +650,22 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <th className="py-3 px-3.5">{c("Classification")}</th>
                 <th className="py-3 px-3.5 text-right">{t.th_inflow}</th>
                 <th className="py-3 px-3.5 text-right">{t.th_outflow}</th>
+                <th className="py-3 px-3.5 text-right">{c("Transfer")}</th>
                 <th className="py-3 px-3.5 text-right">{c("Balance")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-text-muted">
+                  <td colSpan={10} className="py-10 text-center text-text-muted">
                     {c("Loading records...")}
                   </td>
                 </tr>
               ) : unavailable ? (
-                <tr><td colSpan={9} className="p-8 text-brand-coral">{!validRange ? c('Choose a valid date range.') : c('Could not load the report. Please retry.')}</td></tr>
+                <tr><td colSpan={10} className="p-8 text-brand-coral">{!validRange ? c('Choose a valid date range.') : c('Could not load the report. Please retry.')}</td></tr>
               ) : filteredEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-text-muted">
+                  <td colSpan={10} className="py-12 text-center text-text-muted">
                     <p className="font-medium">{t.empty_state_no_items}</p>
                     <p className="text-xs text-text-muted mt-1">
                       {hasDetailFilter ? c("Try clearing your filters or changing the period.") : c("No cash movements recorded in this period.")}
@@ -711,10 +715,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                         </span>
                       </td>
                       <td className="py-3 px-3.5 tabular-nums text-right whitespace-nowrap font-medium text-brand-emerald">
-                        {isInflow ? `+${currencySymbol}${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
+                        {isInflow && v.classification !== 'transfer' ? `+${currencySymbol}${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
                       </td>
                       <td className="py-3 px-3.5 tabular-nums text-right whitespace-nowrap font-medium text-brand-coral">
-                        {!isInflow ? `−${currencySymbol}${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
+                        {!isInflow && v.classification !== 'transfer' ? `−${currencySymbol}${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
+                      </td>
+                      <td className="py-3 px-3.5 tabular-nums text-right whitespace-nowrap text-text-main">
+                        {v.classification === 'transfer' && <span>{transferText(language,isInflow?'transferIn':'transferOut')}: <bdi>{currencySymbol}{formatMinorUnits(v.amount_minor,currencyExponent)}</bdi></span>}
                       </td>
                       <td className="py-3 px-3.5 tabular-nums text-right whitespace-nowrap font-semibold text-text-main">
                         {currencySymbol}{formatMinorUnits(entry.running_balance_minor, currencyExponent)}

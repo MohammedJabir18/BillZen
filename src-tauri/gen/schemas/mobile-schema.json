@@ -291,6 +291,12 @@
           "markdownDescription": "Enables the get_cashbook_parties command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_cashbook_transfers command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-cashbook-transfers",
+          "markdownDescription": "Enables the get_cashbook_transfers command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_categories command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-categories",
@@ -333,6 +339,12 @@
           "markdownDescription": "Enables the ping command without any pre-configured scope."
         },
         {
+          "description": "Enables the post_cashbook_transfer command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-post-cashbook-transfer",
+          "markdownDescription": "Enables the post_cashbook_transfer command without any pre-configured scope."
+        },
+        {
           "description": "Enables the post_cashbook_voucher command without any pre-configured scope.",
           "type": "string",
           "const": "allow-post-cashbook-voucher",
@@ -367,6 +379,12 @@
           "type": "string",
           "const": "allow-resume-after-update",
           "markdownDescription": "Enables the resume_after_update command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the reverse_cashbook_transfer command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reverse-cashbook-transfer",
+          "markdownDescription": "Enables the reverse_cashbook_transfer command without any pre-configured scope."
         },
         {
           "description": "Enables the reverse_cashbook_voucher command without any pre-configured scope.",
@@ -531,6 +549,12 @@
           "markdownDescription": "Denies the get_cashbook_parties command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_cashbook_transfers command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-cashbook-transfers",
+          "markdownDescription": "Denies the get_cashbook_transfers command without any pre-configured scope."
+        },
+        {
           "description": "Denies the get_categories command without any pre-configured scope.",
           "type": "string",
           "const": "deny-get-categories",
@@ -573,6 +597,12 @@
           "markdownDescription": "Denies the ping command without any pre-configured scope."
         },
         {
+          "description": "Denies the post_cashbook_transfer command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-post-cashbook-transfer",
+          "markdownDescription": "Denies the post_cashbook_transfer command without any pre-configured scope."
+        },
+        {
           "description": "Denies the post_cashbook_voucher command without any pre-configured scope.",
           "type": "string",
           "const": "deny-post-cashbook-voucher",
@@ -607,6 +637,12 @@
           "type": "string",
           "const": "deny-resume-after-update",
           "markdownDescription": "Denies the resume_after_update command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reverse_cashbook_transfer command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reverse-cashbook-transfer",
+          "markdownDescription": "Denies the reverse_cashbook_transfer command without any pre-configured scope."
         },
         {
           "description": "Denies the reverse_cashbook_voucher command without any pre-configured scope.",

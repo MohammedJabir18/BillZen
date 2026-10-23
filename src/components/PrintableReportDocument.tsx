@@ -27,7 +27,7 @@ export const PrintableReportDocument: React.FC<PrintableReportProps> = ({
     generatedAt,
   } = reportData;
 
-  const netCashChange = summary.period_inflows_minor - summary.period_outflows_minor;
+  const netCashChange = summary.closing_balance_minor - summary.opening_balance_minor;
 
   return (
     <div
@@ -138,13 +138,14 @@ export const PrintableReportDocument: React.FC<PrintableReportProps> = ({
             <th className="py-2 px-2.5 border-r border-slate-300 text-[10px] uppercase">Account</th>
             <th className="py-2 px-2.5 border-r border-slate-300 text-[10px] uppercase text-right">Receipt (+)</th>
             <th className="py-2 px-2.5 border-r border-slate-300 text-[10px] uppercase text-right">Payment (−)</th>
+            <th className="py-2 px-2.5 border-r border-slate-300 text-[10px] uppercase text-right">Transfer</th>
             <th className="py-2 px-2.5 text-[10px] uppercase text-right">Balance</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-200">
           {entries.length === 0 ? (
             <tr>
-              <td colSpan={8} className="py-8 text-center text-slate-500 italic">
+              <td colSpan={9} className="py-8 text-center text-slate-500 italic">
                 No cashbook transactions found for this period and filter criteria.
               </td>
             </tr>
@@ -179,10 +180,13 @@ export const PrintableReportDocument: React.FC<PrintableReportProps> = ({
                     {v.account_name_snap || '—'}
                   </td>
                   <td className="py-2 px-2.5 border-r border-slate-200 font-mono text-[11px] text-right text-emerald-700 whitespace-nowrap font-medium">
-                    {isInflow ? `+${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
+                    {isInflow && v.classification !== 'transfer' ? `+${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
                   </td>
                   <td className="py-2 px-2.5 border-r border-slate-200 font-mono text-[11px] text-right text-rose-700 whitespace-nowrap font-medium">
-                    {!isInflow ? `−${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
+                    {!isInflow && v.classification !== 'transfer' ? `−${formatMinorUnits(v.amount_minor, currencyExponent)}` : ''}
+                  </td>
+                  <td className="py-2 px-2.5 border-r border-slate-200 text-[11px] text-right text-slate-900">
+                    {v.classification === 'transfer' && <span>Transfer {isInflow?'In':'Out'}: {formatMinorUnits(v.amount_minor,currencyExponent)}</span>}
                   </td>
                   <td className="py-2 px-2.5 font-mono text-[11px] text-right whitespace-nowrap font-semibold text-slate-900">
                     {formatMinorUnits(entry.running_balance_minor, currencyExponent)}
@@ -197,7 +201,7 @@ export const PrintableReportDocument: React.FC<PrintableReportProps> = ({
       {/* Footer / Document Disclaimer */}
       <div className="border-t border-slate-300 pt-3 flex justify-between items-center text-[10px] text-slate-500">
         <div>
-          <span>Receipts − Payments = Net cash change. This is not business profit.</span>
+          <span>Closing − Opening = Net cash change. Transfers are excluded from receipts/payments. This is not business profit.</span>
         </div>
         <div>
           <span>BillZen Offline Accounting • Generated locally on device</span>

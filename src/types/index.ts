@@ -240,6 +240,7 @@ import type { CashbookVoucher, ReportPrintData } from './cashbook';
 export type ActivePrintDocument =
   | { type: 'invoice'; invoice: InvoiceDTO; format?: 'a4' }
   | { type: 'voucher'; voucher: CashbookVoucher; format: 'a4' | 'thermal80' }
+  | { type: 'transfer'; data: import('./transfers').TransferPrintData; language: import('../i18n').Language; format: 'a4' }
   | { type: 'report'; reportData: ReportPrintData; format?: 'a4' }
   | null;
 

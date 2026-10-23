@@ -1,6 +1,7 @@
 # Roadmap
 
 ## Completed Milestones
+- **T1 Account Transfers (2026-10-23)**: Native/browser atomic pairs, idempotent retries and paired reversal; backup1.1/legacy1.0 import, Cashbook UI, transfer-aware analytics/Reports/CSV and immutable A4 transfer documents. Local Linux/ARM64 candidates verified; public release and installation separate. Next: [B1 invoice drafts](superpowers/plans/2026-10-23-invoice-drafts.md), with no stock/cash/debt effects.
 - **M1 & M2 Foundation**: Runnable Tauri 2 + Vite 8 + React 19 shell, SQLite WAL database worker, OS single-instance lock, strict platform CSP, and financial arithmetic engine.
 - **Regional Foundation & Verification**: Support for 2-decimal and 3-decimal currencies (India & GCC), currency change protections, automated headless A4 PDF generation.
 - **M3 & M3.1 Catalog Integrity**: Products, customers, case-insensitive categories, leading-zero barcode indexing, stock movements, and dual-checksum migration safety.

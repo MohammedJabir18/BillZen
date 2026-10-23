@@ -520,7 +520,8 @@ async function runCashbookVerification() {
     const backupJson = JSON.parse(backupContentRaw);
 
     const isEnvelopeValid = Boolean(
-      backupJson.format_version === '1.0' &&
+      backupJson.format_version === '1.1' &&
+      Array.isArray(backupJson.cashbook_transfers) &&
       backupJson.scope === 'workspace' &&
       typeof backupJson.checksum_sha256 === 'string' &&
       backupJson.checksum_sha256.length === 64 &&

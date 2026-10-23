@@ -2,6 +2,10 @@
 
 **Latest verified local build candidates: v0.1.4.** See [distribution files and checksums](distribution-v0.1.4.md). Windows friend file: `dist-desktop/windows/v0.1.4/BillZen_0.1.4_x64-setup.exe`. Linux per-user installation has been refreshed to this build. These candidates have not been promoted to a public release.
 
+## T1 transfer candidate — 2026-10-23
+
+The transfer-enabled Linux candidate is `src-tauri/target/release/billzen`; ARM64 Android candidate is `dist-android/billzen-beta-v0.1.4-arm64-v8a.apk`. See [transfer guide](account-transfers-guide.md) and verification-status.md for exact hashes and checks. The installed Linux launcher still points to the earlier verified customer/cashbook build. Existing Windows/macOS installers have not been rebuilt for T1. No updater release/version increase was published.
+
 ## Linux — installed for this user
 
 The current verified build is installed at `~/.local/opt/billzen/billzen`; its launcher is `~/.local/share/applications/billzen.desktop`. Search **BillZen** in the applications menu. No administrator password is needed for this user-local installation.

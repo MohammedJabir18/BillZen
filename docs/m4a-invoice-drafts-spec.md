@@ -1,7 +1,9 @@
 # BillZen — Milestone 4A: Invoice Drafts Specification
 
 > [!NOTE]
-> **MILESTONE DEFERRED TO PHASE C4**: Per project owner requirement (2026-10-19), implementation of this invoice specification is deferred in favor of the Offline Company Cashbook (`docs/cashbook-architecture-spec.md`). This document is fully preserved as the authoritative blueprint for future Phase C4 commercial billing integration.
+> **Historical deferral; now scheduled as B1**: The owner authorized transfers/billing on2026-10-23. Drafts are the next phase after T1 under `docs/superpowers/plans/2026-10-23-invoice-drafts.md`; finalization/settlements remain separate. The original deferral below describes the earlier scheduling decision.
+>
+> **Original deferral to C4**: Per project owner requirement (2026-10-19), implementation of this invoice specification is deferred in favor of the Offline Company Cashbook (`docs/cashbook-architecture-spec.md`). This document is fully preserved as the authoritative blueprint for future Phase C4 commercial billing integration.
 
 ## 1. Executive Summary & Architectural Scope
 

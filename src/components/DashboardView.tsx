@@ -1,3 +1,4 @@
+import { transferText } from '../i18n/transfers';
 import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { useEntryMotion } from '../hooks/useEntryMotion';
@@ -217,7 +218,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const moneyReceivedMinor = summary?.period_inflows_minor ?? 0;
   const moneyPaidMinor = summary?.period_outflows_minor ?? 0;
-  const netCashChangeMinor = moneyReceivedMinor - moneyPaidMinor;
+  const netCashChangeMinor = summary ? summary.closing_balance_minor - summary.opening_balance_minor : 0;
   const closingBalanceMinor = summary?.closing_balance_minor ?? 0;
   const openingBalanceMinor = summary?.opening_balance_minor ?? 0;
 
@@ -229,6 +230,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const groups: Record<string, { label: string; inflows: number; outflows: number; count: number }> = {};
     for (const item of entries) {
       const v = item.voucher;
+      if (v.classification === 'transfer') continue;
       const key = period === 'year' ? v.business_date.slice(0, 7) : v.business_date.slice(5);
       if (!groups[key]) {
         groups[key] = { label: key, inflows: 0, outflows: 0, count: 0 };
@@ -257,7 +259,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const map: Record<string, number> = {};
     for (const item of entries) {
       const v = item.voucher;
-      if (v.direction === 'outflow') {
+      if (v.direction === 'outflow' && v.classification !== 'transfer') {
         const catName = v.category_id || 'Other Expense';
         map[catName] = (map[catName] || 0) + v.amount_minor;
       }
@@ -592,7 +594,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </div>
             <p className="text-[11px] text-[var(--text-subtle)] mt-1 font-medium">
-              {t.receipts_minus_payments}
+              {transferText(language,'netEquation')}
             </p>
           </div>
         </div>
@@ -742,7 +744,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-[var(--text-main)] truncate">
-                            {v.party_name_snap || (isInflow ? t.cash_receipt_default : t.cash_payment_default)}
+                            {v.classification === 'transfer' ? transferText(language,isInflow?'transferIn':'transferOut') : v.party_name_snap || (isInflow ? t.cash_receipt_default : t.cash_payment_default)}
                           </p>
                           <p className="text-[11px] text-[var(--text-muted)] truncate font-mono">
                             {v.voucher_number} · {v.payment_method} · {v.business_date}
@@ -802,6 +804,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span className="font-semibold tabular-nums font-mono">
                     {currencySymbol} {formatMinorUnits(moneyPaidMinor, currencyExponent)}
                   </span>
+                </div>
+                <div className="flex justify-between items-center py-2 text-[var(--text-muted)]" data-testid="net-transfer-effect">
+                  <span>{transferText(language,'netTransfers')}</span>
+                  <bdi className="font-semibold tabular-nums">{currencySymbol} {formatMinorUnits(netCashChangeMinor-moneyReceivedMinor+moneyPaidMinor,currencyExponent)}</bdi>
                 </div>
                 <div className="flex justify-between items-center pt-2.5 font-bold text-[var(--text-main)]">
                   <span className="font-bold">＝ {t.closing_balance}</span>

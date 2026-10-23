@@ -1,3 +1,5 @@
+import { TransferControls } from './TransferControls';
+import { transferText } from '../i18n/transfers';
 import React, { useState, useMemo, useRef } from 'react';
 import { useEntryMotion } from '../hooks/useEntryMotion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -94,6 +96,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
   const [isAccountModalOpen, setIsAccountModalOpen] = useState<boolean>(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
   const [isPartyModalOpen, setIsPartyModalOpen] = useState<boolean>(false);
+  const [selectedTransferVoucher, setSelectedTransferVoucher] = useState<CashbookVoucher | null>(null);
   const [viewingVoucher, setViewingVoucher] = useState<CashbookVoucher | null>(null);
   const [voucherPrintFormat, setVoucherPrintFormat] = useState<'a4' | 'thermal80'>('a4');
   const [reversingVoucher, setReversingVoucher] = useState<CashbookVoucher | null>(null);
@@ -477,6 +480,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
 
   // Handle Print Action
   const handlePrint = (voucher: CashbookVoucher, format: 'a4' | 'thermal80') => {
+    if (voucher.classification === 'transfer') { setSelectedTransferVoucher(voucher); return; }
     setViewingVoucher(voucher);
     setVoucherPrintFormat(format);
     onSetActivePrintDocument?.({
@@ -583,6 +587,9 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
             <span>{c("Pay Money")}</span>
           </button>
 
+          <TransferControls settings={settings} language={language} accounts={accounts}
+            selectedVoucher={selectedTransferVoucher} onCloseDetail={() => setSelectedTransferVoucher(null)}
+            onSetActivePrintDocument={onSetActivePrintDocument}/>
           <button
             onClick={() => {
               setNewAccName('');
@@ -734,7 +741,8 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
               <option value="loan">{c("Loan")}</option>
               <option value="advance">{c("Advance")}</option>
               <option value="refund">{c("Refund")}</option>
-            </select>
+            <option value="transfer">{c("Transfer")}</option>
+              </select>
           </div>
 
           {/* Search Input */}
@@ -894,7 +902,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
                         </td>
                         <td className="py-3 px-3.5">
                           <div className="font-medium text-text-main">
-                            {voucher.party_name_snap || c("Direct Counterparty")}
+                            {voucher.classification === 'transfer' ? transferText(language, voucher.direction === 'inflow' ? 'transferIn' : 'transferOut') : voucher.party_name_snap || c("Direct Counterparty")}
                           </div>
                           {voucher.reference_note && (
                             <div className="text-xs text-text-muted truncate max-w-xs">
@@ -918,7 +926,8 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => {
-                                setViewingVoucher(voucher);
+                                if (voucher.classification === 'transfer') setSelectedTransferVoucher(voucher);
+                                else setViewingVoucher(voucher);
                                 setVoucherPrintFormat('a4');
                               }}
                               data-testid="btn-view-voucher"
@@ -927,7 +936,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
-                            {!voucher.is_reversed && !voucher.is_reversal && (
+                            {voucher.classification !== 'transfer' && !voucher.is_reversed && !voucher.is_reversal && (
                               <button
                                 onClick={() => setReversingVoucher(voucher)}
                                 data-testid="btn-reverse-voucher"
@@ -988,21 +997,22 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
 
                     <div className="flex flex-col gap-3 items-start text-sm text-text-muted pt-3 border-t border-border-subtle">
                       <div>
-                        <span>{voucher.party_name_snap || c("Direct Counterparty")}</span>
+                        <span>{voucher.classification === 'transfer' ? transferText(language, voucher.direction === 'inflow' ? 'transferIn' : 'transferOut') : voucher.party_name_snap || c("Direct Counterparty")}</span>
                         <span className="text-text-muted text-xs ms-1.5">({classificationLabel(voucher.classification)})</span>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => {
-                            setViewingVoucher(voucher);
+                            if (voucher.classification === 'transfer') setSelectedTransferVoucher(voucher);
+                                else setViewingVoucher(voucher);
                             setVoucherPrintFormat('a4');
                           }}
                           className="px-2 py-1 bg-surface-subtle text-text-main rounded text-xs font-medium"
                         >
                           {c("View / Print")}
                         </button>
-                        {!voucher.is_reversed && !voucher.is_reversal && (
+                        {voucher.classification !== 'transfer' && !voucher.is_reversed && !voucher.is_reversal && (
                           <button
                             onClick={() => setReversingVoucher(voucher)}
                             className="px-2 py-1 bg-brand-coral-subtle text-brand-coral rounded text-xs font-medium"

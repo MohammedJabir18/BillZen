@@ -249,18 +249,18 @@ describe('DashboardView component', () => {
   it('renders cash flow footnote strictly without the word Profit', () => {
     const html = renderDashboardHtml('en');
     expect(html).toContain('data-testid="footnote-cash-flow"');
-    expect(html).toContain('Receipts − Payments = Net cash change');
+    expect(html).toContain('Closing − Opening = Net cash change');
     expect(html).toContain('This is not business profit.');
   });
 
   it('renders Malayalam and Arabic localizations with appropriate labels', () => {
     const mlHtml = renderDashboardHtml('ml');
     expect(mlHtml).toContain('ഇന്നത്തെ കണക്ക്');
-    expect(mlHtml).toContain('വരവ് − ചെലവ് = പണത്തിലെ മാറ്റം. ഇത് ബിസിനസിന്റെ ലാഭം എന്നർത്ഥമല്ല.');
+    expect(mlHtml).toContain('അവസാന ബാലൻസ് − ആരംഭ ബാലൻസ് = പണത്തിലെ മാറ്റം. പണ മാറ്റങ്ങളും ഉൾപ്പെടും; ഇത് ബിസിനസിന്റെ ലാഭമല്ല.');
 
     const arHtml = renderDashboardHtml('ar');
     expect(arHtml).toContain('ملخص اليوم');
-    expect(arHtml).toContain('المقبوضات - المدفوعات = صافي التدفق النقدي. هذا لا يعبر عن أرباح المنشأة.');
+    expect(arHtml).toContain('رصيد الإقفال - رصيد الافتتاح = صافي التغير النقدي، بما في ذلك التحويلات. هذا ليس ربح المنشأة.');
   });
 
   it('applies Precision Ledger featured styling (#ceeaa0) to Closing Balance card', () => {

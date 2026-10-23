@@ -1,3 +1,4 @@
+import { PrintableTransferDocument } from './components/PrintableTransferDocument';
 import { DesktopNavigation, MobileNavigation, type AppTab } from './components/AppNavigation';
 import {useUpdateStartupCheck} from './hooks/useUpdateStartupCheck';
 import React, { useState } from 'react';
@@ -296,6 +297,7 @@ const AppContent: React.FC = () => {
               isPrintTarget={true}
             />
           )}
+          {activePrintDocument.type === 'transfer' && <PrintableTransferDocument data={activePrintDocument.data} language={activePrintDocument.language} isPrintTarget={true}/>}
           {activePrintDocument.type === 'report' && (
             <PrintableReportDocument
               reportData={activePrintDocument.reportData}

@@ -151,3 +151,12 @@ describe('report category presentation', () => {
     expect(csv).not.toContain('cat-retail');
   });
 });
+
+it('keeps transfer amounts out of receipts/payments with full account cash change',()=>{
+ const csv=exportTransactionsToCsv({settings:{currency_code:'INR',currency_exponent:2} as BusinessSettings,
+ summary:{opening_balance_minor:500000,closing_balance_minor:300000,period_inflows_minor:0,period_outflows_minor:0} as CashbookSummary,
+ entries:[{voucher:{voucher_number:'TRF-202610-00001-OUT',classification:'transfer',direction:'outflow',amount_minor:200000},running_balance_minor:300000} as CashbookLedgerEntry]});
+ expect(csv).toContain("Net Cash Change,'-2000.00");expect(csv).toContain('Transfer In,Transfer Out,Transfer Number');
+ const row=csv.split('\r\n').find(line=>line.includes('TRF-202610-00001-OUT'))!.split(',');
+ expect(row[8]).toBe('');expect(row[9]).toBe('');expect(row.slice(-3)).toEqual(['','2000.00','TRF-202610-00001']);
+});

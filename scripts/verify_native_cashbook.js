@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { execSync, spawn } from 'node:child_process';
+import { execSync, execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -237,6 +237,8 @@ async function startNativeInstance(dataDir, port) {
   }
 
   if (!isReady) {
+    ws.close();
+    await stopProcess(appProcess);
     throw new Error('Application failed bounded readiness check (tauri:// URL and __TAURI_INTERNALS__) within 15s');
   }
 
@@ -836,11 +838,47 @@ async function runNativeVerification() {
       conflictRejected: Boolean(conflictError),
     });
 
+    // Dedicated T1 IPC acceptance in the isolated workspace only.
+    const transferAccounts=[];
+    for(const [name,opening,type] of [['T1 Cash',500000,'cash'],['T1 Bank',100000,'bank']]) {
+      const a=await activeInstance.invokeInApp('create_money_account',{dto:{account_name:name,account_type:type,opening_balance_minor:opening,allow_negative_balance:false}});
+      transferAccounts.push(a.id);
+    }
+    const transferInput={idempotency_key:'native-transfer-retry',from_account_id:transferAccounts[0],to_account_id:transferAccounts[1],amount_minor:200000,business_date:'2026-10-23',confirmed_negative_balance:false};
+    const postedTransfer=await activeInstance.invokeInApp('post_cashbook_transfer',{input:transferInput});
+    assert(postedTransfer.status==='posted','Native IPC posts complete transfer');
+    const retryTransfer=await activeInstance.invokeInApp('post_cashbook_transfer',{input:transferInput});
+    assert(retryTransfer.transfer.id===postedTransfer.transfer.id,'Native transfer retry preserves identity');
+    const transferBalances=await activeInstance.invokeInApp('get_money_accounts',{});
+    assert(transferAccounts.every(id=>transferBalances.find(a=>a.id===id).current_balance_minor===300000),'Native paired balances are3000/3000');
+    const transferLedger=await activeInstance.invokeInApp('get_cashbook_ledger',{filter:{account_id:transferAccounts[0],classification:'transfer'}});
+    assert(transferLedger[1].period_inflows_minor===0&&transferLedger[1].period_outflows_minor===0&&transferLedger[1].closing_balance_minor===300000,'Native transfer metrics exclude receipts/payments but retain balances');
+    let halfBlocked=false;
+    try{await activeInstance.invokeInApp('reverse_cashbook_voucher',{voucherId:postedTransfer.transfer.out_voucher_id,confirmedNegativeBalance:false});}catch{halfBlocked=true;}
+    assert(halfBlocked,'Native IPC blocks ordinary half reversal');
+    const sql=(statement)=>execFileSync('python3',['-c',"import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.executescript(sys.argv[2]); c.close()",path.join(tempDir,'billzen.db'),statement]);
+    sql("CREATE TRIGGER test_t1_abort BEFORE INSERT ON cashbook_movements WHEN NEW.amount_minor>0 BEGIN SELECT RAISE(ABORT,'injected second transfer leg'); END;");
+    let rollbackRejected=false;
+    try{await activeInstance.invokeInApp('post_cashbook_transfer',{input:{...transferInput,idempotency_key:'native-aborted-transfer'}});}catch{rollbackRejected=true;}finally{sql('DROP TRIGGER test_t1_abort;');}
+    const afterAbort=await activeInstance.invokeInApp('get_cashbook_transfers',{filter:{account_id:transferAccounts[0]}});
+    const afterAbortBalances=await activeInstance.invokeInApp('get_money_accounts',{});
+    assert(rollbackRejected&&afterAbort.length===1&&transferAccounts.every(id=>afterAbortBalances.find(a=>a.id===id).current_balance_minor===300000),'Native second-leg abort rolls back pair and balances');
+    const reversedTransfer=await activeInstance.invokeInApp('reverse_cashbook_transfer',{input:{transfer_id:postedTransfer.transfer.id,confirmed_negative_balance:false}});
+    const reversedAgain=await activeInstance.invokeInApp('reverse_cashbook_transfer',{input:{transfer_id:postedTransfer.transfer.id,confirmed_negative_balance:false}});
+    assert(reversedTransfer.status==='posted'&&reversedAgain.transfer.id===reversedTransfer.transfer.id,'Native paired reversal is idempotent');
+    const portable=await activeInstance.invokeInApp('export_workspace_backup',{});
+    assert(portable.format_version==='1.1'&&portable.cashbook_transfers.length===2,'Native IPC backup1.1 retains both headers');
+    recordTest('native_transfer_ipc_atomic_retry_reversal_and_backup',true,{number:postedTransfer.transfer.transfer_number});
+
     // Gracefully terminate instance 2
     console.log('\nGracefully terminating instance 2...');
     await activeInstance.terminate();
     activeInstance = null;
     console.log('Instance 2 cleanly terminated.');
+    activeInstance=await startNativeInstance(tempDir,PORT);
+    const coldHeaders=await activeInstance.invokeInApp('get_cashbook_transfers',{filter:{account_id:transferAccounts[0]}});
+    assert(coldHeaders.length===2&&coldHeaders.find(h=>h.id===postedTransfer.transfer.id)?.is_reversed,'Native cold restart preserves paired reversal');
+    await activeInstance.terminate();activeInstance=null;
 
     // =========================================================================
     // PHASE 3: Database Isolation & Real User Business Data Verification

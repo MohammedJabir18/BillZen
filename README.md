@@ -62,10 +62,13 @@ The shop counter should keep moving when the internet stops. Your catalog, custo
 | :--- | :--- | :--- |
 | **Catalog** | Products, customers, categories, search, archive/restore and barcode lookup | Variants, vendor workflows and large-catalog performance validation |
 | **Inventory** | Tracked opening stock + ledger transaction; quantity bounds and tracking-transition checks | Sale/restock workflows and complete reconciliation tooling |
+| **Cashbook & transfers** | Receipts/payments, customer-linked cash history, atomic account transfers and paired reversals, period/account reports, CSV and A4 transfer documents | Invoice-linked debt/settlements and supplier bills |
 | **Financial core** | Checked Rust/TypeScript arithmetic, currency/exponent validation and document models | Persisted draft/finalize invoice workflow and payment allocation UI |
 | **Regional UX** | English, Malayalam and Arabic resources; RTL mode; INR + six GCC currencies | Full translation/input acceptance and jurisdiction-specific tax adapters |
 | **Documents** | Reusable A4 component and four automated Chromium/Chrome PDF fixtures | Native export parity, physical printer validation and 80 mm/58 mm layouts |
-| **Local platform** | Rust worker, SQLite migrations, startup checks and advisory instance lock | Safe backup/restore, encryption, sync and wider OS verification |
+| **Local platform** | Rust worker, SQLite migrations, startup checks, advisory lock and versioned complete native/supported-browser workspace backup/restore | Encryption, sync and wider OS verification |
+
+Account transfers: [operator guide](docs/account-transfers-guide.md) · [engine/backup contracts](docs/transfer-engine-status.md) · [verification and candidate checksums](docs/verification-status.md). Local T1 candidates are rebuilt; installed applications and public updater releases are separate delivery steps.
 
 **Status is evidence-based.** Schema tables and sample invoice documents do not imply that complete billing workflows have shipped. Currency formatting is not a GST/VAT or statutory e-invoicing certification.
 

@@ -23,3 +23,11 @@ export type TransferResult = { status: 'posted'; transfer: CashbookTransfer } | 
 };
 
 export interface TransferFilter { account_id?: string | null; start_date?: string | null; end_date?: string | null }
+
+export interface TransferPrintData {
+ transfer: CashbookTransfer;
+ outVoucher: import('./cashbook').CashbookVoucher;
+ inVoucher: import('./cashbook').CashbookVoucher;
+ originalNumber?: string;
+ reversalNumber?: string;
+}

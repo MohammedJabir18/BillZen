@@ -41,10 +41,15 @@ export function CashbookDialog({ label, className, children }: {
   label: string; className: string; children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Keep the external opener across StrictMode effect replay, which focuses inside the dialog.
+  const triggerRef = useRef<HTMLElement | null>(null);
   usePanelMotion(ref, true, 'dialog');
   useEffect(() => {
     const root = ref.current!;
-    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (!triggerRef.current && document.activeElement instanceof HTMLElement && !root.contains(document.activeElement)) {
+      triggerRef.current = document.activeElement;
+    }
+    const trigger = triggerRef.current;
     if (!layers.length) {
       previousOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
