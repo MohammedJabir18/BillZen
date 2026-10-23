@@ -224,8 +224,12 @@ mod tests {
 
     #[test]
     fn test_database_worker_handshake_fails_on_inaccessible_path() {
-        // Path inside a non-directory / forbidden path that cannot be created or opened
-        let invalid_path = PathBuf::from("/dev/null/forbidden_dir/invalid.db");
+        // A real file cannot be a parent directory on Linux, macOS or Windows.
+        // /dev/null is not a reserved device path on Windows.
+        let dir = tempfile::tempdir().expect("temporary fixture directory");
+        let parent_file = dir.path().join("not-a-directory");
+        std::fs::write(&parent_file, b"fixture").expect("fixture file");
+        let invalid_path = parent_file.join("invalid.db");
 
         let handle = DbWorkerHandle::new(invalid_path);
         assert!(
