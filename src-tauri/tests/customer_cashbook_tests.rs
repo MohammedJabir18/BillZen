@@ -69,7 +69,11 @@ async fn history_keeps_archived_links_reversals_filters_and_immutable_snapshots(
     assert_eq!(w.get_customer_cash_history(CustomerCashHistoryFilter {account_id:Some(empty_account.id),..filter.clone()}).await.unwrap().entries.len(),0);
     let (rows, summary)=w.get_cashbook_ledger(CashbookLedgerFilter {party_id:Some(b.id.clone()),..Default::default()}).await.unwrap();
     assert_eq!(rows.len(),1); assert_eq!(summary.matching_outflows_minor,Some(2000)); assert_eq!(summary.closing_balance_minor,-1500);
-    assert_eq!(w.get_customer_cash_history(CustomerCashHistoryFilter {start_date:Some("2026-10-24".into()),..filter}).await.unwrap().entries.len(),0);
+    // Reversals use today's business date, so a fixed calendar cutoff eventually
+    // includes them. Query strictly after every posted fixture date instead.
+    let last_day = h.entries.iter().map(|entry| entry.voucher.business_date.as_str()).max().unwrap();
+    let empty_start = chrono::NaiveDate::parse_from_str(last_day, "%Y-%m-%d").unwrap().succ_opt().unwrap().to_string();
+    assert_eq!(w.get_customer_cash_history(CustomerCashHistoryFilter {start_date:Some(empty_start),..filter}).await.unwrap().entries.len(),0);
     let balance:i64=conn.query_row("SELECT current_balance_minor FROM customers WHERE id=?",params![c.id],|r|r.get(0)).unwrap(); assert_eq!(balance,0);
 }
 
