@@ -1,3 +1,4 @@
+use crate::db::stock::{StockAdjustmentInput, StockMovement};
 use crate::domain::transfers::*;
 use crate::db::initialize_database;
 use crate::domain::catalog::{
@@ -11,6 +12,8 @@ use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 
 pub enum DbRequest {
+    PostStockAdjustment { input: StockAdjustmentInput, respond_to: oneshot::Sender<Result<StockMovement,String>> },
+    GetStockHistory { product_id: String, respond_to: oneshot::Sender<Result<Vec<StockMovement>,String>> },
  PostTransfer{input:CreateTransferInput,respond_to:oneshot::Sender<Result<TransferResult,String>>},
  ReverseTransfer{input:ReverseTransferInput,respond_to:oneshot::Sender<Result<TransferResult,String>>},
  GetTransfers{filter:TransferFilter,respond_to:oneshot::Sender<Result<Vec<CashbookTransfer>,String>>},
@@ -165,6 +168,8 @@ impl DbRequest {
             Self::UpdateAppearancePreference { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::UpdateGuideStatus { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::GetProducts { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::PostStockAdjustment { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetStockHistory { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::CreateProduct { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::UpdateProduct { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::ArchiveProduct { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
@@ -290,6 +295,8 @@ impl DbWorkerHandle {
                             let result = fetch_products(&conn, filter);
                             let _ = respond_to.send(result);
                         }
+                        DbRequest::PostStockAdjustment { input, respond_to } => { let _ = respond_to.send(super::stock::post_stock_adjustment(&mut conn,input)); }
+                        DbRequest::GetStockHistory { product_id, respond_to } => { let _ = respond_to.send(super::stock::get_stock_history(&conn,&product_id)); }
                         DbRequest::CreateProduct { dto, respond_to } => {
                             let result = create_product(&mut conn, dto);
                             let _ = respond_to.send(result);
@@ -523,6 +530,18 @@ impl DbWorkerHandle {
             .map_err(|_| "Database worker failed to respond".to_string())?
     }
 
+    pub async fn post_stock_adjustment(&self, input: StockAdjustmentInput) -> Result<StockMovement,String> {
+        let (tx,rx)=oneshot::channel();
+        self.sender.send(DbRequest::PostStockAdjustment {input,respond_to:tx}).await.map_err(|e|e.to_string())?;
+        // Only a received domain error proves the transaction did not commit.
+        // Channel failures retain an unknown outcome so the client retries its ID.
+        rx.await.map_err(|e|e.to_string())?.map_err(|e|format!("STOCK_REJECTED: {}",e))
+    }
+    pub async fn get_stock_history(&self, product_id:String) -> Result<Vec<StockMovement>,String> {
+        let (tx,rx)=oneshot::channel();
+        self.sender.send(DbRequest::GetStockHistory {product_id,respond_to:tx}).await.map_err(|e|e.to_string())?;
+        rx.await.map_err(|e|e.to_string())?
+    }
     pub async fn create_product(&self, dto: CreateProductDto) -> Result<Product, String> {
         let (tx, rx) = oneshot::channel();
         self.sender
@@ -4052,6 +4071,19 @@ mod tests {
         assert_eq!(res2.appearance_preference, "light", "Should keep light from interleave 4");
         assert_eq!(res2.guide_status, "skipped", "Should keep skipped from interleave 3");
     }
+    #[test]
+    fn stock_adjustment_worker_distinguishes_rejection_from_transport_failure() {
+        let rt=tokio::runtime::Runtime::new().unwrap();
+        let dir=tempfile::tempdir().unwrap();
+        let worker=DbWorkerHandle::new(dir.path().join("stock.db")).unwrap();
+        let input=crate::db::stock::StockAdjustmentInput {id:uuid::Uuid::new_v4().to_string(),product_id:"missing".into(),quantity_delta_scaled:1,business_date:"2026-10-23".into(),reason:"Count".into(),reversal_of:None};
+        assert!(rt.block_on(worker.post_stock_adjustment(input.clone())).unwrap_err().starts_with("STOCK_REJECTED:"));
+        let (sender,receiver)=mpsc::channel(1);
+        drop(receiver);
+        let closed=DbWorkerHandle {sender};
+        assert!(!rt.block_on(closed.post_stock_adjustment(input)).unwrap_err().starts_with("STOCK_REJECTED:"));
+    }
+
 }
 
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-post-stock-adjustment"
+description = "Enables the post_stock_adjustment command without any pre-configured scope."
+commands.allow = ["post_stock_adjustment"]
+
+[[permission]]
+identifier = "deny-post-stock-adjustment"
+description = "Denies the post_stock_adjustment command without any pre-configured scope."
+commands.deny = ["post_stock_adjustment"]

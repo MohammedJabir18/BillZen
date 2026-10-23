@@ -359,3 +359,10 @@ Candidates are local rebuilds, not a public updater release. Android physical-de
 - Gates passed: frontend81; Reports68; motion23/23; existing responsive6viewports; transfers UI; new Reports short-window, keyboard, interruption, RTL and appearance/period alignment suite. Independent code review found no actionable blockers.
 - Tauri production --no-bundle build passed. Exact Linux binary passed52 native IPC checks with isolated SQLite and unchanged real-data fingerprints. SHA256 `c8123518301b5f88d79b2faa315208dfe4ff4e2d4ea0d6af44025c36d86da26c`.
 - Existing per-user installed Linux executable updated atomically; previous binary retained alongside it as `billzen.before-reports-refresh-eefc4c13b901`. Restart required. No Android/Windows/macOS package or GitHub Release/update feed changed. Native resize behavior has browser geometry coverage and compiled configuration verification, not a manual native-window resize claim.
+
+## Product stock management — 2026-10-23
+
+- Add/Reduce/History and single opposite correction implemented in native SQLite/browser IndexedDB; no-op retry writes avoided, no cashbook mutation. Guide: [Product stock](product-stock-guide.md).
+- Passed: frontend81, Cargo109 (one explicit-fixture interop ignored), stock engine/UI acceptance, existing catalog and motion23/23. Independent review found no blocker; localized known-rejection recovery copy fixed.
+- Final production Linux binary passed57 native checks, including stock retry/correction/history/cold restart and real data isolation. Installed existing per-user executable atomically with previous binary backup `billzen.before-stock-c8123518301b`.
+- SHA256 `e0e25bf37fa2a618c87bae3c11d747c6888fb65ae1b57e9cb91d3ff6bd98b68d`. Restart app to load it. APK/Windows/macOS installers and public updater feed remain unchanged.

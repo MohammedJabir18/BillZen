@@ -23,7 +23,7 @@ const stores = ['products', 'customers', 'categories', 'stock_movements', 'cashb
 /** Run synchronous catalog mutations inside one serialized IndexedDB transaction.
  * Resolve only after commit; a failed write must never look like a saved record.
  */
-export async function withWebCatalog<T>(operation: (catalog: Catalog) => T, write = true): Promise<T> {
+export async function withWebCatalog<T>(operation: (catalog: Catalog) => T, write = true, persist: (result: T) => boolean = () => true): Promise<T> {
     const db = await openWebDb();
     if (!db)
         throw new Error('Durable browser storage is unavailable. Catalog was not saved.');
@@ -43,7 +43,7 @@ export async function withWebCatalog<T>(operation: (catalog: Catalog) => T, writ
                     return;
                 try {
                     result = operation(catalog);
-                    if (!write)
+                    if (!write || !persist(result))
                         return;
                     validateCatalog(catalog);
                     for (const storeName of stores) {

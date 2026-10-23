@@ -1,3 +1,6 @@
+import { StockManagement } from './StockManagement';
+import { stockTranslations } from '../i18n/stock';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePanelMotion } from '../hooks/usePanelMotion';
 import { useEntryMotion } from '../hooks/useEntryMotion';
 import React, { useState, useEffect, useRef } from 'react';
@@ -35,6 +38,8 @@ interface ProductCatalogViewProps {
 
 export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings, language }) => {
   const t = translations[language] || translations.en;
+  const queryClient = useQueryClient();
+  const [stockProduct, setStockProduct] = useState<Product | null>(null);
   const isRTL = language === 'ar';
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -531,6 +536,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                         </td>
                         <td className="py-3 px-4 text-center">
                           <div className="flex items-center justify-center gap-2">
+                            <button type="button" onClick={() => setStockProduct(p)} data-testid={`manage-stock-${p.sku}`} className="min-h-11 px-2 text-xs font-semibold text-indigo-700 dark:text-lime-400 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800">{stockTranslations[language].manage}</button>
                             <button
                               onClick={() => openEditModal(p)}
                               data-testid={`edit-product-${p.sku}`}
@@ -656,7 +662,8 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                      <button type="button" onClick={() => setStockProduct(p)} data-testid={`manage-stock-mobile-${p.sku}`} className="min-h-11 px-2 text-xs font-semibold text-indigo-700 dark:text-lime-400 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800">{stockTranslations[language].manage}</button>
                       <button
                         onClick={() => openEditModal(p)}
                         data-testid={`edit-product-mobile-${p.sku}`}
@@ -692,6 +699,11 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({ settings
           </>
         )}
       </div>
+
+      {stockProduct && <StockManagement product={stockProduct} language={language} onClose={() => setStockProduct(null)} onSaved={() => {
+        void queryClient.invalidateQueries({ queryKey: ['products'] });
+        void fetchCatalogData();
+      }} />}
 
       {/* Modal Drawer for Create / Edit Product */}
       {isModalOpen && (

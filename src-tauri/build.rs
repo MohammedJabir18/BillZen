@@ -23,6 +23,8 @@ fn main() {
                 "update_product",
                 "archive_product",
                 "restore_product",
+                "post_stock_adjustment",
+                "get_stock_history",
                 "get_customers",
                 "create_customer",
                 "update_customer",

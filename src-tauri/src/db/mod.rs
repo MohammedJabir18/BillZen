@@ -1,3 +1,4 @@
+pub mod stock;
 pub mod worker;
 pub mod backup;
 pub mod recovery;

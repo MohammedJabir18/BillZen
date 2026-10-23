@@ -49,6 +49,8 @@
     "allow-resume-after-update",
     "allow-post-cashbook-transfer",
     "allow-reverse-cashbook-transfer",
-    "allow-get-cashbook-transfers"
+    "allow-get-cashbook-transfers",
+    "allow-post-stock-adjustment",
+    "allow-get-stock-history"
   ]
 }

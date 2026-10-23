@@ -150,6 +150,8 @@ pub fn run() {
             commands::catalog::update_product,
             commands::catalog::archive_product,
             commands::catalog::restore_product,
+            commands::catalog::post_stock_adjustment,
+            commands::catalog::get_stock_history,
             commands::catalog::get_customers,
             commands::catalog::create_customer,
             commands::catalog::update_customer,

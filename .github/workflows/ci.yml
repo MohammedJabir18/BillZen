@@ -112,6 +112,9 @@ jobs:
 
       - name: Verify interruptible motion and live reduced-motion preferences
         run: npm run test:motion
+      - name: Stock adjustment engine and product workflow
+        run: npm run test:stock && npm run test:stock-ui
+
       - name: Reports responsive filters and segmented motion
         run: npm run test:reports-refresh
 

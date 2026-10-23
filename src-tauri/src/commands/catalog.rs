@@ -102,3 +102,12 @@ pub async fn create_category(
 ) -> Result<Category, String> {
     worker.create_category(dto).await
 }
+
+#[tauri::command]
+pub async fn post_stock_adjustment(worker: State<'_, DbWorkerHandle>, input: crate::db::stock::StockAdjustmentInput) -> Result<crate::db::stock::StockMovement,String> {
+    worker.post_stock_adjustment(input).await
+}
+#[tauri::command]
+pub async fn get_stock_history(worker: State<'_, DbWorkerHandle>, product_id:String) -> Result<Vec<crate::db::stock::StockMovement>,String> {
+    worker.get_stock_history(product_id).await
+}

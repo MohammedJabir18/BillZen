@@ -866,6 +866,18 @@ async function runNativeVerification() {
     const reversedTransfer=await activeInstance.invokeInApp('reverse_cashbook_transfer',{input:{transfer_id:postedTransfer.transfer.id,confirmed_negative_balance:false}});
     const reversedAgain=await activeInstance.invokeInApp('reverse_cashbook_transfer',{input:{transfer_id:postedTransfer.transfer.id,confirmed_negative_balance:false}});
     assert(reversedTransfer.status==='posted'&&reversedAgain.transfer.id===reversedTransfer.transfer.id,'Native paired reversal is idempotent');
+    const stockProduct=await activeInstance.invokeInApp('create_product',{dto:{sku:'NATIVE-STOCK',name:'Native stock test',unit_price_minor:100,is_stock_tracked:true,opening_stock_scaled:50000}});
+    const stockInput={id:crypto.randomUUID(),product_id:stockProduct.id,quantity_delta_scaled:20000,business_date:'2026-10-23',reason:'Native delivery'};
+    const stockPosted=await activeInstance.invokeInApp('post_stock_adjustment',{input:stockInput});
+    const stockRetry=await activeInstance.invokeInApp('post_stock_adjustment',{input:stockInput});
+    assert(stockPosted.resulting_stock_scaled===70000&&stockRetry.id===stockPosted.id,'Native stock adjustment and retry retain one movement');
+    await activeInstance.invokeInApp('post_stock_adjustment',{input:{...stockInput,id:crypto.randomUUID(),quantity_delta_scaled:-2000,reason:'Damage'}});
+    let stockRejected=false;try{await activeInstance.invokeInApp('post_stock_adjustment',{input:{...stockInput,id:crypto.randomUUID(),quantity_delta_scaled:-69000}});}catch(error){stockRejected=String(error).includes('STOCK_REJECTED:');}
+    assert(stockRejected,'Native insufficient stock rejects as known-unwritten');
+    const stockCorrection=await activeInstance.invokeInApp('post_stock_adjustment',{input:{...stockInput,id:crypto.randomUUID(),quantity_delta_scaled:-20000,reason:'Correction',reversal_of:stockPosted.id}});
+    assert(stockCorrection.resulting_stock_scaled===48000,'Native stock correction preserves balance');
+    const stockHistory=await activeInstance.invokeInApp('get_stock_history',{productId:stockProduct.id});
+    assert(stockHistory.length===4&&stockHistory.some(m=>m.reference_id===stockPosted.id),'Native stock history retains opening and correction');
     const portable=await activeInstance.invokeInApp('export_workspace_backup',{});
     assert(portable.format_version==='1.1'&&portable.cashbook_transfers.length===2,'Native IPC backup1.1 retains both headers');
     recordTest('native_transfer_ipc_atomic_retry_reversal_and_backup',true,{number:postedTransfer.transfer.transfer_number});
@@ -876,6 +888,8 @@ async function runNativeVerification() {
     activeInstance = null;
     console.log('Instance 2 cleanly terminated.');
     activeInstance=await startNativeInstance(tempDir,PORT);
+    const coldStock=await activeInstance.invokeInApp('get_stock_history',{productId:stockProduct.id});
+    assert(coldStock.length===4,'Native stock history survives cold restart');
     const coldHeaders=await activeInstance.invokeInApp('get_cashbook_transfers',{filter:{account_id:transferAccounts[0]}});
     assert(coldHeaders.length===2&&coldHeaders.find(h=>h.id===postedTransfer.transfer.id)?.is_reversed,'Native cold restart preserves paired reversal');
     await activeInstance.terminate();activeInstance=null;
