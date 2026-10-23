@@ -21,7 +21,7 @@ import { getTodayBusinessDate } from '../domain/financial';
 import { computeClientIntentHash } from '../domain/backup_crypto';
 
 const DB_NAME = 'BillZen_Web_DB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export const MAX_MONEY_MINOR = 100_000_000_000; // 10^11
 export const MAX_TOTAL_MINOR = 100_000_000_000_000; // 10^14
@@ -279,6 +279,11 @@ export async function openWebDb(): Promise<IDBDatabase | null> {
     req.onupgradeneeded = (event) => {
       shouldSeed = (event as IDBVersionChangeEvent).oldVersion === 0;
       const db = req.result;
+      if (!db.objectStoreNames.contains('cashbook_transfers')) {
+        const transfers = db.createObjectStore('cashbook_transfers', { keyPath: 'id' });
+        transfers.createIndex('by_idempotency_key', 'idempotency_key', { unique: true });
+        transfers.createIndex('by_transfer_number', 'transfer_number', { unique: true });
+      }
       const migrateOpeningStock = !db.objectStoreNames.contains('stock_movements');
       for (const name of ['products', 'customers', 'categories', 'stock_movements', 'business_settings', 'category_merges']) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: name === 'category_merges' ? 'merged_category_id' : 'id' });

@@ -3,7 +3,7 @@ use super::{run_integrity_check, DbError};
 use rusqlite::{Connection, OpenFlags};
 use std::path::{Path, PathBuf};
 
-pub const CURRENT_SCHEMA_VERSION: i64 = 8;
+pub const CURRENT_SCHEMA_VERSION: i64 = 9;
 
 pub fn snapshot(source: &Connection, directory: &Path, label: &str) -> Result<PathBuf, DbError> {
     std::fs::create_dir_all(directory)?;

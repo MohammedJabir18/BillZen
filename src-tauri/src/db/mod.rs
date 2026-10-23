@@ -31,6 +31,7 @@ pub const V5_MIGRATION_SQL: &str = include_str!("migrations/v5_category_nocase.s
 pub const V6_MIGRATION_SQL: &str = include_str!("migrations/v6_setup_and_onboarding.sql");
 pub const V7_MIGRATION_SQL: &str = include_str!("migrations/v7_cashbook_foundation.sql");
 pub const V8_MIGRATION_SQL: &str = include_str!("migrations/v8_cashbook_integrity_hardening.sql");
+pub const V9_MIGRATION_SQL: &str = include_str!("migrations/v9_cashbook_transfers.sql");
 pub const INITIAL_V5_CHECKSUM: &str = "04d82447f839b02a0cc09c20534fa5f6d5688a1a79fb96e17b6a4bbe4d544a46";
 pub const INTERMEDIATE_V5_CHECKSUM: &str = "0d748aafb38054e1e01f260dd3bbc486e6e378a7bd97db6545d4ab4f9e166d36";
 pub const INITIAL_V6_CHECKSUM: &str = "c454f1673814b4ad7cd05f766f71f1bea165b3924fbb1d62c1fdf1292f34b944";
@@ -398,6 +399,41 @@ pub fn run_migrations(conn: &mut Connection) -> Result<(), DbError> {
             tx.execute(
                 "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
                 params![8, "v8_cashbook_integrity_hardening", now, current_checksum8],
+            )?;
+            tx.commit()?;
+        }
+    }
+
+    // Migration 9: Atomic account transfer headers
+    let mut hasher9 = Sha256::new();
+    hasher9.update(V9_MIGRATION_SQL.as_bytes());
+    let current_checksum9 = format!("{:x}", hasher9.finalize());
+
+    let existing_checksum9: Option<String> = conn
+        .query_row(
+            "SELECT checksum FROM schema_migrations WHERE version = 9;",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match existing_checksum9 {
+        Some(stored_checksum) => {
+            if stored_checksum != current_checksum9 {
+                return Err(DbError::ChecksumMismatch {
+                    version: 9,
+                    expected: stored_checksum,
+                    found: current_checksum9,
+                });
+            }
+        }
+        None => {
+            let tx = conn.transaction()?;
+            tx.execute_batch(V9_MIGRATION_SQL)?;
+            let now = chrono::Utc::now().timestamp_millis();
+            tx.execute(
+                "INSERT INTO schema_migrations (version, name, applied_at, checksum) VALUES (?1, ?2, ?3, ?4);",
+                params![9, "v9_cashbook_transfers", now, current_checksum9],
             )?;
             tx.commit()?;
         }

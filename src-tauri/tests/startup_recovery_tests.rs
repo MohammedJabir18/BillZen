@@ -7,17 +7,17 @@ fn populated_wal_workspace_is_snapshotted_before_pending_migration() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("billzen.db");
     let original = initialize_database(&path).unwrap();
-    original.execute_batch("PRAGMA wal_autocheckpoint=0; CREATE TABLE recovery_probe(value TEXT); INSERT INTO recovery_probe VALUES ('committed-in-wal'); DELETE FROM schema_migrations WHERE version=8;").unwrap();
+    original.execute_batch("PRAGMA wal_autocheckpoint=0; CREATE TABLE recovery_probe(value TEXT); INSERT INTO recovery_probe VALUES ('committed-in-wal'); DROP TRIGGER trg_transfer_single_movement; DROP TABLE cashbook_transfers; DELETE FROM schema_migrations WHERE version=9;").unwrap();
     let upgraded = initialize_database(&path).unwrap();
     let backups: Vec<_> = std::fs::read_dir(dir.path().join("recovery")).expect("pre-migration recovery directory").map(|e|e.unwrap().path()).collect();
     assert_eq!(backups.len(), 1);
     let snapshot = Connection::open(&backups[0]).unwrap();
     let old_version: i64 = snapshot.query_row("SELECT MAX(version) FROM schema_migrations",[],|r|r.get(0)).unwrap();
-    assert_eq!(old_version, 7, "snapshot must precede migrations");
+    assert_eq!(old_version, 8, "snapshot must precede migrations");
     let value: String = snapshot.query_row("SELECT value FROM recovery_probe",[],|r|r.get(0)).unwrap();
     assert_eq!(value,"committed-in-wal");
     let version: i64 = upgraded.query_row("SELECT MAX(version) FROM schema_migrations",[],|r|r.get(0)).unwrap();
-    assert_eq!(version,8);
+    assert_eq!(version,9);
     drop(upgraded);
     let _ = initialize_database(&path).unwrap();
     assert_eq!(std::fs::read_dir(dir.path().join("recovery")).unwrap().count(),1,"normal launches must not create repeated snapshots");
@@ -28,11 +28,11 @@ fn recovery_failure_prevents_any_migration() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("billzen.db");
     let original = initialize_database(&path).unwrap();
-    original.execute("DELETE FROM schema_migrations WHERE version=8",[]).unwrap();
+    original.execute_batch("DROP TRIGGER trg_transfer_single_movement; DROP TABLE cashbook_transfers; DELETE FROM schema_migrations WHERE version=9;").unwrap();
     std::fs::write(dir.path().join("recovery"),"directory blocked").unwrap();
     assert!(initialize_database(&path).is_err(),"must not migrate without recovery snapshot");
     let version:i64 = original.query_row("SELECT MAX(version) FROM schema_migrations",[],|r|r.get(0)).unwrap();
-    assert_eq!(version,7);
+    assert_eq!(version,8);
 }
 
 #[test]
