@@ -659,6 +659,7 @@ export async function createWebCashbookParty(dto: CreateCashbookPartyDto): Promi
 // ---------------------------------------------------------------------------
 
 export async function postWebCashbookVoucher(input: CreateVoucherInput): Promise<PostVoucherResult> {
+  if (input.idempotency_key?.trim().startsWith('__billzen_transfer__:')) throw Error('Reserved transfer identity');
   validateMoneyAmount(input.amount_minor);
   validateBusinessDate(input.business_date);
 
@@ -1003,6 +1004,7 @@ export async function reverseWebCashbookVoucher(
   if (!db) {
     const orig = inMemStore.cashbook_vouchers.get(voucherId);
     if (!orig) throw new Error(`Voucher not found: ${voucherId}`);
+    if (orig.classification === 'transfer') throw Error('Reverse the complete transfer instead');
     if (orig.status !== 'posted') throw new Error(`Voucher ${voucherId} cannot be reversed because it is not in posted state`);
     if (orig.is_reversed) throw new Error(`Voucher is already reversed: ${voucherId}`);
     if (orig.is_reversal) throw new Error(`Cannot reverse a reversal voucher: ${voucherId}`);
@@ -1109,6 +1111,7 @@ export async function reverseWebCashbookVoucher(
     tx.abort();
     throw new Error(`Voucher not found: ${voucherId}`);
   }
+  if (orig.classification === 'transfer') { tx.abort(); throw Error('Reverse the complete transfer instead'); }
   if (orig.status !== 'posted') {
     tx.abort();
     throw new Error(`Voucher ${voucherId} cannot be reversed because it is not in posted state`);
@@ -1266,11 +1269,11 @@ export async function getWebCashbookLedger(
 
   // 2. Period financial summary figures across all period vouchers
   const periodInflows = periodVouchers
-    .filter((v) => v.direction === 'inflow')
+    .filter((v) => v.direction === 'inflow' && v.classification !== 'transfer')
     .reduce((sum, v) => sum + v.amount_minor, 0);
 
   const periodOutflows = periodVouchers
-    .filter((v) => v.direction === 'outflow')
+    .filter((v) => v.direction === 'outflow' && v.classification !== 'transfer')
     .reduce((sum, v) => sum + v.amount_minor, 0);
 
   const netOperating = periodVouchers
@@ -1285,7 +1288,7 @@ export async function getWebCashbookLedger(
         .reduce((sum, m) => sum + m.amount_minor, 0)
     : 0;
   const periodOpeningBalance = baseOpening + priorMovements;
-  const periodClosingBalance = periodOpeningBalance + periodInflows - periodOutflows;
+  const periodClosingBalance = periodOpeningBalance + periodVouchers.reduce((sum, v) => sum + (v.direction === 'inflow' ? v.amount_minor : -v.amount_minor), 0);
 
   // 4. Total Cash & Active Cash (overall or account-specific)
   let totalCash: number;
@@ -1393,10 +1396,10 @@ export async function getWebCashbookLedger(
     opening_balance_minor: periodOpeningBalance,
     closing_balance_minor: periodClosingBalance,
     matching_inflows_minor: isDisplayFiltered
-      ? filtered.filter((v) => v.direction === 'inflow').reduce((sum, v) => sum + v.amount_minor, 0)
+      ? filtered.filter((v) => v.direction === 'inflow' && v.classification !== 'transfer').reduce((sum, v) => sum + v.amount_minor, 0)
       : null,
     matching_outflows_minor: isDisplayFiltered
-      ? filtered.filter((v) => v.direction === 'outflow').reduce((sum, v) => sum + v.amount_minor, 0)
+      ? filtered.filter((v) => v.direction === 'outflow' && v.classification !== 'transfer').reduce((sum, v) => sum + v.amount_minor, 0)
       : null,
     matching_count: isDisplayFiltered ? filtered.length : null,
   };
@@ -1431,10 +1434,13 @@ export async function exportWebCashbookTables(): Promise<{
   }
 
   const tx = db.transaction(
-    ['money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events'],
+    ['money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events', 'cashbook_transfers'],
     'readonly'
   );
 
+  if (await reqToPromise(tx.objectStore('cashbook_transfers').count())) {
+    throw Error('Use complete workspace backup for transfer data');
+  }
   const [money_accounts, cashbook_categories, cashbook_parties, cashbook_vouchers, cashbook_movements, cashbook_sequences, cashbook_audit_events] =
     await Promise.all([
       reqToPromise(tx.objectStore('money_accounts').getAll()),
@@ -1468,6 +1474,7 @@ export async function restoreWebCashbookTables(data: {
   cashbook_sequences?: CashbookSequenceRecord[];
   cashbook_audit_events?: CashbookAuditEventRecord[];
 }): Promise<void> {
+  if (data.cashbook_vouchers?.some(v => v.classification === 'transfer')) throw Error('Use complete workspace restore for transfer data');
   const db = await openWebDb();
   if (!db) {
     inMemStore = {
@@ -1483,10 +1490,14 @@ export async function restoreWebCashbookTables(data: {
   }
 
   const tx = db.transaction(
-    ['money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events'],
+    ['money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events', 'cashbook_transfers'],
     'readwrite'
   );
 
+  if (await reqToPromise(tx.objectStore('cashbook_transfers').count())) {
+    tx.abort();
+    throw Error('Use complete workspace restore for transfer data');
+  }
   const accStore = tx.objectStore('money_accounts');
   const catStore = tx.objectStore('cashbook_categories');
   const ptyStore = tx.objectStore('cashbook_parties');

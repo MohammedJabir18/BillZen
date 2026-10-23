@@ -1,11 +1,12 @@
+import { validateTransferWorkspace, verifyTransferHashes } from '../domain/transfer_backup';
 import { openWebDb, MAX_MONEY_MINOR, MAX_TOTAL_MINOR } from './web_cashbook_db';
 import { validateCatalog } from './web_catalog';
 import type { WorkspaceBackupEnvelope } from '../types/backup';
-export const workspaceTables = ['business_settings', 'categories', 'category_merges', 'products', 'customers', 'stock_movements', 'money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_sequences', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_audit_events'] as const;
+export const workspaceTables = ['business_settings', 'categories', 'category_merges', 'products', 'customers', 'stock_movements', 'money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_sequences', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_audit_events', 'cashbook_transfers'] as const;
 const unsupported = ['invoice_sequences', 'invoice_items', 'invoices', 'payments', 'payment_allocations', 'expenses'] as const;
 type Tables = Record<string, any[]>;
 /** One transaction/snapshot across the workspace. Callbacks must be synchronous. */
-export async function workspaceTransaction<T>(write: boolean, run: (tables: Tables) => T): Promise<T> {
+export async function workspaceTransaction<T>(write: boolean, run: (tables: Tables) => T, shouldPersist: (result: T) => boolean = () => true): Promise<T> {
     const db = await openWebDb();
     if (!db)
         throw Error('Durable browser storage unavailable');
@@ -25,7 +26,7 @@ export async function workspaceTransaction<T>(write: boolean, run: (tables: Tabl
                     return;
                 try {
                     result = run(tables);
-                    if (write)
+                    if (write && shouldPersist(result))
                         for (const key of workspaceTables) {
                             const store = tx.objectStore(key);
                             store.clear();
@@ -114,6 +115,7 @@ export function validateWebWorkspace(data: WorkspaceBackupEnvelope): void {
         if (a.currency_code !== settings.currency_code || a.currency_exponent !== settings.currency_exponent)
             throw Error('Account currency mismatch');
     }
+    validateTransferWorkspace(d);
     const seenIntent = new Set(), seenNumber = new Set();
     for (const v of d.cashbook_vouchers) {
         ref('money_accounts', v.account_id);
@@ -126,12 +128,14 @@ export function validateWebWorkspace(data: WorkspaceBackupEnvelope): void {
             throw Error('Duplicate voucher identity');
         seenIntent.add(v.idempotency_key);
         seenNumber.add(v.voucher_number);
-        const match = /^(RCP(?:-REV)?|PAY(?:-REV)?)-(\d{6})-(\d+)$/.exec(v.voucher_number);
-        if (!match || match[2] !== v.business_date.replace(/-/g, '').slice(0, 6))
-            throw Error('Invalid voucher number');
-        const sequence = d.cashbook_sequences.find((s: any) => s.sequence_key === `${match[1]}-${match[2]}`);
-        if (!sequence || sequence.current_number < Number(match[3]))
-            throw Error('Missing or stale voucher sequence');
+        if (v.classification !== 'transfer') {
+            const match = /^(RCP(?:-REV)?|PAY(?:-REV)?)-(\d{6})-(\d+)$/.exec(v.voucher_number);
+            if (!match || match[2] !== v.business_date.replace(/-/g, '').slice(0, 6))
+                throw Error('Invalid voucher number');
+            const sequence = d.cashbook_sequences.find((s: any) => s.sequence_key === `${match[1]}-${match[2]}`);
+            if (!sequence || sequence.current_number < Number(match[3]))
+                throw Error('Missing or stale voucher sequence');
+        }
         if (v.is_reversal) {
             ref('cashbook_vouchers', v.reversal_for_voucher_id);
             const original = d.cashbook_vouchers.find((o: any) => o.id === v.reversal_for_voucher_id);
@@ -174,7 +178,10 @@ export function validateWebWorkspace(data: WorkspaceBackupEnvelope): void {
         finite(seq.current_number);
 }
 export async function restoreWebWorkspace(data: WorkspaceBackupEnvelope) {
+    // Caller verifies the original checksum before this compatibility normalization.
+    data = { ...data, cashbook_transfers: data.cashbook_transfers ?? [] };
     validateWebWorkspace(data);
+    await verifyTransferHashes(data);
     await workspaceTransaction(true, t => { for (const key of workspaceTables)
         t[key] = key === 'business_settings' ? [data.business_settings] : (data as any)[key].map((row: any) => { const copy = { ...row }; for (const field of ['is_active', 'is_stock_tracked', 'is_archived', 'is_default', 'allow_negative_balance', 'is_reversal', 'is_reversed'])
             if (field in copy)

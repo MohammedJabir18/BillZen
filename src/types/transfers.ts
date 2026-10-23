@@ -21,3 +21,5 @@ export type TransferResult = { status: 'posted'; transfer: CashbookTransfer } | 
   status: 'requires_confirmation'; account_id: string; current_balance_minor: number;
   projected_balance_minor: number; amount_minor: number; message: string;
 };
+
+export interface TransferFilter { account_id?: string | null; start_date?: string | null; end_date?: string | null }

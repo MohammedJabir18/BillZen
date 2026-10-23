@@ -399,7 +399,7 @@ export async function exportWorkspaceBackup(): Promise<import('../types/backup')
     const settings = await getBusinessSettings();
     const payload: Record<string, any> = {
       ...await exportWebWorkspace(settings),
-      format_version: '1.0', scope: 'workspace', app_version: appVersion, generated_at: Date.now(),
+      format_version: '1.1', scope: 'workspace', app_version: appVersion, generated_at: Date.now(),
     };
 
     const { computePayloadChecksum } = await import('../domain/backup_crypto');

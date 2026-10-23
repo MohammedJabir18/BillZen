@@ -27,7 +27,9 @@
     "tauri": "tauri",
     "icons:generate": "node scripts/generate_icons.mjs",
     "test:workspace": "node scripts/verify_web_foundation.js",
-    "test:customer-cashbook": "node scripts/verify_customer_cashbook.js"
+    "test:customer-cashbook": "node scripts/verify_customer_cashbook.js",
+    "test:transfers": "node scripts/verify_web_transfers.js",
+    "test:transfer-interop": "node scripts/verify_transfer_interop.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

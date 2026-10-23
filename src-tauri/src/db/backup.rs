@@ -1,3 +1,5 @@
+#[path = "transfer_backup.rs"]
+mod transfer_backup;
 use crate::db::{initialize_database, run_integrity_check};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -6,7 +8,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
-pub const BACKUP_FORMAT_VERSION: &str = "1.0";
+pub const BACKUP_FORMAT_VERSION: &str = "1.1";
 pub const BACKUP_SCOPE_WORKSPACE: &str = "workspace";
 pub const APP_VERSION: &str = "0.1.0";
 
@@ -44,6 +46,7 @@ pub const WORKSPACE_TABLE_SPECS: &[TableSpec] = &[
     TableSpec { name: "cashbook_sequences", order_by: "sequence_key ASC", is_single_object: false },
     TableSpec { name: "cashbook_vouchers", order_by: "voucher_number ASC, id ASC", is_single_object: false },
     TableSpec { name: "cashbook_movements", order_by: "sequence_number ASC, id ASC", is_single_object: false },
+    TableSpec { name: "cashbook_transfers", order_by: "is_reversal ASC, id ASC", is_single_object: false },
     TableSpec { name: "cashbook_audit_events", order_by: "id ASC", is_single_object: false },
 ];
 
@@ -105,8 +108,6 @@ pub fn compute_canonical_checksum(payload_map: &BTreeMap<String, Value>) -> Resu
 
 /// Exports the entire workspace into a versioned JSON backup envelope with SHA-256 integrity hash.
 pub fn create_workspace_backup(conn: &Connection) -> Result<Value, String> {
-    let transfers:i64=conn.query_row("SELECT COUNT(*) FROM cashbook_transfers",[],|r|r.get(0)).map_err(|e|e.to_string())?;
-    if transfers>0{return Err("Transfer backup compatibility is not enabled yet; do not export an incomplete workspace".into());}
 
     let mut payload_map = BTreeMap::new();
     let now_ts = chrono::Utc::now().timestamp_millis();
@@ -149,7 +150,7 @@ pub fn verify_tier1_checksum(backup_json: &Value) -> Result<BTreeMap<String, Val
         .and_then(|v| v.as_str())
         .ok_or_else(|| "Missing 'format_version' in backup payload".to_string())?;
 
-    if format_version != BACKUP_FORMAT_VERSION {
+    if format_version != BACKUP_FORMAT_VERSION && format_version != "1.0" {
         return Err(format!(
             "Unsupported backup format version '{}': expected '{}'",
             format_version, BACKUP_FORMAT_VERSION
@@ -189,6 +190,16 @@ pub fn verify_tier1_checksum(backup_json: &Value) -> Result<BTreeMap<String, Val
         ));
     }
 
+    // Verify the original bytes first. Only then normalize a legacy missing table.
+    if format_version == "1.0" {
+        if canonical_map.get("cashbook_transfers").is_some_and(|v| v.as_array().map_or(true, |a| !a.is_empty())) ||
+            canonical_map.get("cashbook_vouchers").and_then(Value::as_array).is_some_and(|v|v.iter().any(|r|r["classification"]=="transfer")) {
+            return Err("Legacy 1.0 backup cannot contain transfers".into());
+        }
+        canonical_map.insert("cashbook_transfers".into(),Value::Array(vec![]));
+    } else if !canonical_map.get("cashbook_transfers").is_some_and(Value::is_array) {
+        return Err("Missing transfer headers in 1.1 backup".into());
+    }
     Ok(canonical_map)
 }
 
@@ -365,6 +376,23 @@ pub fn verify_tier4_financial_invariants(conn: &Connection) -> Result<(), String
     Ok(())
 }
 
+/// Original headers must be inserted clean before their reversal header, then sealed.
+fn restore_transfer_headers(conn: &Connection, rows: &[Value]) -> Result<usize,String> {
+    let reversed = |v:&Value| v["is_reversal"]==true || v["is_reversal"]==1;
+    for is_reversal in [false,true] {
+        for row in rows.iter().filter(|v|reversed(v)==is_reversal) {
+            let mut clean=row.clone();clean["is_reversed"]=Value::Bool(false);
+            clean["reversed_by_transfer_id"]=Value::Null;clean["reversed_at"]=Value::Null;
+            insert_table_rows(conn,"cashbook_transfers",&[clean])?;
+        }
+    }
+    for row in rows.iter().filter(|r|r["is_reversed"]==true || r["is_reversed"]==1) {
+        conn.execute("UPDATE cashbook_transfers SET is_reversed=1,reversed_by_transfer_id=?1,reversed_at=?2 WHERE id=?3",
+            rusqlite::params![row["reversed_by_transfer_id"].as_str(),row["reversed_at"].as_i64(),row["id"].as_str()]).map_err(|e|e.to_string())?;
+    }
+    Ok(rows.len())
+}
+
 /// Restores a workspace backup into a staging database, validates Tiers 1-4,
 /// creates a recovery copy of the current active database, and swaps the staging file in place.
 pub fn restore_workspace_backup(
@@ -373,6 +401,7 @@ pub fn restore_workspace_backup(
 ) -> Result<RestoreBackupResult, String> {
     // Tier 1 Validation
     let canonical_map = verify_tier1_checksum(backup_json)?;
+    transfer_backup::validate(&canonical_map)?;
 
     let db_dir = db_path
         .parent()
@@ -417,7 +446,9 @@ pub fn restore_workspace_backup(
                     0
                 }
             } else if let Some(arr) = val.as_array() {
-                insert_table_rows(&staging_conn, spec.name, arr)?
+                if spec.name == "cashbook_transfers" {
+                    restore_transfer_headers(&staging_conn, arr)?
+                } else { insert_table_rows(&staging_conn, spec.name, arr)? }
             } else {
                 0
             };
@@ -481,7 +512,7 @@ mod tests {
         let conn = initialize_database(&db_path).unwrap();
 
         let backup = create_workspace_backup(&conn).unwrap();
-        assert_eq!(backup["format_version"], "1.0");
+        assert_eq!(backup["format_version"], "1.1");
         assert_eq!(backup["scope"], "workspace");
         assert_eq!(backup["app_version"], "0.1.0");
         assert!(backup["checksum_sha256"].is_string());
@@ -489,7 +520,7 @@ mod tests {
 
         // Verify valid tier 1 passes
         let verified_map = verify_tier1_checksum(&backup).unwrap();
-        assert_eq!(verified_map["format_version"], "1.0");
+        assert_eq!(verified_map["format_version"], "1.1");
 
         // Verify corrupted checksum is rejected
         let mut corrupted_backup = backup.clone();

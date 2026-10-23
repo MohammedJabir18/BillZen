@@ -347,13 +347,13 @@ BillZen defines two explicit backup scopes for Milestone C1C:
 1. **Whole-Workspace Replacement Archive (`billzen-workspace-backup-v1.json`)**:
    - Complete snapshot of all business data: business profile, products, customers, categories, stock movements, invoices, invoice items, money accounts, cashbook categories, cashbook parties, cashbook vouchers, cashbook movements, sequences, and audit events.
    - Intended for full-device migration or complete catastrophic recovery.
-2. **Cashbook-Only Archive (`billzen-cashbook-backup-v1.json`)**:
+2. **Cashbook-Only Archive (`billzen-cashbook-backup-v1.json`, legacy design)**:
    - Contains exclusively cashbook tables (`money_accounts`, `cashbook_categories`, `cashbook_parties`, `cashbook_vouchers`, `cashbook_movements`, `cashbook_sequences`, `cashbook_audit_events`).
-   - Restores/imports into an existing workspace without destroying catalog, customer, or invoice data.
+   - Legacy partial helpers reject transfer data; use complete workspace1.1 export/restore to preserve paired transfers. A user-facing partial archive import is not implemented.
 
 ```json
 {
-  "format_version": "1.0",
+  "format_version": "1.1",
   "scope": "workspace",
   "app_version": "0.1.0",
   "generated_at": 1729337400000,
@@ -367,7 +367,8 @@ BillZen defines two explicit backup scopes for Milestone C1C:
   "cashbook_vouchers": [ ... ],
   "cashbook_movements": [ ... ],
   "cashbook_sequences": [ ... ],
-  "cashbook_audit_events": [ ... ]
+  "cashbook_audit_events": [ ... ],
+  "cashbook_transfers": [ ... ]
 }
 ```
 
@@ -375,7 +376,7 @@ BillZen defines two explicit backup scopes for Milestone C1C:
 1. **Never copy a live WAL database:** A running SQLite database in WAL mode cannot be safely copied via raw file I/O. Native backup uses the SQLite Online Backup API (`sqlite3_backup_*`) or an exclusive worker lock.
 2. **Canonical Checksum Bytes:** SHA-256 checksum is computed over the canonical canonicalized UTF-8 JSON bytes of all table arrays sorted by primary keys.
 3. **Four-Tier Pre-Restore Validation:**
-   - *Tier 1: Format & Checksum Verification*: Validate `format_version == "1.0"` and verify canonical payload SHA-256 matches header `checksum_sha256`.
+   - *Tier 1: Format & Checksum Verification*: New exports use `format_version == "1.1"` with required transfer headers; readers also accept transfer-free1.0. Verify the original canonical payload SHA-256 before normalizing any legacy missing array. Validate complete transfer ownership/reversal links before replacement. See [current transfer engine status](transfer-engine-status.md).
    - *Tier 2: Referential Integrity*: Staged database must pass `PRAGMA foreign_key_check;` with zero violations.
    - *Tier 3: Database Structural Integrity*: Staged database must pass `PRAGMA integrity_check;` returning `"ok"`.
    - *Tier 4: Financial Balance Invariant*: For every account in the payload, verify:

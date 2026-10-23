@@ -45,10 +45,10 @@ export async function verifyBackupEnvelope(envelope: Record<string, any>): Promi
     return { valid: false, error: 'Backup envelope must be an object' };
   }
 
-  if (envelope.format_version !== '1.0') {
+  if (!['1.0', '1.1'].includes(envelope.format_version)) {
     return {
       valid: false,
-      error: `Unsupported backup format version '${envelope.format_version}': expected '1.0'`,
+      error: `Unsupported backup format version '${envelope.format_version}': expected '1.0' or '1.1'`,
     };
   }
 
@@ -81,6 +81,12 @@ export async function verifyBackupEnvelope(envelope: Record<string, any>): Promi
     };
   }
 
+  if (envelope.format_version === '1.0') {
+    if ((envelope.cashbook_transfers != null && (!Array.isArray(envelope.cashbook_transfers) || envelope.cashbook_transfers.length)) ||
+        envelope.cashbook_vouchers?.some((v: any) => v.classification === 'transfer')) {
+      return { valid: false, error: 'Legacy 1.0 backup cannot contain transfers' };
+    }
+  } else if (!Array.isArray(envelope.cashbook_transfers)) return { valid: false, error: 'Missing transfer headers in 1.1 backup' };
   return { valid: true, expectedChecksum, computedChecksum };
 }
 

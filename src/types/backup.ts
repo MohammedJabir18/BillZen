@@ -1,7 +1,7 @@
 import type { BusinessSettings } from './index';
 
 export interface WorkspaceBackupEnvelope {
-  format_version: '1.0';
+  format_version: '1.0' | '1.1';
   scope: 'workspace';
   app_version: string;
   generated_at: number;
@@ -25,6 +25,7 @@ export interface WorkspaceBackupEnvelope {
   cashbook_vouchers: any[];
   cashbook_movements: any[];
   cashbook_audit_events: any[];
+  cashbook_transfers?: any[];
 }
 
 export interface RestoreBackupResult {

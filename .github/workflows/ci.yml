@@ -42,6 +42,18 @@ jobs:
       - name: Run Cargo Tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      - name: Setup Node for transfer backup interoperability
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify native and browser transfer backup interoperability
+        run: |
+          npm ci
+          npx playwright install --with-deps chrome
+          npm run test:transfer-interop
+
       - name: Run Native Catalog Probe (Cross-Process Persistence & Invariants)
         run: |
           cargo run --bin catalog_probe --manifest-path src-tauri/Cargo.toml -- /tmp/ci_catalog_probe.db write
@@ -85,6 +97,7 @@ jobs:
       - name: Verify durable workspace and customer cashbook integration
         run: |
           npm run test:workspace
+          npm run test:transfers
           npm run test:customer-cashbook
 
       - name: Run Playwright Catalog Verification
