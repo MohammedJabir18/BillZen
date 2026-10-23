@@ -366,7 +366,9 @@ async function runNativeVerification() {
     // Native updater safety checks use only the isolated workspace and never download/install.
     console.log('\nChecking native updater guards without downloading an artifact...');
     const updaterInitial = await activeInstance.invokeInApp('get_desktop_update_status');
-    assert(updaterInitial.status === 'idle', 'Desktop updater starts idle', updaterInitial);
+    assert(['idle', 'checking', 'unavailable', 'error', 'current', 'available'].includes(updaterInitial.status), 'Desktop startup check exposes a valid initial state', updaterInitial);
+    await activeInstance.invokeInApp('cancel_desktop_update');
+    await new Promise(resolve => setTimeout(resolve, 150));
     assert(updaterInitial.downloadedBytes === 0 && updaterInitial.totalBytes === 0,
       'Desktop updater has no downloaded payload at startup', updaterInitial);
     const expectNativeRejection = async (command, expectedText) => {

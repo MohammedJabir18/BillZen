@@ -357,10 +357,8 @@ fn validate_appimage_path(image: &std::path::Path) -> Result<(), String> {
     if !image.is_file() {
         return Err("The running AppImage is unavailable. Install the release manually.".into());
     }
-    std::fs::OpenOptions::new()
-        .write(true)
-        .open(image)
-        .map_err(|e| format!("The AppImage is not writable: {e}. Install the release manually."))?;
+    // Linux forbids opening a running ELF for writing (ETXTBSY). The updater
+    // renames the old inode and writes a new file, so test the directory instead.
     writable_directory(image.parent().ok_or("AppImage folder unavailable")?)
 }
 
@@ -410,6 +408,13 @@ mod tests {
         service.0.lock().unwrap().bytes = Some(vec![1, 2, 3]);
         service.cancel().unwrap();
         assert!(service.0.lock().unwrap().bytes.is_none());
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn running_appimage_can_be_atomically_replaced() {
+        // A running ELF cannot be opened for writing (ETXTBSY), but rename-based
+        // AppImage replacement only requires its containing directory writable.
+        assert!(validate_appimage_path(&std::env::current_exe().unwrap()).is_ok());
     }
     #[cfg(target_os = "linux")]
     #[test]
