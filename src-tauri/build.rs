@@ -38,6 +38,10 @@ fn main() {
                 "create_cashbook_category",
                 "ensure_customer_cashbook_party",
                 "get_customer_cash_history",
+                "post_cashbook_transfer",
+                "reverse_cashbook_transfer",
+                "get_cashbook_transfers",
+
                 "get_cashbook_parties",
                 "create_cashbook_party",
                 "post_cashbook_voucher",

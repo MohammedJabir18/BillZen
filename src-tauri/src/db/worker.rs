@@ -1,3 +1,4 @@
+use crate::domain::transfers::*;
 use crate::db::initialize_database;
 use crate::domain::catalog::{
     Category, CreateCategoryDto, CreateCustomerDto, CreateProductDto, Customer, CustomerFilter,
@@ -10,6 +11,9 @@ use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 
 pub enum DbRequest {
+ PostTransfer{input:CreateTransferInput,respond_to:oneshot::Sender<Result<TransferResult,String>>},
+ ReverseTransfer{input:ReverseTransferInput,respond_to:oneshot::Sender<Result<TransferResult,String>>},
+ GetTransfers{filter:TransferFilter,respond_to:oneshot::Sender<Result<Vec<CashbookTransfer>,String>>},
     PrepareUpdate { respond_to: oneshot::Sender<Result<PathBuf, String>> },
     ResumeAfterUpdate { respond_to: oneshot::Sender<Result<(), String>> },
     GetBusinessSettings {
@@ -150,6 +154,8 @@ pub enum DbRequest {
 impl DbRequest {
     fn reject_during_update(self) {
         match self {
+ Self::PostTransfer{respond_to,..}|Self::ReverseTransfer{respond_to,..}=>{let _=respond_to.send(Err("Update installation in progress".into()));},
+ Self::GetTransfers{respond_to,..}=>{let _=respond_to.send(Err("Update installation in progress".into()));},
             Self::PrepareUpdate { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::ResumeAfterUpdate { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::GetBusinessSettings { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
@@ -375,6 +381,9 @@ impl DbWorkerHandle {
                             let result = reverse_cashbook_voucher(&mut conn, voucher_id, confirmed_negative_balance);
                             let _ = respond_to.send(result);
                         }
+                        DbRequest::PostTransfer{input,respond_to}=>{let _=respond_to.send(crate::db::transfers::post(&mut conn,input));},
+                        DbRequest::ReverseTransfer{input,respond_to}=>{let _=respond_to.send(crate::db::transfers::reverse(&mut conn,input));},
+                        DbRequest::GetTransfers{filter,respond_to}=>{let _=respond_to.send(crate::db::transfers::list(&conn,filter));},
                         DbRequest::GetCashbookLedger { filter, respond_to } => {
                             let result = fetch_cashbook_ledger(&conn, filter);
                             let _ = respond_to.send(result);
@@ -719,6 +728,7 @@ impl DbWorkerHandle {
     }
 
     pub async fn post_cashbook_voucher(&self, input: CreateVoucherInput) -> Result<PostVoucherResult, String> {
+    if input.idempotency_key.trim().starts_with(TRANSFER_INTERNAL_PREFIX){return Err("Reserved transfer identity".into());}
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(DbRequest::PostCashbookVoucher { input, respond_to: tx })
@@ -738,6 +748,9 @@ impl DbWorkerHandle {
             .map_err(|_| "Database worker failed to respond".to_string())?
     }
 
+    pub async fn post_cashbook_transfer(&self,input:CreateTransferInput)->Result<TransferResult,String>{let(tx,rx)=oneshot::channel();self.sender.send(DbRequest::PostTransfer{input,respond_to:tx}).await.map_err(|_|"Worker terminated".to_string())?;rx.await.map_err(|_|"Worker response lost".to_string())?}
+    pub async fn reverse_cashbook_transfer(&self,input:ReverseTransferInput)->Result<TransferResult,String>{let(tx,rx)=oneshot::channel();self.sender.send(DbRequest::ReverseTransfer{input,respond_to:tx}).await.map_err(|_|"Worker terminated".to_string())?;rx.await.map_err(|_|"Worker response lost".to_string())?}
+    pub async fn get_cashbook_transfers(&self,filter:TransferFilter)->Result<Vec<CashbookTransfer>,String>{let(tx,rx)=oneshot::channel();self.sender.send(DbRequest::GetTransfers{filter,respond_to:tx}).await.map_err(|_|"Worker terminated".to_string())?;rx.await.map_err(|_|"Worker response lost".to_string())?}
     pub async fn get_cashbook_ledger(&self, filter: CashbookLedgerFilter) -> Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String> {
         let (tx, rx) = oneshot::channel();
         self.sender
@@ -2629,6 +2642,7 @@ fn reverse_cashbook_voucher(
 
     let orig = fetch_voucher_by_id(&tx, &voucher_id)
         .map_err(|_| CashbookError::VoucherNotFound(voucher_id.clone()).to_string())?;
+    if orig.classification == CashbookClassification::Transfer {return Err("Reverse the complete transfer, not an individual leg".into());}
 
     if orig.status != VoucherStatus::Posted {
         return Err(CashbookError::CannotReverseNonPosted(voucher_id).to_string());
@@ -2956,6 +2970,7 @@ fn fetch_cashbook_ledger_for_customer(conn: &Connection, filter: CashbookLedgerF
     for item in rows {
         let entry = item.map_err(|e| format!("Row mapping error: {}", e))?;
         let m_amt = entry.movement.amount_minor;
+        if entry.voucher.classification != CashbookClassification::Transfer {
         if m_amt > 0 {
             matching_inflows = matching_inflows
                 .checked_add(m_amt)
@@ -2964,6 +2979,7 @@ fn fetch_cashbook_ledger_for_customer(conn: &Connection, filter: CashbookLedgerF
             matching_outflows = matching_outflows
                 .checked_add(m_amt.unsigned_abs() as i64)
                 .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
+        }
         }
         entries.push(entry);
     }
@@ -2975,14 +2991,14 @@ fn fetch_cashbook_ledger_for_customer(conn: &Connection, filter: CashbookLedgerF
         (None, None, None)
     };
 
-    let (period_inflows, period_outflows, net_operating): (i64, i64, i64) = {
+    let (period_inflows, period_outflows, net_operating, period_net): (i64, i64, i64, i64) = {
         let mut period_sql = "SELECT 
-            COALESCE(SUM(CASE WHEN m.amount_minor > 0 THEN m.amount_minor ELSE 0 END), 0),
-            COALESCE(SUM(CASE WHEN m.amount_minor < 0 THEN -m.amount_minor ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN m.amount_minor > 0 AND v.classification != 'transfer' THEN m.amount_minor ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN m.amount_minor < 0 AND v.classification != 'transfer' THEN -m.amount_minor ELSE 0 END), 0),
             COALESCE(SUM(CASE 
                 WHEN v.classification IN ('operating_income', 'operating_expense') THEN m.amount_minor 
                 ELSE 0 
-            END), 0)
+            END), 0), COALESCE(SUM(m.amount_minor),0)
         FROM cashbook_movements m
         JOIN cashbook_vouchers v ON m.voucher_id = v.id
         JOIN money_accounts a ON m.account_id = a.id
@@ -3008,7 +3024,7 @@ fn fetch_cashbook_ledger_for_customer(conn: &Connection, filter: CashbookLedgerF
 
         let slice: Vec<&dyn rusqlite::ToSql> = period_params.iter().map(|b| b.as_ref()).collect();
         conn.query_row(&period_sql, slice.as_slice(), |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
         }).map_err(|e| format!("Failed to compute period totals: {}", e))?
     };
 
@@ -3112,8 +3128,7 @@ fn fetch_cashbook_ledger_for_customer(conn: &Connection, filter: CashbookLedgerF
     };
 
     let period_closing_balance = period_opening_balance
-        .checked_add(period_inflows)
-        .and_then(|b| b.checked_sub(period_outflows))
+        .checked_add(period_net)
         .ok_or_else(|| CashbookError::BalanceOverflow.to_string())?;
 
     let summary = CashbookSummary {

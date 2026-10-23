@@ -28,3 +28,12 @@ pub fn normalized_intent(i:&CreateTransferInput)->Result<serde_json::Value,Strin
 }
 pub fn intent_hash(i:&CreateTransferInput)->Result<String,String>{Ok(format!("{:x}",Sha256::digest(serde_json::to_vec(&normalized_intent(i)?).map_err(|e|e.to_string())?)))}
 #[cfg(test)]mod tests{use super::*;#[test]fn intent_identity_and_validation(){let mut i=CreateTransferInput{idempotency_key:"retry".into(),from_account_id:" cash ".into(),to_account_id:"bank".into(),amount_minor:200000,business_date:"2026-10-23".into(),notes:None,reference_note:None,confirmed_negative_balance:false};let h=intent_hash(&i).unwrap();assert_eq!(h,"a2ac11e537b543f107e622db93ca0f53abea36ad2b1b4de0464a296d4c236143");i.confirmed_negative_balance=true;assert_eq!(h,intent_hash(&i).unwrap());i.to_account_id="cash".into();assert!(intent_hash(&i).is_err());i.to_account_id="bank".into();i.business_date="2026-02-30".into();assert!(intent_hash(&i).is_err());}}
+
+#[derive(Debug,Clone,Serialize,Deserialize)]
+#[serde(tag="status",rename_all="snake_case")]
+pub enum TransferResult {
+ Posted{transfer:CashbookTransfer},
+ RequiresConfirmation{account_id:String,current_balance_minor:i64,projected_balance_minor:i64,amount_minor:i64,message:String},
+}
+#[derive(Debug,Clone,Default,Serialize,Deserialize)]
+pub struct TransferFilter{pub account_id:Option<String>,pub start_date:Option<String>,pub end_date:Option<String>}

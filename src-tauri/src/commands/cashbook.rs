@@ -89,3 +89,11 @@ pub async fn ensure_customer_cashbook_party(worker: State<'_, DbWorkerHandle>, i
 pub async fn get_customer_cash_history(worker: State<'_, DbWorkerHandle>, filter: CustomerCashHistoryFilter) -> Result<CustomerCashHistory, String> {
     worker.get_customer_cash_history(filter).await
 }
+
+use crate::domain::transfers::*;
+#[tauri::command]
+pub async fn post_cashbook_transfer(worker:State<'_,DbWorkerHandle>,input:CreateTransferInput)->Result<TransferResult,String>{worker.post_cashbook_transfer(input).await}
+#[tauri::command]
+pub async fn reverse_cashbook_transfer(worker:State<'_,DbWorkerHandle>,input:ReverseTransferInput)->Result<TransferResult,String>{worker.reverse_cashbook_transfer(input).await}
+#[tauri::command]
+pub async fn get_cashbook_transfers(worker:State<'_,DbWorkerHandle>,filter:TransferFilter)->Result<Vec<CashbookTransfer>,String>{worker.get_cashbook_transfers(filter).await}

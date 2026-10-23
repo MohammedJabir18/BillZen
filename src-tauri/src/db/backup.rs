@@ -105,6 +105,9 @@ pub fn compute_canonical_checksum(payload_map: &BTreeMap<String, Value>) -> Resu
 
 /// Exports the entire workspace into a versioned JSON backup envelope with SHA-256 integrity hash.
 pub fn create_workspace_backup(conn: &Connection) -> Result<Value, String> {
+    let transfers:i64=conn.query_row("SELECT COUNT(*) FROM cashbook_transfers",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+    if transfers>0{return Err("Transfer backup compatibility is not enabled yet; do not export an incomplete workspace".into());}
+
     let mut payload_map = BTreeMap::new();
     let now_ts = chrono::Utc::now().timestamp_millis();
 

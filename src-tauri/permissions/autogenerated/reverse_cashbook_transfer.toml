@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reverse-cashbook-transfer"
+description = "Enables the reverse_cashbook_transfer command without any pre-configured scope."
+commands.allow = ["reverse_cashbook_transfer"]
+
+[[permission]]
+identifier = "deny-reverse-cashbook-transfer"
+description = "Denies the reverse_cashbook_transfer command without any pre-configured scope."
+commands.deny = ["reverse_cashbook_transfer"]

@@ -46,6 +46,9 @@
     "allow-check-android-update",
     "allow-download-android-update",
     "allow-prepare-android-update",
-    "allow-resume-after-update"
+    "allow-resume-after-update",
+    "allow-post-cashbook-transfer",
+    "allow-reverse-cashbook-transfer",
+    "allow-get-cashbook-transfers"
   ]
 }
