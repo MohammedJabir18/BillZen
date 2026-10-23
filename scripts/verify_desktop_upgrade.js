@@ -7,7 +7,9 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 const baseline=process.argv[2],candidate=process.argv[3];
-if(!baseline||!candidate)throw Error('Usage: node scripts/verify_desktop_upgrade.js PRIVATE_BASELINE_APPIMAGE VERIFIED_RELEASE_APPIMAGE');
+if(!baseline||!candidate)throw Error('Usage: node scripts/verify_desktop_upgrade.js PRIVATE_BASELINE_APPIMAGE VERIFIED_RELEASE_APPIMAGE_OR_SHA256');
+const expectedHash=/^[a-f0-9]{64}$/.test(candidate)?candidate:createHash('sha256').update(fs.readFileSync(candidate)).digest('hex');
+const imageHash=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'billzen-signed-upgrade-'));
 const image=path.join(folder,'BillZen.AppImage'),data=path.join(folder,'data'),port=9237;
 fs.copyFileSync(baseline,image);fs.chmodSync(image,0o755);
@@ -45,7 +47,7 @@ try{
  const downloaded=await app.invoke('download_desktop_update',{},650000);assert.equal(downloaded.status,'ready',JSON.stringify(downloaded));assert(downloaded.downloadedBytes>0);
  report.signatureVerified=true;report.downloadedBytes=downloaded.downloadedBytes;
  void app.invoke('install_desktop_update',{},20000).catch(()=>{});
- await deadline(async()=>assert.equal(fs.readFileSync(image).equals(fs.readFileSync(candidate)),true),60000);
+ await deadline(async()=>assert.equal(imageHash(image),expectedHash),60000);
  app.ws.close();await pause(1800);
  app=await deadline(()=>connect(),45000);
  await deadline(async()=>assert.equal(await app.invoke('plugin:app|version'),'0.1.6'));
@@ -54,7 +56,8 @@ try{
  assert(JSON.stringify(backup).includes('UPGRADE-FIXTURE'));
  assert(fs.readdirSync(path.join(data,'recovery')).some(name=>name.includes('before-app-update')));
  report.restartedVersion='0.1.6';report.preferencePreserved=true;report.productId=product.id;report.productPreserved=true;report.recoverySnapshotCreated=true;
- report.installedSha256=createHash('sha256').update(fs.readFileSync(image)).digest('hex');
+ report.installedSha256=imageHash(image);assert.equal(report.installedSha256,expectedHash);
+ fs.mkdirSync('dist-desktop/accepted-upgrade',{recursive:true});fs.copyFileSync(image,'dist-desktop/accepted-upgrade/BillZen-0.1.6-Linux-x64.AppImage');
  console.log(JSON.stringify(report,null,2));
  fs.mkdirSync('test_artifacts/desktop-updater',{recursive:true});fs.writeFileSync('test_artifacts/desktop-updater/actual-upgrade.json',JSON.stringify(report,null,2));
 }finally{

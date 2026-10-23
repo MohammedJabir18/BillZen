@@ -2,6 +2,10 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Desktop updater delivery — 2026-10-24
+
+Stable/latest v0.1.6 is published. Pinned-key authenticated-version updates support Windowsx64 NSIS, AppleSilicon installedapp and LinuxAppImage; Debian/bareLinux show unavailable. Exact hosted AppImage passed68 native checks and an actual private-baseline→0.1.6 signed download/install/restart preserved synthetic product/preferences and created recovery snapshot. Frontend95/native118/publisher7 testfiles and browser guards passed. Source revisionad9845a CI and all package jobs succeeded; later docs/harness CI is reported separately. Physical Mac/Windows runtime tests remain unperformed. Local launcher now uses the verified AppImage; user must reopen an old running instance. [Packages, hashes and limits](distribution-v0.1.6.md).
+
 ## Customer cashbook and durable browser workspace — 2026-10-23
 
 - Added explicit customer-party linking, signed cash history across archived links, receipt shortcut, party Reports filter and history→Reports date/account context. Cash totals are not receivables; customer edits preserve posted snapshots. No stock-sale/invoice workflow was introduced.

@@ -31,7 +31,7 @@ The shop counter should keep moving when the internet stops. Your catalog, custo
 </table>
 
 > [!IMPORTANT]
-> **BillZen is a beta.** Company Cashbook, customer-linked history, account transfers, stock adjustments and complete workspace backups are available. Complete invoice finalization, supplier bills and device synchronization remain future work. [Download v0.1.5 packages →](https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.5) · [Verification & limitations →](docs/verification-status.md)
+> **BillZen is a beta.** Company Cashbook, customer-linked history, account transfers, stock adjustments and complete workspace backups are available. Complete invoice finalization, supplier bills and device synchronization remain future work. [Download desktop v0.1.6 / Android v0.1.5 →](https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.6) · [Verification & limitations →](docs/verification-status.md)
 
 ## 🎬 See it in motion
 
@@ -68,7 +68,7 @@ The shop counter should keep moving when the internet stops. Your catalog, custo
 | **Documents** | Reusable A4 component and four automated Chromium/Chrome PDF fixtures | Native export parity, physical printer validation and 80 mm/58 mm layouts |
 | **Local platform** | Rust worker, SQLite migrations, startup checks, advisory lock and versioned complete native/supported-browser workspace backup/restore | Encryption, sync and wider OS verification |
 
-Account transfers: [operator guide](docs/account-transfers-guide.md) · [engine/backup contracts](docs/transfer-engine-status.md) · [verification and candidate checksums](docs/verification-status.md). Product stock: [operator guide](docs/product-stock-guide.md). Platform packages and signing/update limitations: [v0.1.5 release notes](docs/releases/v0.1.5.md).
+Account transfers: [operator guide](docs/account-transfers-guide.md) · [engine/backup contracts](docs/transfer-engine-status.md) · [verification and candidate checksums](docs/verification-status.md). Product stock: [operator guide](docs/product-stock-guide.md). Platform packages and signing/update limitations: [desktop updater guide](docs/desktop-updates.md) · [v0.1.6 delivery evidence](docs/distribution-v0.1.6.md).
 
 **Status is evidence-based.** Schema tables and sample invoice documents do not imply that complete billing workflows have shipped. Currency formatting is not a GST/VAT or statutory e-invoicing certification.
 
