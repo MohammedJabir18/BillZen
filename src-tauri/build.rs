@@ -11,6 +11,11 @@ fn main() {
                 "update_guide_status",
                 "check_print_support",
 
+                "get_desktop_update_status",
+                "check_desktop_update",
+                "download_desktop_update",
+                "install_desktop_update",
+                "cancel_desktop_update",
                 "get_update_status",
                 "cancel_update",
                 "check_android_update",

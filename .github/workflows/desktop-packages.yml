@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.mac_only && '[{"platform":"macOS-AppleSilicon","os":"macos-15","target":"aarch64-apple-darwin","bundles":"dmg"}]' || '[{"platform":"macOS-AppleSilicon","os":"macos-15","target":"aarch64-apple-darwin","bundles":"dmg"},{"platform":"Windows-x64","os":"windows-latest","target":"x86_64-pc-windows-msvc","bundles":"nsis"},{"platform":"Linux-x64","os":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}]') }}
+        include: ${{ fromJSON(inputs.mac_only && '[{"platform":"macOS-AppleSilicon","os":"macos-15","target":"aarch64-apple-darwin","bundles":"app,dmg"}]' || '[{"platform":"macOS-AppleSilicon","os":"macos-15","target":"aarch64-apple-darwin","bundles":"app,dmg"},{"platform":"Windows-x64","os":"windows-latest","target":"x86_64-pc-windows-msvc","bundles":"nsis"},{"platform":"Linux-x64","os":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -45,10 +45,17 @@ jobs:
           npm test
       - name: Verify native domain
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+      - name: Require desktop updater signing key
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node -e "if (!process.env.TAURI_SIGNING_PRIVATE_KEY?.trim() || !process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD) throw new Error('Desktop updater signing secrets must be configured')"
       - name: Build installable packages
         env:
           # Ad-hoc signature preserves bundle integrity; it is not Apple Developer ID or notarization.
           APPLE_SIGNING_IDENTITY: '-'
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           CI: 'true'
           NO_STRIP: 'true'
         run: npm run tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
@@ -63,7 +70,6 @@ jobs:
       - name: Verify macOS bundle architecture and signature
         if: runner.os == 'macOS'
         run: |
-          # Tauri removes the intermediate .app when only DMG is requested.
           # Inspect the app actually delivered inside the read-only disk image.
           DMG_DIR=src-tauri/target/${{ matrix.target }}/release/bundle/dmg
           DMGS=("$DMG_DIR"/*.dmg)
@@ -75,7 +81,7 @@ jobs:
           lipo "$APP/Contents/MacOS/billzen" -verify_arch arm64
           codesign --verify --deep --strict --verbose=2 "$APP"
           ACTUAL=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")
-          EXPECTED=$(node -p "JSON.parse(require('fs').readFileSync('release/version.json')).version")
+          EXPECTED=$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")
           test "$ACTUAL" = "$EXPECTED"
       - name: Collect exact installers and provenance
         env:
@@ -86,5 +92,29 @@ jobs:
         with:
           name: BillZen-${{ matrix.platform }}
           path: dist-desktop/packages/*
+          if-no-files-found: error
+          retention-days: 30
+
+  update-feed:
+    name: Verify complete desktop updater feed
+    if: ${{ !inputs.mac_only }}
+    needs: package
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: BillZen-*
+          path: dist-desktop/packages
+          merge-multiple: true
+      - name: Merge and validate signed updater artifacts
+        run: node scripts/release/build-desktop-feed.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BillZen-desktop-update-feed
+          path: dist-desktop/packages/desktop-update.json
           if-no-files-found: error
           retention-days: 30

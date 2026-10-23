@@ -1,0 +1,20 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {generateKeyPairSync,sign,createHash} from 'node:crypto';
+import {verifyDesktopSignature} from '../verify-desktop-signature.mjs';
+test('verifies real Ed25519 minisign envelope and rejects tampered artifact, version, key and comment',()=>{
+ const {privateKey,publicKey}=generateKeyPairSync('ed25519'),id=Buffer.alloc(8,7),bytes=Buffer.from('synthetic update archive');
+ const raw=publicKey.export({type:'spki',format:'der'}).subarray(-32);
+ const pub=Buffer.from('untrusted comment: test\n'+Buffer.concat([Buffer.from('Ed'),id,raw]).toString('base64')+'\n').toString('base64');
+ const comment='timestamp:1700000000\tfile:test.AppImage\tversion:0.1.6';
+ const sig=sign(null,createHash('blake2b512').update(bytes).digest(),privateKey);
+ const packet=Buffer.concat([Buffer.from('ED'),id,sig]);
+ const envelope=['untrusted comment: test',packet.toString('base64'),'trusted comment: '+comment,sign(null,Buffer.concat([sig,Buffer.from(comment)]),privateKey).toString('base64')].join('\n')+'\n';
+ const encoded=Buffer.from(envelope).toString('base64');
+ assert.equal(verifyDesktopSignature(bytes,encoded,pub,'0.1.6'),true);
+ assert.throws(()=>verifyDesktopSignature(Buffer.from('tampered'),encoded,pub,'0.1.6'),/signature/);
+ assert.throws(()=>verifyDesktopSignature(bytes,encoded,pub,'0.1.7'),/version/);
+ assert.throws(()=>verifyDesktopSignature(bytes,Buffer.from(envelope.replace('version:0.1.6','version:0.1.7')).toString('base64'),pub,'0.1.7'),/signature/);
+ const wrong=Buffer.from(Buffer.from(pub,'base64').toString().replace(Buffer.concat([Buffer.from('Ed'),id,raw]).toString('base64'),Buffer.concat([Buffer.from('Ed'),id,Buffer.alloc(32,1)]).toString('base64'))).toString('base64');
+ assert.throws(()=>verifyDesktopSignature(bytes,encoded,wrong,'0.1.6'),/signature/);
+});

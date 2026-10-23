@@ -1,6 +1,6 @@
 [package]
 name = "billzen"
-version = "0.1.5"
+version = "0.1.6"
 default-run = "billzen"
 description = "Offline-first desktop billing and inventory management"
 authors = ["BillZen Team"]
@@ -33,3 +33,6 @@ semver = "1.0"
 
 [dev-dependencies]
 tempfile = "3.17.1"
+
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+tauri-plugin-updater = "=2.14.0"

@@ -51,6 +51,11 @@
     "allow-reverse-cashbook-transfer",
     "allow-get-cashbook-transfers",
     "allow-post-stock-adjustment",
-    "allow-get-stock-history"
+    "allow-get-stock-history",
+    "allow-get-desktop-update-status",
+    "allow-check-desktop-update",
+    "allow-download-desktop-update",
+    "allow-install-desktop-update",
+    "allow-cancel-desktop-update"
   ]
 }

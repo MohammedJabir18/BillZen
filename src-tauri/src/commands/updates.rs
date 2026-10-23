@@ -63,6 +63,10 @@ pub async fn download_android_update(app:tauri::AppHandle,service:State<'_,Arc<U
 }
 #[tauri::command]
 pub async fn prepare_android_update(app:tauri::AppHandle,service:State<'_,Arc<UpdateService>>,worker:State<'_,DbWorkerHandle>)->Result<(),String>{
+ #[cfg(not(target_os="android"))]
+ { let _ = (&app, &service, &worker); return Err("Android installer preparation is unavailable on desktop".into()); }
+ #[cfg(target_os="android")]
+ {
  let service=service.inner().clone();let _guard=start(&service)?;
  let directory=app.path().app_cache_dir().map_err(|e|e.to_string())?.join("updates");
  let apk=directory.join("update.apk");
@@ -77,12 +81,18 @@ pub async fn prepare_android_update(app:tauri::AppHandle,service:State<'_,Arc<Up
   if let Ok(mut info)=service.info.lock(){info.status="installing".into();info.message="Waiting for the Android installer. Return to BillZen to continue.".into();}
  }
  result
+ }
 }
 
 #[tauri::command]
 pub async fn resume_after_update(app:tauri::AppHandle,service:State<'_,Arc<UpdateService>>,worker:State<'_,DbWorkerHandle>)->Result<(),String>{
+ #[cfg(not(target_os="android"))]
+ { let _ = (&app, &service, &worker); return Err("Android installer recovery is unavailable on desktop".into()); }
+ #[cfg(target_os="android")]
+ {
  if let Ok(cache)=app.path().app_cache_dir(){let _=std::fs::remove_file(cache.join("updates/install-approved"));}
  worker.resume_after_update().await?;
  if let Ok(mut info)=service.info.lock(){if info.status=="installing"{info.status="ready".into();info.message="Returned from Android. You can retry installation or continue working.".into();}}
  Ok(())
+}
 }

@@ -63,6 +63,19 @@ pub fn acquire_instance_lock(app_data_dir: &Path) -> Result<InstanceLock, String
     Ok(InstanceLock { file, lock_path })
 }
 
+fn acquire_instance_lock_for_startup(app_data_dir: &Path) -> Result<InstanceLock, String> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        match acquire_instance_lock(app_data_dir) {
+            Ok(lock) => return Ok(lock),
+            Err(error) if error.starts_with("Another instance") && std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(not(target_os = "android"))]
@@ -70,7 +83,9 @@ pub fn run() {
         let app_data_dir = get_app_data_dir();
 
         // Acquire single instance lock
-        let lock = match acquire_instance_lock(&app_data_dir) {
+        // Tauri spawns the restart successor just before the old process exits.
+        // Wait briefly for the kernel to release its lock; never bypass a held lock.
+        let lock = match acquire_instance_lock_for_startup(&app_data_dir) {
             Ok(l) => l,
             Err(e) => {
                 eprintln!("[BillZen Fatal] Another instance of BillZen is already running or lock failed: {}", e);
@@ -95,6 +110,11 @@ pub fn run() {
         .setup(move |app| {
             #[cfg(not(target_os = "android"))]
             {
+                #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+                {
+                    app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+                    app.manage(std::sync::Arc::new(commands::desktop_updates::DesktopUpdateService::default()));
+                }
                 app.manage(desktop_lock);
                 app.manage(desktop_worker);
             }
@@ -138,6 +158,16 @@ pub fn run() {
             commands::settings::update_guide_status,
             commands::system::check_print_support,
 
+            #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+            commands::desktop_updates::get_desktop_update_status,
+            #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+            commands::desktop_updates::check_desktop_update,
+            #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+            commands::desktop_updates::download_desktop_update,
+            #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+            commands::desktop_updates::install_desktop_update,
+            #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+            commands::desktop_updates::cancel_desktop_update,
             commands::updates::get_update_status,
             commands::updates::cancel_update,
             commands::updates::check_android_update,
@@ -220,6 +250,21 @@ mod tests {
             lock3.is_ok(),
             "Subsequent lock acquisition after drop must succeed"
         );
+    }
+
+    #[test]
+    fn test_restart_successor_waits_for_the_existing_kernel_lock() {
+        let directory = tempdir().unwrap();
+        let held = acquire_instance_lock(directory.path()).unwrap();
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(120));
+            drop(held);
+        });
+        let successor = acquire_instance_lock_for_startup(directory.path()).unwrap();
+        releaser.join().unwrap();
+        assert!(acquire_instance_lock(directory.path()).is_err());
+        drop(successor);
+        assert!(acquire_instance_lock(directory.path()).is_ok());
     }
 
     #[test]

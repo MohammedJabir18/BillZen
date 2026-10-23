@@ -257,7 +257,12 @@ impl DbWorkerHandle {
                     match request {
                         DbRequest::PrepareUpdate { respond_to } => {
                             let directory = db_path.parent().unwrap_or_else(|| std::path::Path::new(".")).join("recovery");
-                            let result = crate::db::recovery::snapshot(&conn, &directory, "before-app-update").map_err(|e|e.to_string());
+                            let result = (|| {
+                                let busy: i64 = conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| row.get(0))
+                                    .map_err(|e| format!("Cannot checkpoint data before installation: {e}"))?;
+                                if busy != 0 { return Err("Cannot checkpoint data while another application is using the database. Close it and retry.".into()); }
+                                crate::db::recovery::snapshot(&conn, &directory, "before-app-update").map_err(|e|e.to_string())
+                            })();
                             if result.is_ok() { update_paused = true; }
                             let _ = respond_to.send(result);
                         }

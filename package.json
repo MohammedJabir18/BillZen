@@ -1,7 +1,7 @@
 {
   "name": "billzen",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -33,7 +33,8 @@
     "test:transfers-ui": "node scripts/verify_transfers_ui.js",
     "test:reports-refresh": "node scripts/verify_reports_refresh.js",
     "test:stock": "node scripts/verify_stock.js",
-    "test:stock-ui": "node scripts/verify_stock_ui.js"
+    "test:stock-ui": "node scripts/verify_stock_ui.js",
+    "test:desktop-update-ui": "node scripts/verify_desktop_update_ui.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

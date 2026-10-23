@@ -16,7 +16,7 @@ try{
   await navigateToAppTab(page,'settings');
   const section=page.locator('section[aria-labelledby="updates-title"]');await section.waitFor();
   await page.getByRole('button',{name:'Check for updates',exact:true}).click();
-  await page.getByText('In-app updates are available in supported Android installations.',{exact:false}).waitFor();
+  await page.getByText('Browser updates follow the website deployment.',{exact:false}).waitFor();
   assert.equal(await section.getByRole('button',{name:'Install update',exact:true}).count(),0);
   await context.setOffline(true);await page.getByText('You are offline. Billing and records remain available.',{exact:true}).waitFor();
   assert.equal(await section.getByRole('button',{name:'Check for updates',exact:true}).isDisabled(),true);

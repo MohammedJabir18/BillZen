@@ -189,6 +189,12 @@
           "markdownDescription": "Enables the archive_product command without any pre-configured scope."
         },
         {
+          "description": "Enables the cancel_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cancel-desktop-update",
+          "markdownDescription": "Enables the cancel_desktop_update command without any pre-configured scope."
+        },
+        {
           "description": "Enables the cancel_update command without any pre-configured scope.",
           "type": "string",
           "const": "allow-cancel-update",
@@ -199,6 +205,12 @@
           "type": "string",
           "const": "allow-check-android-update",
           "markdownDescription": "Enables the check_android_update command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the check_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-check-desktop-update",
+          "markdownDescription": "Enables the check_desktop_update command without any pre-configured scope."
         },
         {
           "description": "Enables the check_print_support command without any pre-configured scope.",
@@ -253,6 +265,12 @@
           "type": "string",
           "const": "allow-download-android-update",
           "markdownDescription": "Enables the download_android_update command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the download_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-download-desktop-update",
+          "markdownDescription": "Enables the download_desktop_update command without any pre-configured scope."
         },
         {
           "description": "Enables the ensure_customer_cashbook_party command without any pre-configured scope.",
@@ -315,6 +333,12 @@
           "markdownDescription": "Enables the get_customers command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_desktop_update_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-desktop-update-status",
+          "markdownDescription": "Enables the get_desktop_update_status command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_money_accounts command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-money-accounts",
@@ -337,6 +361,12 @@
           "type": "string",
           "const": "allow-get-update-status",
           "markdownDescription": "Enables the get_update_status command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the install_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-install-desktop-update",
+          "markdownDescription": "Enables the install_desktop_update command without any pre-configured scope."
         },
         {
           "description": "Enables the ping command without any pre-configured scope.",
@@ -459,6 +489,12 @@
           "markdownDescription": "Denies the archive_product command without any pre-configured scope."
         },
         {
+          "description": "Denies the cancel_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cancel-desktop-update",
+          "markdownDescription": "Denies the cancel_desktop_update command without any pre-configured scope."
+        },
+        {
           "description": "Denies the cancel_update command without any pre-configured scope.",
           "type": "string",
           "const": "deny-cancel-update",
@@ -469,6 +505,12 @@
           "type": "string",
           "const": "deny-check-android-update",
           "markdownDescription": "Denies the check_android_update command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the check_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-check-desktop-update",
+          "markdownDescription": "Denies the check_desktop_update command without any pre-configured scope."
         },
         {
           "description": "Denies the check_print_support command without any pre-configured scope.",
@@ -523,6 +565,12 @@
           "type": "string",
           "const": "deny-download-android-update",
           "markdownDescription": "Denies the download_android_update command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the download_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-download-desktop-update",
+          "markdownDescription": "Denies the download_desktop_update command without any pre-configured scope."
         },
         {
           "description": "Denies the ensure_customer_cashbook_party command without any pre-configured scope.",
@@ -585,6 +633,12 @@
           "markdownDescription": "Denies the get_customers command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_desktop_update_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-desktop-update-status",
+          "markdownDescription": "Denies the get_desktop_update_status command without any pre-configured scope."
+        },
+        {
           "description": "Denies the get_money_accounts command without any pre-configured scope.",
           "type": "string",
           "const": "deny-get-money-accounts",
@@ -607,6 +661,12 @@
           "type": "string",
           "const": "deny-get-update-status",
           "markdownDescription": "Denies the get_update_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the install_desktop_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-install-desktop-update",
+          "markdownDescription": "Denies the install_desktop_update command without any pre-configured scope."
         },
         {
           "description": "Denies the ping command without any pre-configured scope.",
@@ -2755,6 +2815,60 @@
           "type": "string",
           "const": "core:window:deny-unminimize",
           "markdownDescription": "Denies the unminimize command without any pre-configured scope."
+        },
+        {
+          "description": "This permission set configures which kind of\nupdater functions are exposed to the frontend.\n\n#### Granted Permissions\n\nThe full workflow from checking for updates to installing them\nis enabled.\n\n\n#### This default permission set includes:\n\n- `allow-check`\n- `allow-download`\n- `allow-install`\n- `allow-download-and-install`",
+          "type": "string",
+          "const": "updater:default",
+          "markdownDescription": "This permission set configures which kind of\nupdater functions are exposed to the frontend.\n\n#### Granted Permissions\n\nThe full workflow from checking for updates to installing them\nis enabled.\n\n\n#### This default permission set includes:\n\n- `allow-check`\n- `allow-download`\n- `allow-install`\n- `allow-download-and-install`"
+        },
+        {
+          "description": "Enables the check command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:allow-check",
+          "markdownDescription": "Enables the check command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the download command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:allow-download",
+          "markdownDescription": "Enables the download command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the download_and_install command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:allow-download-and-install",
+          "markdownDescription": "Enables the download_and_install command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the install command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:allow-install",
+          "markdownDescription": "Enables the install command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the check command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:deny-check",
+          "markdownDescription": "Denies the check command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the download command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:deny-download",
+          "markdownDescription": "Denies the download command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the download_and_install command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:deny-download-and-install",
+          "markdownDescription": "Denies the download_and_install command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the install command without any pre-configured scope.",
+          "type": "string",
+          "const": "updater:deny-install",
+          "markdownDescription": "Denies the install command without any pre-configured scope."
         }
       ]
     },

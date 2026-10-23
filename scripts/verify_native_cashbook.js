@@ -9,6 +9,11 @@ fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 const REPORT_PATH = path.join(ARTIFACTS_DIR, 'native_cashbook_verification_report.json');
 
 const BINARY_PATH = path.resolve(process.env.BILLZEN_NATIVE_BINARY || 'src-tauri/target/release/billzen');
+// Set explicitly for an extracted AppRun with APPIMAGE supplied by the launcher.
+const EXPECT_APPIMAGE = process.env.BILLZEN_NATIVE_EXPECT_APPIMAGE === '1'
+  || /\.appimage$/i.test(BINARY_PATH)
+  || Boolean(process.env.APPIMAGE);
+
 
 function getFileSha256(filePath) {
   if (!fs.existsSync(filePath)) return null;
@@ -242,7 +247,7 @@ async function startNativeInstance(dataDir, port) {
     throw new Error('Application failed bounded readiness check (tauri:// URL and __TAURI_INTERNALS__) within 15s');
   }
 
-  async function invokeInApp(cmd, args = {}) {
+  async function invokeInApp(cmd, args = {}, timeoutMs = 10000) {
     const nonce = `__ipc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     await evalInApp(`
       (() => {
@@ -252,7 +257,7 @@ async function startNativeInstance(dataDir, port) {
           .catch(err => { window['${nonce}'] = { done: true, error: String(err) }; });
       })()
     `);
-    await waitForCondition(`Boolean(window['${nonce}']?.done)`, 10000);
+    await waitForCondition(`Boolean(window['${nonce}']?.done)`, timeoutMs);
     const jsonStr = await evalInApp(`JSON.stringify(window['${nonce}'])`);
     await evalInApp(`delete window['${nonce}']`);
     const parsed = JSON.parse(jsonStr);
@@ -357,6 +362,55 @@ async function runNativeVerification() {
     assert(parsedEnv.hasTauriInternals === true, 'Window has __TAURI_INTERNALS__');
     assert(parsedEnv.url.startsWith('tauri://'), 'Window URL protocol is tauri://');
     recordTest('native_tauri_runtime_environment', true, parsedEnv);
+
+    // Native updater safety checks use only the isolated workspace and never download/install.
+    console.log('\nChecking native updater guards without downloading an artifact...');
+    const updaterInitial = await activeInstance.invokeInApp('get_desktop_update_status');
+    assert(updaterInitial.status === 'idle', 'Desktop updater starts idle', updaterInitial);
+    assert(updaterInitial.downloadedBytes === 0 && updaterInitial.totalBytes === 0,
+      'Desktop updater has no downloaded payload at startup', updaterInitial);
+    const expectNativeRejection = async (command, expectedText) => {
+      let rejection = '';
+      try { await activeInstance.invokeInApp(command); }
+      catch (error) { rejection = String(error); }
+      assert(rejection.includes(expectedText), `${command} rejects with its native safety guard`, { rejection });
+    };
+    await expectNativeRejection('download_desktop_update', 'Check for an update first');
+    await expectNativeRejection('install_desktop_update', 'Download and verify the update');
+    await expectNativeRejection('prepare_android_update', 'unavailable on desktop');
+    await expectNativeRejection('resume_after_update', 'unavailable on desktop');
+    const cancelledUpdate = await activeInstance.invokeInApp('cancel_desktop_update');
+    assert(cancelledUpdate.status === 'cancelled' && cancelledUpdate.downloadedBytes === 0,
+      'Desktop cancel clears pending payload state', cancelledUpdate);
+    const validateCheckResult = (info, description) => {
+      if (EXPECT_APPIMAGE) {
+        assert(['available', 'current', 'error'].includes(info.status),
+          `${description}: AppImage reaches the configured feed`, info);
+      } else {
+        assert(info.status === 'unavailable' && /AppImage/.test(info.message),
+          `${description}: standalone Linux runtime explains AppImage requirement`, info);
+      }
+    };
+    const checkedUpdate = await activeInstance.invokeInApp('check_desktop_update', {}, 45000);
+    validateCheckResult(checkedUpdate, 'Check after cancellation');
+    await activeInstance.invokeInApp('cancel_desktop_update');
+    await expectNativeRejection('install_desktop_update', 'Download and verify the update');
+    const retriedUpdate = await activeInstance.invokeInApp('check_desktop_update', {}, 45000);
+    validateCheckResult(retriedUpdate, 'Retry after cancellation');
+    const settingsAfterUpdateCheck = await activeInstance.invokeInApp('get_business_settings');
+    await activeInstance.invokeInApp('update_appearance_preference', {
+      preference: settingsAfterUpdateCheck.appearance_preference,
+    });
+    const settingsAfterUpdateWrite = await activeInstance.invokeInApp('get_business_settings');
+    assert(settingsAfterUpdateWrite.appearance_preference === settingsAfterUpdateCheck.appearance_preference,
+      'Update rejection/check/cancel leaves the isolated database writable');
+    await activeInstance.invokeInApp('cancel_desktop_update');
+    recordTest('native_desktop_updater_guards_cancel_retry_and_database_writes', true, {
+      expectAppImage: EXPECT_APPIMAGE,
+      firstCheckStatus: checkedUpdate.status,
+      retryStatus: retriedUpdate.status,
+      downloadedOrInstalled: false,
+    });
 
     // Step 2: Handle Initial Onboarding / Setup Wizard
     console.log('\nStep 2: Completing onboarding setup wizard on clean database...');

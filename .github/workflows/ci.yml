@@ -129,6 +129,7 @@ jobs:
 
       - name: Run update screen, cashbook, theme and PDF regressions
         run: |
+          npm run test:desktop-update-ui
           node scripts/verify_updates_browser.js
           npm run test:cashbook
           BILLZEN_TEST_CATEGORY_DELAY=1 npm run test:reports-ui
