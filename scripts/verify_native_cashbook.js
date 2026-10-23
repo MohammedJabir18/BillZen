@@ -63,14 +63,16 @@ function stopProcess(proc, timeoutMs = 5000) {
     };
     proc.once('exit', cleanup);
     try {
-      proc.kill('SIGTERM');
+      if (process.platform !== 'win32') process.kill(-proc.pid, 'SIGTERM');
+      else proc.kill('SIGTERM');
     } catch {
       cleanup();
     }
     setTimeout(() => {
       if (!done) {
         try {
-          proc.kill('SIGKILL');
+          if (process.platform !== 'win32') process.kill(-proc.pid, 'SIGKILL');
+          else proc.kill('SIGKILL');
         } catch {}
         cleanup();
       }
@@ -99,6 +101,7 @@ async function startNativeInstance(dataDir, port) {
   let exitError = null;
 
   const appProcess = spawn(BINARY_PATH, [], {
+    detached: process.platform !== 'win32',
     env: {
       ...process.env,
       BILLZEN_DATA_DIR: dataDir,

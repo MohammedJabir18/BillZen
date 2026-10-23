@@ -1,0 +1,80 @@
+name: Assemble Verified Desktop Release Draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_run_id:
+        description: Successful full Desktop Release Packages run ID
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  draft:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: MohammedJabir18/BillZen
+      PACKAGE_RUN_ID: ${{ inputs.package_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate completed source build
+        run: |
+          node -e "if(!/^\d+$/.test(process.env.PACKAGE_RUN_ID))throw Error('Invalid run ID')"
+          gh api "repos/$GH_REPO/actions/runs/$PACKAGE_RUN_ID" > /tmp/package-run.json
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          const run=JSON.parse(fs.readFileSync('/tmp/package-run.json'));
+          if(run.repository.full_name!=='MohammedJabir18/BillZen'||run.path!=='.github/workflows/desktop-packages.yml'||run.head_branch!=='main'||run.conclusion!=='success'||!/^[a-f0-9]{40}$/.test(run.head_sha))throw Error('Untrusted or unsuccessful package build');
+          execFileSync('git',['merge-base','--is-ancestor',run.head_sha,'HEAD']);
+          execFileSync('git',['diff','--quiet',run.head_sha,'HEAD','--','src','src-tauri','package.json','package-lock.json','release/version.json','.github/workflows/desktop-packages.yml','scripts/release/collect-desktop.mjs']);
+          fs.appendFileSync(process.env.GITHUB_ENV,`PACKAGE_REVISION=${run.head_sha}\n`);
+          JS
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.package_run_id }}
+          pattern: BillZen-*
+          path: dist-desktop/packages
+          merge-multiple: true
+      - name: Verify complete packages and construct feed
+        run: |
+          node scripts/release/version.mjs
+          node --test scripts/release/tests/*.node.mjs
+          node scripts/release/build-desktop-feed.mjs
+          node scripts/release/verify-desktop-packages.mjs dist-desktop/packages "$PACKAGE_REVISION"
+      - name: Preserve published Android update feed
+        run: |
+          gh release download v0.1.5 --pattern android-update.json --dir dist-desktop/packages
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const raw=fs.readFileSync('dist-desktop/packages/android-update.json');
+          if(createHash('sha256').update(raw).digest('hex')!=='06a92636da226f1b3374964b37d7ad1340debe1c51a386ff9a524e72b0728c49')throw Error('Published Android manifest hash changed');
+          const row=JSON.parse(fs.readFileSync('dist-desktop/packages/android-update.json'));
+          if(!row.payloadBase64||!row.signatureBase64)throw Error('Missing Android signed envelope');
+          const payload=JSON.parse(Buffer.from(row.payloadBase64,'base64'));
+          if(payload.version!=='0.1.5'||payload.versionCode!==1010||!payload.artifacts?.['arm64-v8a']?.url?.startsWith('https://github.com/MohammedJabir18/BillZen/releases/download/v0.1.5/'))throw Error('Unexpected existing Android manifest');
+          JS
+      - name: Create unpublished immutable-version draft
+        run: |
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to replace its assets.' >&2
+            exit 1
+          fi
+          gh release create "v$VERSION" --draft --target "$PACKAGE_REVISION" --title "BillZen v$VERSION — Desktop in-app updates" --notes-file "docs/releases/v$VERSION.md"
+          gh release upload "v$VERSION" dist-desktop/packages/*
