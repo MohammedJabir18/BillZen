@@ -71,7 +71,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           APP=src-tauri/target/${{ matrix.target }}/release/bundle/macos/BillZen.app
-          lipo -verify_arch arm64 "$APP/Contents/MacOS/billzen"
+          lipo "$APP/Contents/MacOS/billzen" -verify_arch arm64
           codesign --verify --deep --strict --verbose=2 "$APP"
           /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist"
       - name: Collect exact installers and provenance
