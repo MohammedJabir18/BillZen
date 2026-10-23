@@ -4,13 +4,13 @@
 
 Use Node.js 22.12+ in the 22 series, npm and a stable Rust compiler compatible with the checked-in Cargo lockfile. Install frontend dependencies with `npm ci`. Keep `package-lock.json` and `src-tauri/Cargo.lock` in version control. The exact host compiler versions recorded in older notes are observations, not portable setup prerequisites or promises of latest stable releases.
 
-Linux requires WebKitGTK 4.1 and the development packages shown in the README. PDF checks need `poppler-utils`. Windows requires the C++ build tools and WebView2 runtime; macOS requires Xcode command-line tools. Windows installer compilation is covered by the manual Windows Installer workflow; Windows runtime and macOS native behavior remain unverified. Android requires Android SDK/NDK tooling, and iOS requires macOS/Xcode; mobile project configuration is future work.
+Linux requires WebKitGTK 4.1 and the development packages shown in the README. PDF checks need `poppler-utils`. Windows requires the C++ build tools and WebView2 runtime; macOS requires Xcode command-line tools. Signed installer/update packaging is covered by Desktop Release Packages for Windows x64, Linux x64 and Apple Silicon Mac. Windows/macOS physical install/restart acceptance remains separate. Android ARM64 configuration and signed APK delivery are implemented and require SDK/NDK tooling; iOS packaging remains future work. See distribution-v0.1.6.md.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Vite browser demonstration; no durable SQLite storage |
+| `npm run dev` | Vite browser application; supported records persist in IndexedDB, not SQLite |
 | `npm run tauri dev` | Native application with SQLite |
 | `npm run build` | TypeScript check and Vite production assets |
 | `npm run tauri build` | Host-native application and configured bundles |

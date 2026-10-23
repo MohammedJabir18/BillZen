@@ -29,7 +29,7 @@ Prefer `npm run test:native-probe`: its Node runner now uses `os.tmpdir()`, an i
 | --- | --- | --- |
 | Vitest | Tested frontend arithmetic/document behavior | Complete financial or legal correctness |
 | Cargo | Tested Rust/database/configuration behavior | Runtime IPC permissions on every platform |
-| Catalog Playwright | Browser UI interactions with mock data | Native persistence |
+| Catalog Playwright | Browser UI interactions with synthetic isolated IndexedDB data | Native persistence |
 | Catalog probe | Worker persistence across separate processes | Desktop UI end-to-end behavior |
 | PDF matrix | Chromium A4 output for four fixtures | WebKitGTK rendering parity, paper output or thermal support |
 | Current Linux CI | Jobs on one Linux runner configuration | Windows, macOS, Android or iOS certification |

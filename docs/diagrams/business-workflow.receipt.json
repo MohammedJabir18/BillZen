@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "workflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-business-workflow-20261024-001813/candidate.json",
+    "sha256": "bfb58f1863e49531a8d04b9fb91c48588056b6c85617d6292acb60b25d38c3ad",
+    "bytes": 6442
+  },
+  "artifact": {
+    "path": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-business-workflow-20261024-001813/business-workflow.html",
+    "sha256": "326b49c157c7f74d2024ac5424c83a88c771db3cb458cf32899c888a2788b9b3",
+    "bytes": 762774
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-business-workflow-20261024-001813/legend-review/business-workflow.finalize.json",
+    "summaryReceipt": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-business-workflow-20261024-001813/legend-review/business-workflow.finalize-summary.json",
+    "browserCheckReceipt": "/home/jabir/Coding/My Projects/BillZen/.archify/workflow-business-workflow-20261024-001813/legend-review/business-workflow.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-valid"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 1976
+}

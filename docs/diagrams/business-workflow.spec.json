@@ -1,0 +1,295 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "BillZen \u00b7 from money movement to a clear report",
+    "output": ".archify/workflow-business-workflow-20261024-001813/business-workflow.html",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "repository": {
+      "url": "https://github.com/MohammedJabir18/BillZen.git",
+      "revision": "be226299bbbce6ffbbf809fb3ad2709d6e8ffb2e",
+      "provider": "github"
+    },
+    "legend": {
+      "entries": {
+        "frontend": {
+          "label": "Business screens"
+        },
+        "backend": {
+          "label": "Stock rules"
+        },
+        "database": {
+          "label": "Local records"
+        },
+        "security": {
+          "label": "Recovery tools"
+        },
+        "external": {
+          "label": "Customer link"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "money",
+      "label": "Daily company money"
+    },
+    {
+      "id": "connections",
+      "label": "Connected customer and backup tools"
+    },
+    {
+      "id": "inventory",
+      "label": "Inventory \u00b7 tracked separately from money"
+    }
+  ],
+  "mainPath": [
+    "business",
+    "accounts",
+    "entry",
+    "ledger",
+    "reports"
+  ],
+  "nodes": [
+    {
+      "id": "business",
+      "lane": "money",
+      "col": 0,
+      "type": "frontend",
+      "label": "Set up company",
+      "sublabel": "Currency \u00b7 business date",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/components/OnboardingSetupWizard.tsx",
+          "line": 1,
+          "end_line": 60
+        }
+      ]
+    },
+    {
+      "id": "accounts",
+      "lane": "money",
+      "col": 1,
+      "type": "database",
+      "label": "Cash / Bank accounts",
+      "sublabel": "Opening balances",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/adapters/cashbook.ts",
+          "line": 41,
+          "end_line": 54
+        }
+      ]
+    },
+    {
+      "id": "entry",
+      "lane": "money",
+      "col": 2,
+      "type": "frontend",
+      "label": "Receipt or payment",
+      "sublabel": "Amount \u00b7 party \u00b7 category",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/components/CashbookView.tsx",
+          "line": 1,
+          "end_line": 50
+        }
+      ]
+    },
+    {
+      "id": "ledger",
+      "lane": "money",
+      "col": 3,
+      "type": "database",
+      "label": "Posted cashbook",
+      "sublabel": "Numbered \u00b7 auditable",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src-tauri/src/commands/cashbook.rs",
+          "line": 1,
+          "end_line": 65
+        }
+      ]
+    },
+    {
+      "id": "reports",
+      "lane": "money",
+      "col": 4,
+      "type": "frontend",
+      "label": "Dashboard / Reports",
+      "sublabel": "Today \u00b7 month \u00b7 year",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/components/ReportsView.tsx",
+          "line": 40,
+          "end_line": 80
+        }
+      ]
+    },
+    {
+      "id": "customer",
+      "lane": "connections",
+      "col": 2,
+      "type": "external",
+      "label": "Customer shortcut",
+      "sublabel": "Linked party cash history",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/adapters/customer_cashbook.ts",
+          "line": 5,
+          "end_line": 20
+        }
+      ],
+      "icon": "person"
+    },
+    {
+      "id": "backup",
+      "lane": "connections",
+      "col": 4,
+      "type": "security",
+      "label": "Backup / restore",
+      "sublabel": "Complete workspace JSON",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/adapters/tauri.ts",
+          "line": 397,
+          "end_line": 415
+        }
+      ]
+    },
+    {
+      "id": "products",
+      "lane": "inventory",
+      "col": 0,
+      "type": "frontend",
+      "label": "Product catalog",
+      "sublabel": "SKU \u00b7 price \u00b7 barcode",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/components/ProductCatalogView.tsx",
+          "line": 1,
+          "end_line": 40
+        }
+      ]
+    },
+    {
+      "id": "stock",
+      "lane": "inventory",
+      "col": 1,
+      "type": "backend",
+      "label": "Add / Reduce stock",
+      "sublabel": "Quantity \u00b7 reason \u00b7 preview",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/adapters/stock.ts",
+          "line": 28,
+          "end_line": 48
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "lane": "inventory",
+      "col": 2,
+      "type": "database",
+      "label": "Stock history",
+      "sublabel": "Originals + corrections",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/adapters/stock.ts",
+          "line": 50,
+          "end_line": 76
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "setup-account",
+      "from": "business",
+      "to": "accounts"
+    },
+    {
+      "id": "choose-account",
+      "from": "accounts",
+      "to": "entry"
+    },
+    {
+      "id": "commit-entry",
+      "from": "entry",
+      "to": "ledger",
+      "label": "post",
+      "variant": "emphasis"
+    },
+    {
+      "id": "read-report",
+      "from": "ledger",
+      "to": "reports"
+    },
+    {
+      "id": "customer-link",
+      "from": "customer",
+      "to": "entry",
+      "label": "prefill party",
+      "variant": "dashed"
+    },
+    {
+      "id": "backup-data",
+      "from": "ledger",
+      "to": "backup",
+      "label": "export",
+      "variant": "dashed"
+    },
+    {
+      "id": "setup-products",
+      "from": "business",
+      "to": "products",
+      "label": "catalog",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop"
+    },
+    {
+      "id": "adjust-stock",
+      "from": "products",
+      "to": "stock"
+    },
+    {
+      "id": "audit-stock",
+      "from": "stock",
+      "to": "history",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Transfers keep company money unchanged",
+      "items": [
+        "Cash to Bank posts paired movements atomically.",
+        "Reports separate internal transfers from receipts and payments."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Two boundaries to remember",
+      "items": [
+        "Customer cash history is not an invoice receivables ledger.",
+        "A stock adjustment does not automatically post money."
+      ]
+    }
+  ]
+}

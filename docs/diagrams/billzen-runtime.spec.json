@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "BillZen \u00b7 local by design",
+    "output": ".archify/architecture-billzen-runtime-20261024-001813/billzen-runtime.html",
+    "quality_profile": "showcase",
+    "animation": "trace",
+    "repository": {
+      "url": "https://github.com/MohammedJabir18/BillZen.git",
+      "revision": "be226299bbbce6ffbbf809fb3ad2709d6e8ffb2e",
+      "provider": "github"
+    }
+  },
+  "components": [
+    {
+      "id": "workspace",
+      "type": "frontend",
+      "label": "Business workspace",
+      "sublabel": "Cashbook \u00b7 catalog \u00b7 reports",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/App.tsx",
+          "line": 208,
+          "end_line": 260
+        }
+      ]
+    },
+    {
+      "id": "adapter",
+      "type": "backend",
+      "label": "Typed adapters",
+      "sublabel": "Select native or browser",
+      "pos": [
+        360,
+        80
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/adapters/cashbook.ts",
+          "line": 41,
+          "end_line": 54
+        }
+      ]
+    },
+    {
+      "id": "commands",
+      "type": "security",
+      "label": "Native commands",
+      "sublabel": "Main-window permissions",
+      "pos": [
+        680,
+        80
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src-tauri/capabilities/default.json",
+          "line": 1,
+          "end_line": 22
+        },
+        {
+          "path": "src-tauri/src/commands/cashbook.rs",
+          "line": 1,
+          "end_line": 18
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "Database worker",
+      "sublabel": "Serialized atomic requests",
+      "pos": [
+        1000,
+        80
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src-tauri/src/db/worker.rs",
+          "line": 238,
+          "end_line": 280
+        }
+      ]
+    },
+    {
+      "id": "documents",
+      "type": "frontend",
+      "label": "Print documents",
+      "sublabel": "A4 reports \u00b7 vouchers",
+      "pos": [
+        40,
+        340
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/App.tsx",
+          "line": 288,
+          "end_line": 307
+        }
+      ]
+    },
+    {
+      "id": "browserdb",
+      "type": "database",
+      "label": "Browser IndexedDB",
+      "sublabel": "Persistent per browser origin",
+      "pos": [
+        360,
+        340
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src/adapters/web_cashbook_db.ts",
+          "line": 270,
+          "end_line": 291
+        }
+      ]
+    },
+    {
+      "id": "updater",
+      "type": "security",
+      "label": "Signed desktop updates",
+      "sublabel": "Optional HTTPS download",
+      "pos": [
+        680,
+        340
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src-tauri/src/commands/desktop_updates.rs",
+          "line": 170,
+          "end_line": 206
+        },
+        {
+          "path": "src-tauri/tauri.conf.json",
+          "line": 1,
+          "end_line": 61
+        }
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "Local SQLite",
+      "sublabel": "WAL \u00b7 transactions \u00b7 recovery",
+      "pos": [
+        1000,
+        340
+      ],
+      "size": [
+        205,
+        76
+      ],
+      "sources": [
+        {
+          "path": "src-tauri/src/db/mod.rs",
+          "line": 30,
+          "end_line": 53
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ui-adapter",
+      "from": "workspace",
+      "to": "adapter",
+      "label": "actions"
+    },
+    {
+      "id": "native-route",
+      "from": "adapter",
+      "to": "commands",
+      "label": "Tauri IPC"
+    },
+    {
+      "id": "worker-request",
+      "from": "commands",
+      "to": "worker",
+      "label": "request"
+    },
+    {
+      "id": "render-print",
+      "from": "workspace",
+      "to": "documents",
+      "label": "preview / print",
+      "variant": "dashed"
+    },
+    {
+      "id": "web-route",
+      "from": "adapter",
+      "to": "browserdb",
+      "label": "browser route",
+      "variant": "dashed"
+    },
+    {
+      "id": "verify-update",
+      "from": "commands",
+      "to": "updater",
+      "label": "explicit update",
+      "variant": "security"
+    },
+    {
+      "id": "db-io",
+      "from": "worker",
+      "to": "sqlite",
+      "label": "read / commit",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Business data stays local",
+      "items": [
+        "Native desktop and Android store records in SQLite.",
+        "Browser workflows persist in IndexedDB; no device sync."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Updates are separate from your records",
+      "items": [
+        "Desktop packages use pinned-key and signed-version checks.",
+        "The worker snapshots and pauses the database before install."
+      ]
+    }
+  ]
+}

@@ -1,48 +1,38 @@
 # Roadmap
 
-## Completed Milestones
-- **T1 Account Transfers (2026-10-23)**: Native/browser atomic pairs, idempotent retries and paired reversal; backup1.1/legacy1.0 import, Cashbook UI, transfer-aware analytics/Reports/CSV and immutable A4 transfer documents. Local Linux/ARM64 candidates verified; public release and installation separate. Next: [B1 invoice drafts](superpowers/plans/2026-10-23-invoice-drafts.md), with no stock/cash/debt effects.
-- **M1 & M2 Foundation**: Runnable Tauri 2 + Vite 8 + React 19 shell, SQLite WAL database worker, OS single-instance lock, strict platform CSP, and financial arithmetic engine.
-- **Regional Foundation & Verification**: Support for 2-decimal and 3-decimal currencies (India & GCC), currency change protections, automated headless A4 PDF generation.
-- **M3 & M3.1 Catalog Integrity**: Products, customers, case-insensitive categories, leading-zero barcode indexing, stock movements, and dual-checksum migration safety.
-- **Android Beta & Hardening (v1004)**: Distribution APK with dead-code eliminated WebView debugging, test-build CDP opt-in, comprehensive 14-stage runtime verification suite on Android 14 API 34.
+Current product state: 24 October 2026. Acceptance evidence, not a calendar promise, determines completion. See [release 0.1.6](distribution-v0.1.6.md) and [verification](verification-status.md).
 
----
+## Available
 
-## Active Milestone: Offline Company Cashbook (Phased Delivery)
+| Area | Delivered scope |
+| --- | --- |
+| Foundations | Tauri/React/Rust, SQLite worker/WAL, migrations, checked financial arithmetic and scoped native commands |
+| Company Cashbook | Receipts/payments, account opening balances, categories/parties, numbered vouchers, warnings, reversals and reports |
+| Customer integration | Explicit customer-party links, immutable cash history, receipt shortcuts and Reports context |
+| T1 transfers | Atomic account pairs, idempotent retry, negative-balance confirmation, paired reversal and transfer-aware reports/documents |
+| Product stock | Opening stock, Add/Reduce, reasons/previews, immutable movement history and opposite correction entries |
+| Durability | Persistent browser IndexedDB, complete native/browser backup 1.1, legacy transfer-free 1.0 import and validated restore/recovery |
+| Interface | Today-first/simple/analytical dashboards, responsive navigation/Reports, settings theme/language, skippable guide, EN/ML/AR and reduced-motion-aware transitions |
+| Distribution | Desktop 0.1.6 Windows x64/Linux x64/Apple Silicon, Android ARM64 0.1.5, signed desktop/Android update paths; no new Android APK in 0.1.6 |
 
-The primary business priority is an offline company cashbook for recording money received and paid, issuing numbered vouchers, maintaining account balances, and ensuring safe portable backup.
+Hosted packaging/signature checks do not substitute for physical Windows/macOS device runtime testing. Linux exact-package and actual private-baseline signed upgrade acceptance are recorded separately.
 
-### Phase C0: Architecture & Implementation Specification (COMPLETED)
-- Authored `docs/cashbook-architecture-spec.md` and `docs/superpowers/plans/2026-10-19-cashbook-implementation-plan.md`.
-- Formalized money-flow classification, canonical ledger, zero double-cancellation reversals, immutable snapshots, and exact integer arithmetic contracts.
+## Next commercial slice: B1 invoice drafts
 
-### Phase C1: Core Cashbook Vertical Slice (COMPLETED)
-- **C1A**: Schema migration `v7_cashbook_foundation.sql`, Rust domain entities, checked arithmetic, sequence generator, native Tauri commands, and transaction integrity tests.
-- **C1B**: React UI (dashboard summary, entry modal, ledger table, filters) and printable voucher PDF engine (`RCP-`, `PAY-`).
-- **C1C**: Persistent Web IndexedDB adapter, portable whole-workspace JSON backup and safe restore engine (RFC 8785 JCS + SHA-256), hardened native desktop harness with provenance and cold restart, and cross-platform verification suite.
+[Implementation plan](superpowers/plans/2026-10-23-invoice-drafts.md) · [Preserved draft specification](m4a-invoice-drafts-spec.md).
 
-### Phase C2: Transfers, Statements & Workbooks (NEXT MILESTONE)
-- Atomic 2-legged account transfers (`TRF-YYYYMM-XXXXX`).
-- Multi-sheet XLSX workbooks and period date-range PDF statements.
-- Local receipt attachment metadata and storage.
+Drafts must save/reopen/edit offline with conflict protection and native/browser backup parity. A draft must not change stock, cash, debt or final invoice numbering. Do not infer draft/finalize completion from existing invoice schema or printable fixtures.
 
-### Phase C3: Tools, Budgets & Security
-- Currency denomination physical cash counter.
-- Category monthly budgets and spending charts.
-- Local offline reminders and session app lock.
+## Planned after the relevant acceptance gates
 
-### Phase C4: Commercial Invoicing Integration
-- Resume deferred Milestone 4A/4B (`docs/m4a-invoice-drafts-spec.md`).
-- Integrate invoice settlement directly into cashbook vouchers without duplicate accounting.
-- Optional Android-only after-call entry shortcuts.
+- Atomic invoice finalization, numbering, item/tax/customer snapshots and sale-linked stock movements.
+- Invoice receivables, payment allocation/settlement and supplier purchase bills, without duplicate cash accounting.
+- Jurisdiction-specific tax/e-invoicing integrations only with explicit requirements and verification.
 
----
+## Separate, unshipped work
 
-## Deferred Milestones
-- **Milestone 4A (Invoice Drafts)**: Specification preserved in `docs/m4a-invoice-drafts-spec.md`; deferred until cashbook ledger foundation (C1-C3) is complete.
-- **Milestone 4B (Invoice Finalization & Stock Decrements)**: Deferred to Phase C4.
+XLSX workbooks, attachment storage, budgets, cash denomination tools, offline reminders/session lock, scheduled local backups, encrypted storage and thermal printer acceptance remain separate work. Account transfers are already delivered; they are not blocked on these tools.
 
----
+Device synchronization and multi-user collaboration are deferred by owner choice. Each device initially keeps independent local data. iOS and Intel Mac installer distribution are not offered. No cloud dependency is required for existing local business operations.
 
-No calendar delivery estimate is established; milestone acceptance depends on test evidence and platform access.
+Historical C0/C1/C2 and M0–M4 plans remain in `docs/` and session memory as design/history. This page summarizes current delivered boundaries rather than treating every historical phase title as an active commitment.

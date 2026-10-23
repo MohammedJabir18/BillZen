@@ -1,34 +1,39 @@
 # Architecture
 
-Status: foundation and catalog implementation, reviewed 2026-10-18.
+Current overview: 24 October 2026. See the [source-backed interactive diagrams](diagrams/README.md) and [v0.1.6 acceptance](distribution-v0.1.6.md). Historical design documents describe intent; current adapters and runtime code define implemented behavior.
 
-## Boundaries
+## Runtime boundaries
 
-React components call `src/adapters/tauri.ts`. In Tauri, commands registered in `src-tauri/src/lib.rs` invoke the Rust worker. In a regular browser, the adapter substitutes in-memory data. Some views use TanStack Query; catalog views currently use React state and call the adapter directly. Zustand is installed but not yet used by application code. This is a modular application with ports/adapters boundaries, not a fully extracted multi-package clean architecture.
+The React workspace routes business operations through typed adapters: `tauri.ts`, `cashbook.ts`, `customer_cashbook.ts`, `stock.ts` and `transfers.ts`. Installed apps invoke scoped Tauri commands; supported browser workflows use IndexedDB. The browser is no longer a disposable in-memory demonstration. A headless no-IndexedDB fallback exists for tests and is not equivalent to durable browser storage.
 
-The Rust worker owns the SQLite connection on one background thread. Requests use a bounded Tokio channel and response channels. A synchronous initialization handshake reports database or migration errors before normal UI startup. An OS advisory lock prevents a second cooperating application process from opening the same application directory. External SQLite clients can still contend for database access.
+Native commands use a Rust database worker that owns one SQLite connection on a background thread. A bounded Tokio channel serializes requests; multi-record posting/reversal/restore operations use transactions. Initialization reports migration/database failure before normal UI startup. An OS advisory lock prevents two cooperating desktop instances from using the same workspace; external SQLite clients can still contend.
 
-## Storage
+Some views use TanStack Query and others call adapters with React state. Zustand is installed but unused. This is a modular ports/adapters application, not a fully extracted multi-package architecture.
 
-`get_app_data_dir()` resolves `dirs::data_dir()/billzen`, falling back to `./billzen` when OS resolution fails. The database and lock share that directory. No implemented named Windows mutex or `/tmp/billzen.lock` path should be inferred from earlier platform design notes.
+## Storage and recovery
 
-The connection enables foreign keys, WAL, synchronous FULL and a busy timeout. These improve transactional behavior and durability but remain subject to OS/filesystem/hardware guarantees. Migration SQL is embedded and tracked with checksums. See [data model](data-model.md).
+Desktop storage resolves through the OS data directory's `billzen` folder; `BILLZEN_DATA_DIR` supports isolated native test workspaces. Android uses its app-private runtime path. Browser IndexedDB is scoped to its origin/profile/device; deleting site data deletes those records. Neither adapter synchronizes devices.
 
-## Financial representation
+SQLite uses foreign keys, WAL, synchronous FULL and a busy timeout. Embedded, checksummed migrations and recovery snapshots protect supported upgrades. These measures remain subject to OS/filesystem/hardware limits.
 
-- Money: integer currency minor units, with explicit currency code and exponent.
-- Quantity: integer units scaled by 1,000.
-- Tax: integer basis points.
-- Rounding: explicit half-up operations; BigInt intermediates in TypeScript and checked integer arithmetic in Rust.
+Complete portable workspace backup 1.1 covers implemented catalogs, settings, opening/adjusted stock, cashbook/accounts/parties/audits and transfers. Restore validates the graph/checksum before replacement; supported legacy transfer-free 1.0 data is normalized. Backup durability does not imply encryption: SQLite and exported JSON are unencrypted today. See [backup/transfer contracts](transfer-engine-status.md).
 
-JSON numbers must remain within JavaScript's safe integer range. Domain-specific bounds can be tighter. Catalog price and quantity limits were aligned with the financial constants in M3. Safe upgrade handling remains a blocker before implementing billing; see the known issues.
+## Business invariants
 
-## Security and documents
+- Money uses integer minor units and explicit currency/exponent; quantities use integers scaled by 1,000. Checked Rust arithmetic and TypeScript safe-number/BigInt boundaries avoid unchecked floating-point financial operations.
+- Receipts/payments create numbered immutable snapshots, account movements and audit evidence atomically. Corrections use reversals; negative source balances require explicit confirmation when applicable.
+- Account transfers post both legs atomically and reverse together. They affect account balances while staying outside business receipt/payment totals.
+- Customer linkage supplies cash history and report navigation, not an invoice-receivables engine.
+- Product Add/Reduce movements preserve before/after history and opposite corrections; they do not create cash payments. Invoice-based stock decrement is future work.
 
-Tauri capabilities scope command access by window. CSP restricts frontend resources and connections. Static configuration tests do not replace a live unauthorized-window IPC test. Local SQLite is not encrypted and there is no application authentication workflow.
+## Interface and documents
 
-`PrintableInvoiceDocument.tsx` renders a document model with A4 print CSS. The PDF scenarios use synthetic fixtures. A native one-click save/export adapter and thermal formats are future work.
+Dashboard, Cashbook, Reports, Products, Customers and Settings share responsive navigation and reusable selectors/dialogs. GSAP motion respects reduced-motion changes; dialogs manage focus and background inertness. Language/theme belong in Settings; the first-run guide is skippable. English, Malayalam and Arabic/RTL resources support India/GCC use, without implying statutory tax/e-invoicing certification.
 
-## Future adapters
+React documents and print CSS render vouchers, transfer documents, reports and invoice-model fixtures. Print/Save-as-PDF support depends on the platform. A rendered invoice fixture does not establish a complete persisted draft/finalize workflow. Physical/thermal printer acceptance remains separate.
 
-Web needs a durable local storage adapter. Mobile needs validated app-private paths, lifecycle behavior, responsive layouts and OS print/share adapters. Cloud synchronization, an outbox and statutory integrations are not implemented.
+## Signed updates and security
+
+The desktop Rust updater service owns discovery/download/install state. Only constrained main-window commands are exposed; generic updater plugin IPC is not granted. Configuration pins the public key, immutable BillZen release URL boundary and authenticated version. Installation checkpoints WAL, creates a snapshot, pauses database work, installs verified bytes and restarts/hands over; errors resume access. Linux requires the writable AppImage edition. Android uses its independent signed manifest/installer path. See [desktop updates](desktop-updates.md).
+
+Tauri capabilities/CSP constrain the webview. This does not imply encrypted storage, a user-authentication/team system or protection from an already compromised OS. No hosted business database, synchronization outbox or statutory integration is implemented.

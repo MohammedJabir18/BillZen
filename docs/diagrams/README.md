@@ -1,36 +1,44 @@
 # Explore BillZen with Archify
 
-## Current runtime · architecture
+Current diagrams refreshed 24 October 2026. Both trace committed application source at [`be226299bbbce6ffbbf809fb3ad2709d6e8ffb2e`](https://github.com/MohammedJabir18/BillZen/tree/be226299bbbce6ffbbf809fb3ad2709d6e8ffb2e); later documentation and calendar-test-only changes do not alter those runtime facts.
 
-[Download the interactive HTML](billzen-system.html) · [Source specification](billzen-system.spec.json) · [Automated gate receipt](billzen-system.receipt.json)
+## Architecture · local by design
 
-![Current runtime diagram](../assets/architecture-dark.png)
+[Interactive HTML](billzen-runtime.html) · [Source specification](billzen-runtime.spec.json) · [Finalization receipt](billzen-runtime.receipt.json)
 
-Source identity: `a116ac0e984c59a80684d5964476f989d1edabce`. The diagram follows the React adapter, native commands, Rust worker and SQLite. It shows the browser mock separately and keeps A4 document rendering distinct from persistence.
+![BillZen runtime architecture](../assets/current/architecture-dark.png)
 
-## Section delivery · workflow
+The React workspace calls typed adapters. Native commands dispatch to the serialized Rust/SQLite worker; browser paths persist in IndexedDB. Print rendering and explicit signed desktop updates are separate branches. The update network does not host business records. This is an overview of cooperating roles, not a claim that every catalog/business command is listed individually.
 
-[Download the interactive HTML](verified-delivery.html) · [Source specification](verified-delivery.spec.json) · [Automated gate receipt](verified-delivery.receipt.json)
+## Business workflow · from movement to a report
 
-![Verified section delivery procedure](../assets/delivery-workflow.png)
+[Interactive HTML](business-workflow.html) · [Source specification](business-workflow.spec.json) · [Finalization receipt](business-workflow.receipt.json)
 
-This diagram describes the owner-requested engineering procedure: one logical section, verification, commit, push and CI inspection. It is a process specification, not a claim that the product executes these steps itself.
+![Company money and inventory workflow](../assets/current/business-workflow.png)
 
-## Open and reproduce
+Company setup/accounts → receipt or payment → posted ledger → Dashboard/Reports. A customer shortcut prefills the party; complete workspace backup exports the relevant records. Product Add/Reduce and history remain a separate stock path. Cards explain atomic transfers and boundaries: customer cash history is not invoice debt, and stock changes do not post money automatically.
 
-GitHub displays HTML source rather than executing these viewers in README. Open a file above, download its raw contents, and open the downloaded `.html` in your browser. The viewers are standalone and include the diagram code; no hosted diagram service is required.
+Arrows describe supported user/data relationships, not unattended automation: users choose entry, export and stock actions.
 
-Both diagrams were generated with the installed Archify skill. Showcase validation, strict artifact checks and real-browser gates passed. Light/dark captures were inspected separately. Motion is optional in the viewer and the static diagram remains complete.
+## Open, verify and reproduce
 
-Published HTML files are byte-identical copies of the validated artifacts. The portable specifications preserve the original relative authoring output under `.archify/`; receipts record their actual original generation paths. To regenerate, place the relevant specification at the `candidate.json` path corresponding to its `meta.output` and run:
+GitHub displays HTML source rather than executing this viewer in README. Download its raw HTML and open it in a browser for source links, theme switching, node exploration and optional finite trace motion. The static PNG remains complete without motion; no hosted diagram service is required.
+
+Both current candidates passed **showcase validation → delivery → strict artifact check → real-browser check**, with zero diagnostics. Light/dark captures were generated and visually inspected separately; final README PNGs capture the static SVG region with viewer buttons hidden in the temporary capture DOM. Published HTML copies are byte-identical to checked artifacts. Automated receipts do not themselves certify perceptual quality.
+
+Specifications retain their original portable `.archify/` output paths. Place a specification at the corresponding `candidate.json` path, then run the installed Archify CLI:
 
 ```sh
-node /path/to/archify/bin/archify.mjs finalize architecture .archify/architecture-billzen-20261018-220000/candidate.json .archify/architecture-billzen-20261018-220000/billzen-system.html --repo-root . --quality showcase --json
-node /path/to/archify/bin/archify.mjs finalize workflow .archify/workflow-delivery-20261018-220000/candidate.json .archify/workflow-delivery-20261018-220000/verified-delivery.html --quality showcase --json
+node /path/to/archify/bin/archify.mjs finalize architecture .archify/architecture-billzen-runtime-20261024-001813/candidate.json .archify/architecture-billzen-runtime-20261024-001813/billzen-runtime.html --repo-root . --quality showcase --json
+node /path/to/archify/bin/archify.mjs finalize workflow .archify/workflow-business-workflow-20261024-001813/candidate.json .archify/workflow-business-workflow-20261024-001813/business-workflow.html --repo-root . --quality showcase --json
 ```
 
-Recheck source evidence when the pinned runtime changes. Runtime sources are verified against committed bytes, not uncommitted feature edits. After a changed candidate, use a new evidence directory as required by Archify and refresh publication copies and previews.
+After a candidate change, refresh source evidence, rerun finalization with a new evidence directory when prior browser evidence exists, inspect captures, and replace the publication copies/previews together. Root README capture scripts are described in [media provenance](../readme-design.md).
 
-## Viewer license
+## Archived early diagrams
 
-The standalone viewers include Archify runtime code. Keep the [Archify MIT notice](../licenses/archify-MIT.txt) with downloaded or redistributed HTML files; authored BillZen content retains the project's MIT license.
+The [catalog-era architecture](billzen-system.html), its [specification](billzen-system.spec.json), and [verified section-delivery procedure](verified-delivery.html) remain available for historical links. The early runtime diagram describes the old browser mock and is **not the current storage architecture**. The delivery workflow is an engineering procedure, not an app business process. [Reporting data-flow study](reporting-data-flow.html) is a separate earlier design artifact.
+
+## License
+
+Viewer runtime code is distributed with the [Archify MIT notice](../licenses/archify-MIT.txt). BillZen's authored diagrams/media retain the project's MIT license.
