@@ -333,3 +333,7 @@ Original Windows setup failed a new real PE resource comparison. Configured NSIS
 [Windows run39778796695](https://github.com/MohammedJabir18/BillZen/actions/runs/39778796695), source6abdf93, succeeded including frontend tests and all6 canonical icon-frame matches in both application and setup PE resources. Downloaded installer independently passes the same comparison locally. Its source, size5,348,901bytes, SHA2566ab698cdbe9ba66282e0c6445e34b228ccdde246059817027a9a6fdb7833a67a and iconVerified metadata match. The previously shared local `dist-desktop/windows/v0.1.3` path is refreshed; original installer archived under `v0.1.3-before-icon-fix`.
 
 No physical Windows shell/runtime or printer acceptance claimed. Still unsigned; no public Windows/Android release changed, no signing identity or data mutation. Linux installed executable itself is unchanged; correction is desktop icon metadata/cache.
+
+### Final P0/P1 local packages
+
+See `docs/customer-cashbook-delivery-2026-10-23.md` for exact hashes and platform limits. Final Linux installed/standalone matched43-pass native evidence; signed ARM64 package verified with retained certificate/public updater pin, code1009, release metadata and16KB alignment. No public release/feed promotion; no physical Android/Windows/macOS verification claimed. Older deb/AppImage/Windows candidates remain earlier builds.

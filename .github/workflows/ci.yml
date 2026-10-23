@@ -82,6 +82,11 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium chrome
 
+      - name: Verify durable workspace and customer cashbook integration
+        run: |
+          npm run test:workspace
+          npm run test:customer-cashbook
+
       - name: Run Playwright Catalog Verification
         run: npm run test:catalog
 
