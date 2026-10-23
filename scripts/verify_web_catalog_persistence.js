@@ -1,10 +1,11 @@
+const baseUrl=process.env.BILLZEN_TEST_URL || 'http://localhost:5173';
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 const browser = await chromium.launch({headless:true,channel:"chrome"});
 try {
  const page = await browser.newPage();
  await page.route('**/upgrade-fixture', route => route.fulfill({contentType:'text/html',body:'<!doctype html><title>Upgrade fixture</title>'}));
- await page.goto('http://localhost:5173/upgrade-fixture');
+ await page.goto(baseUrl+'/upgrade-fixture');
  await page.evaluate(async()=> {
   await new Promise((resolve,reject)=> {
    const r=indexedDB.open('BillZen_Web_DB',1);
@@ -15,7 +16,7 @@ try {
    r.onsuccess=()=> {const db=r.result;const tx=db.transaction('money_accounts','readwrite');tx.objectStore('money_accounts').put({id:'upgrade-marker',account_name:'Preserved account',opening_balance_minor:12345});tx.oncomplete=()=>{db.close();resolve();};};
   });
  });
- await page.goto('http://localhost:5173');
+ await page.goto(baseUrl);
  const id = await page.evaluate(async()=> {
   const api=await import('/src/adapters/tauri.ts');
   const c=await api.createCustomer({name:'Persistent customer',country:'IND'});

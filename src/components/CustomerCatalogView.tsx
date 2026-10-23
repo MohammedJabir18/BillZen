@@ -23,18 +23,23 @@ import {
   archiveCustomer,
   restoreCustomer,
 } from '../adapters/tauri';
-import { formatMinorUnits } from '../domain/financial';
+import { CustomerCashHistory } from './CustomerCashHistory';
+import type { CustomerReceiptIntent, CustomerReportFilter } from '../types/cashbook';
+import { customerCashText } from '../i18n/customer_cashbook';
 import { translations, Language } from '../i18n';
 import { useBackHandler } from '../hooks/useBackHandler';
 
 interface CustomerCatalogViewProps {
   settings: BusinessSettings;
   language: Language;
+  onReceiveMoney?: (intent: CustomerReceiptIntent) => void;
+  onViewReport?: (partyId: string, filter?: CustomerReportFilter) => void;
 }
 
-export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settings, language }) => {
+export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settings, language, onReceiveMoney, onViewReport }) => {
   const t = translations[language] || translations.en;
   const isRTL = language === 'ar';
+  const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -212,7 +217,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
             {t.tab_customers}
           </h1>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-            Manage your customer database, contact details, tax identifiers, and balances
+            {customerCashText(language, 'description')}
           </p>
         </div>
 
@@ -292,7 +297,6 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                     <th className="py-3 px-4">Contact Info</th>
                     <th className="py-3 px-4">Location</th>
                     <th className="py-3 px-4">{t.customer_tax_id}</th>
-                    <th className="py-3 px-4 text-right">{t.customer_balance}</th>
                     <th className="py-3 px-4 text-center">Status</th>
                     <th className="py-3 px-4 text-center">Actions</th>
                   </tr>
@@ -339,10 +343,6 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                           <span className="text-gray-500 dark:text-zinc-400 text-xs">—</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-zinc-100 tabular-nums">
-                        {settings.currency_symbol}{' '}
-                        {formatMinorUnits(c.current_balance_minor, settings.currency_exponent)}
-                      </td>
                       <td className="py-3 px-4 text-center">
                         {c.is_active ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
@@ -356,6 +356,7 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
+                          <button className="min-h-[44px] px-2 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500" onClick={() => setHistoryCustomer(c)}>{customerCashText(language, 'history')}</button>
                           <button
                             onClick={() => openEditModal(c)}
                             data-testid={`edit-customer-${c.name}`}
@@ -439,17 +440,9 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
                     )}
                   </div>
 
-                  {/* Balance Display */}
-                  <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-50 dark:border-zinc-800/60">
-                    <span className="text-xs text-gray-500 dark:text-zinc-400 uppercase tracking-wider">{t.customer_balance}</span>
-                    <span className="font-bold text-gray-900 dark:text-zinc-100 tabular-nums">
-                      {settings.currency_symbol}{' '}
-                      {formatMinorUnits(c.current_balance_minor, settings.currency_exponent)}
-                    </span>
-                  </div>
-
                   {/* Actions Toolbar - Thumb friendly */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                    <button className="min-h-[44px] px-2 rounded-lg text-sm focus-visible:ring-2 focus-visible:ring-indigo-500" onClick={() => setHistoryCustomer(c)}>{customerCashText(language, 'history')}</button>
                     <button
                       onClick={() => openEditModal(c)}
                       data-testid={`edit-customer-${c.name}`}
@@ -484,6 +477,8 @@ export const CustomerCatalogView: React.FC<CustomerCatalogViewProps> = ({ settin
           </>
         )}
       </div>
+
+      {historyCustomer && <CustomerCashHistory customer={historyCustomer} settings={settings} language={language} onClose={() => setHistoryCustomer(null)} onReceive={onReceiveMoney} onReport={onViewReport} />}
 
       {/* Modal Drawer for Create / Edit Customer */}
       {isModalOpen && (

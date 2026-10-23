@@ -460,8 +460,47 @@ pub struct CreateCashbookPartyDto {
     pub address: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnsureCustomerCashbookPartyInput {
+    pub customer_id: String,
+    pub existing_party_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerCashHistoryFilter {
+    pub customer_id: String,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub account_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomerCashHistory {
+    pub entries: Vec<CashbookLedgerEntry>,
+    pub received_minor: i64,
+    pub paid_minor: i64,
+    pub net_movement_minor: i64,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum CustomerPartyError {
+    #[error("CUSTOMER_NOT_FOUND: Customer does not exist")]
+    CustomerNotFound,
+    #[error("CUSTOMER_ARCHIVED: Restore the customer before linking")]
+    CustomerArchived,
+    #[error("PARTY_NOT_FOUND: Party does not exist")]
+    PartyNotFound,
+    #[error("PARTY_ARCHIVED: Select an active party")]
+    PartyArchived,
+    #[error("PARTY_LINK_CONFLICT: Party belongs to another customer")]
+    PartyLinkConflict,
+    #[error("PARTY_SELECTION_REQUIRED: Select an existing active party explicitly")]
+    PartySelectionRequired,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CashbookLedgerFilter {
+    pub party_id: Option<String>,
     pub account_id: Option<String>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,

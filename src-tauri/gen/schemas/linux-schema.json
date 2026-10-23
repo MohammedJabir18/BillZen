@@ -255,6 +255,12 @@
           "markdownDescription": "Enables the download_android_update command without any pre-configured scope."
         },
         {
+          "description": "Enables the ensure_customer_cashbook_party command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-ensure-customer-cashbook-party",
+          "markdownDescription": "Enables the ensure_customer_cashbook_party command without any pre-configured scope."
+        },
+        {
           "description": "Enables the export_workspace_backup command without any pre-configured scope.",
           "type": "string",
           "const": "allow-export-workspace-backup",
@@ -289,6 +295,12 @@
           "type": "string",
           "const": "allow-get-categories",
           "markdownDescription": "Enables the get_categories command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_customer_cash_history command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-customer-cash-history",
+          "markdownDescription": "Enables the get_customer_cash_history command without any pre-configured scope."
         },
         {
           "description": "Enables the get_customers command without any pre-configured scope.",
@@ -483,6 +495,12 @@
           "markdownDescription": "Denies the download_android_update command without any pre-configured scope."
         },
         {
+          "description": "Denies the ensure_customer_cashbook_party command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-ensure-customer-cashbook-party",
+          "markdownDescription": "Denies the ensure_customer_cashbook_party command without any pre-configured scope."
+        },
+        {
           "description": "Denies the export_workspace_backup command without any pre-configured scope.",
           "type": "string",
           "const": "deny-export-workspace-backup",
@@ -517,6 +535,12 @@
           "type": "string",
           "const": "deny-get-categories",
           "markdownDescription": "Denies the get_categories command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_customer_cash_history command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-customer-cash-history",
+          "markdownDescription": "Denies the get_customer_cash_history command without any pre-configured scope."
         },
         {
           "description": "Denies the get_customers command without any pre-configured scope.",

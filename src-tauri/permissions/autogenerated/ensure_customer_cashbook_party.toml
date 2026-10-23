@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ensure-customer-cashbook-party"
+description = "Enables the ensure_customer_cashbook_party command without any pre-configured scope."
+commands.allow = ["ensure_customer_cashbook_party"]
+
+[[permission]]
+identifier = "deny-ensure-customer-cashbook-party"
+description = "Denies the ensure_customer_cashbook_party command without any pre-configured scope."
+commands.deny = ["ensure_customer_cashbook_party"]

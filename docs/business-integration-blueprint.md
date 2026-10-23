@@ -187,3 +187,7 @@ Local evidence map:
 - `src-tauri/src/domain/cashbook.rs`: ordinary transfer prohibition and classifications.
 - `src-tauri/src/db/backup.rs`, `src/types/backup.ts`: backup coverage/contracts.
 - `docs/m4a-invoice-drafts-spec.md`, `docs/roadmap.md`: deferred scope; not evidence of shipped invoice functionality.
+
+### Implementation update — 2026-10-23
+
+P0/P1 foundation implementation now adds supported-workspace atomic browser backup/restore, opening-stock evidence, explicit customer-party linking, customer cash history/receipt shortcut and party-filtered reports. See [usage and platform scope](customer-cashbook-guide.md) and [verification status](verification-status.md). The earlier audit matrix is a record of baseline5a2a6d0, not a description of the updated implementation. Commercial tables remain safely rejected by browser restore when nonempty; invoice/stock-sale/purchase/transfer workflows remain later scope.

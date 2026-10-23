@@ -705,6 +705,32 @@ async function runNativeVerification() {
     await evalInApp(`document.querySelector('[data-testid="tab-cashbook"]').click()`);
     await waitForCondition(`document.body.innerText.includes('Company Cashbook')`);
 
+    // Verify the real Tauri IPC customer bridge in this isolated workspace.
+    const linkedCustomer = await activeInstance.invokeInApp('create_customer', { dto: {
+      name: 'Native linked customer', phone: null, email: null, address_line1: null,
+      address_line2: null, city: null, state: null, postal_code: null, country: 'IND', tax_identifier: null,
+    }});
+    const linkedParty = await activeInstance.invokeInApp('ensure_customer_cashbook_party', { input: { customer_id: linkedCustomer.id } });
+    const sameLinkedParty = await activeInstance.invokeInApp('ensure_customer_cashbook_party', { input: { customer_id: linkedCustomer.id } });
+    assert(linkedParty.id === sameLinkedParty.id, 'Native customer bridge is idempotent');
+    const linkedAccount = await activeInstance.invokeInApp('create_money_account', { dto: {
+      account_name: 'Native customer test', account_type: 'cash', opening_balance_minor: 0,
+      allow_negative_balance: false, currency_code: 'INR', currency_exponent: 2,
+    }});
+    await activeInstance.invokeInApp('post_cashbook_voucher', { input: {
+      idempotency_key: 'native-linked-receipt', account_id: linkedAccount.id, party_id: linkedParty.id,
+      amount_minor: 1500, direction: 'inflow', classification: 'operating_income', payment_method: 'cash',
+      business_date: '2026-10-23', confirmed_negative_balance: false,
+    }});
+    const linkedHistory = await activeInstance.invokeInApp('get_customer_cash_history', { filter: { customer_id: linkedCustomer.id } });
+    assert(linkedHistory.received_minor === 1500 && linkedHistory.net_movement_minor === 1500, 'Native customer history receives one linked receipt');
+    const linkedReport = await activeInstance.invokeInApp('get_cashbook_ledger', { filter: { party_id: linkedParty.id } });
+    assert(linkedReport[0].length === 1 && linkedReport[1].matching_inflows_minor === 1500, 'Native party report agrees with customer history');
+    await activeInstance.invokeInApp('reverse_cashbook_voucher', { voucherId: linkedHistory.entries[0].voucher.id, confirmedNegativeBalance: false });
+    const reversedHistory = await activeInstance.invokeInApp('get_customer_cash_history', { filter: { customer_id: linkedCustomer.id } });
+    assert(reversedHistory.entries.length === 2 && reversedHistory.net_movement_minor === 0, 'Native reversed receipt retains evidence and cancels cash effect');
+    recordTest('native_customer_cashbook_integration', true);
+
     // Capture pre-restart accounts & ledger summary
     const preRestartSummary = await activeInstance.invokeInApp('get_cashbook_ledger', { filter: {} });
 

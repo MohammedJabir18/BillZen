@@ -2,6 +2,14 @@
 
 Review date: 2026-10-20. This file distinguishes local observations from product completion claims.
 
+## Customer cashbook and durable browser workspace — 2026-10-23
+
+- Added explicit customer-party linking, signed cash history across archived links, receipt shortcut, party Reports filter and history→Reports date/account context. Cash totals are not receivables; customer edits preserve posted snapshots. No stock-sale/invoice workflow was introduced.
+- Browser DBv3 stores settings, catalogs, opening stock and money records together. Workspace restore is atomic and rejects dangling references, stale sequences, corrupt movement/reversal relationships, and unsupported nonempty commercial tables before replacement. Historical currency changes are blocked; money account/voucher mutations validate durable settings under their transaction lock. Existing catalog stock is migrated to opening ledger evidence. Blocked upgrades explain closing other tabs.
+- Observed red→green: catalog reload and duplicate validation (earlier subsection), missing opening ledger, historical currency change, missing native customer implementation and native prefixed error parsing. Regression fixtures cover linked receipt/reversal backup, fresh restore, injected storage failure rollback, rejected commercial payloads, empty KWD reload/stale cache, concurrent ensures and same-name isolation.
+- Source verification: frontend76 tests; full Cargo94 tests including4 new customer worker tests; self-contained real Chrome foundation suite; customer receipt/report/CSV/payment/reversal + responsive Arabic/dark/reduced-motion/keyboard; existing Cashbook12, Reports68 and motion23/23 all passed. Native Linux43 assertions passed including new real IPC customer receipt/history/report/reversal and unchanged real-data fingerprints; a final-package rerun is tracked with build hashes below/in delivery notes.
+- Known build warnings remain: large frontend chunk and mixed static/dynamic import. Physical Android/Windows/macOS/printer validation is not inferred from Linux/Chrome. APK signing and installer delivery are separate from source CI/public releases.
+
 ## Period-switch chart replay correction — 2026-10-22
 
 - Retained Today/Month bars previously skipped entry through per-node memory and label-only dependencies. Chart series now replay together on selected period/date/account/group changes, while cards retain non-replaying behavior. Async readiness, zero-valued heights, bottom origin and reduced-motion settling are preserved.

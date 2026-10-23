@@ -17,6 +17,7 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { getBusinessSettings } from './adapters/tauri';
 import { getInvoiceForScenario } from './domain/test_scenarios';
 import type { Language } from './i18n';
+import type { CustomerReceiptIntent, CustomerReportFilter } from './types/cashbook';
 import type { BusinessSettings, ActivePrintDocument } from './types';
 import { preparePrintStyles, cleanupPrintStyles } from './utils/print';
 
@@ -36,6 +37,9 @@ const AppContent: React.FC = () => {
   useUpdateStartupCheck();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [cashbookInitialModal, setCashbookInitialModal] = useState<'inflow' | 'outflow' | null>(null);
+  const [customerReceiptIntent, setCustomerReceiptIntent] = useState<CustomerReceiptIntent | null>(null);
+  const [reportFilter, setReportFilter] = useState<CustomerReportFilter | undefined>();
+  const [reportPartyId, setReportPartyId] = useState<string>('');
   const [activePrintDocument, setActivePrintDocument] = useState<ActivePrintDocument>(null);
   const [language, setLanguageState] = useState<Language>(() => {
     try {
@@ -224,6 +228,10 @@ const AppContent: React.FC = () => {
         )}
         {activeTab === 'reports' && (
           <ReportsView
+            initialPartyId={reportPartyId}
+            initialStartDate={reportFilter?.start_date}
+            initialEndDate={reportFilter?.end_date}
+            initialAccountId={reportFilter?.account_id}
             settings={activeSettings}
             language={language}
             onPrintReport={(reportData) => {
@@ -240,15 +248,18 @@ const AppContent: React.FC = () => {
             settings={activeSettings}
             language={language}
             onSetActivePrintDocument={setActivePrintDocument}
+            customerReceiptIntent={customerReceiptIntent}
             initialModal={cashbookInitialModal}
-            onClearInitialModal={() => setCashbookInitialModal(null)}
+            onClearInitialModal={() => { setCashbookInitialModal(null); setCustomerReceiptIntent(null); }}
           />
         )}
         {activeTab === 'products' && (
           <ProductCatalogView settings={activeSettings} language={language} />
         )}
         {activeTab === 'customers' && (
-          <CustomerCatalogView settings={activeSettings} language={language} />
+          <CustomerCatalogView settings={activeSettings} language={language}
+            onReceiveMoney={intent => { setCustomerReceiptIntent(intent); setCashbookInitialModal('inflow'); setActiveTab('cashbook'); }}
+            onViewReport={(partyId, filter) => { setReportPartyId(partyId); setReportFilter(filter); setActiveTab('reports'); }} />
         )}
         {activeTab === 'settings' && (
           <SettingsView

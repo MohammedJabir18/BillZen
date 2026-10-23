@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import type {
+  CustomerReceiptIntent,
   CashbookVoucher,
   CashbookLedgerEntry,
   CashbookSummary,
@@ -30,6 +31,7 @@ import type {
 } from '../types/cashbook';
 import type { BusinessSettings, ActivePrintDocument } from '../types';
 import type { Language } from '../i18n';
+import { customerCashText } from '../i18n/customer_cashbook';
 import { cashbookText } from '../i18n/cashbook';
 import { CashbookDialog } from './CashbookDialog';
 import {
@@ -54,6 +56,7 @@ interface CashbookViewProps {
   settings: BusinessSettings;
   language: Language;
   onSetActivePrintDocument?: (doc: ActivePrintDocument) => void;
+  customerReceiptIntent?: CustomerReceiptIntent | null;
   initialModal?: 'inflow' | 'outflow' | null;
   onClearInitialModal?: () => void;
 }
@@ -63,6 +66,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
   language,
   onSetActivePrintDocument,
   initialModal,
+  customerReceiptIntent,
   onClearInitialModal,
 }) => {
   const c = (text: keyof typeof cashbookText) => language === 'en' ? text : cashbookText[text][language];
@@ -134,7 +138,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
     queryFn: getCashbookCategories,
   });
 
-  const { data: parties = [] } = useQuery({
+  const { data: parties = [], isLoading: partiesLoading } = useQuery({
     queryKey: ['cashbook_parties'],
     queryFn: getCashbookParties,
   });
@@ -185,6 +189,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
   const [formClassification, setFormClassification] = useState<CashbookClassification>('operating_income');
   const [formCategoryId, setFormCategoryId] = useState<string>('');
   const [formPartyId, setFormPartyId] = useState<string>('');
+  const [receiptIntent, setReceiptIntent] = useState<CustomerReceiptIntent | null>(null);
   const [formPaymentMethod, setFormPaymentMethod] = useState<PaymentMethod>('cash');
   const [formReferenceNote, setFormReferenceNote] = useState<string>('');
   const [formNotes, setFormNotes] = useState<string>('');
@@ -243,6 +248,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
     setFormAccountId(activeAccounts[0]?.id || '');
     setFormCategoryId('');
     setFormPartyId('');
+    setReceiptIntent(null);
     setFormPaymentMethod('cash');
     setFormReferenceNote('');
     setFormNotes('');
@@ -253,10 +259,20 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
   // Dashboard shortcuts must initialize exactly the same form as Cashbook actions.
   // Wait for the local account list so its default account is a real selection.
   React.useEffect(() => {
-    if (!initialModal || isAccountsLoading) return;
+    if (!initialModal || isAccountsLoading || (customerReceiptIntent && partiesLoading)) return;
     handleOpenEntry(initialModal);
+    if (customerReceiptIntent) {
+      const party = parties.find(item => item.id === customerReceiptIntent.party_id);
+      if (!party || party.is_archived || party.customer_id !== customerReceiptIntent.customer_id) {
+        setIsEntryModalOpen(false);
+        setErrorMessage(customerCashText(language, 'selection'));
+      } else {
+        setFormPartyId(party.id);
+        setReceiptIntent(customerReceiptIntent);
+      }
+    }
     onClearInitialModal?.();
-  }, [initialModal, isAccountsLoading, handleOpenEntry, onClearInitialModal]);
+  }, [initialModal, isAccountsLoading, handleOpenEntry, onClearInitialModal, customerReceiptIntent, partiesLoading, parties, language]);
 
   // Submit Voucher Mutation
   const submitVoucherMutation = useMutation({
@@ -290,6 +306,8 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
         setSuccessMessage(`${c('Voucher posted successfully')}: ${res.voucher_number}`);
         queryClient.invalidateQueries({ queryKey: ['cashbook_ledger'] });
         queryClient.invalidateQueries({ queryKey: ['cashbook_accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['money_accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['customer_cash_history'] });
       }
     },
     onError: (err: any) => {
@@ -370,6 +388,8 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
         setSuccessMessage(`${c('Voucher reversed successfully')}: ${res.voucher_number}`);
         queryClient.invalidateQueries({ queryKey: ['cashbook_ledger'] });
         queryClient.invalidateQueries({ queryKey: ['cashbook_accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['money_accounts'] });
+        queryClient.invalidateQueries({ queryKey: ['customer_cash_history'] });
       }
     },
     onError: (err: any) => {
@@ -1204,7 +1224,7 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
                   </label>
                   <button
                     type="button"
-                    disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
+                    disabled={Boolean(receiptIntent) || isSubmittingVoucher || submitVoucherMutation.isPending}
                     onClick={() => {
                       setNewPartyName('');
                       setNewPartyType(entryDirection === 'inflow' ? 'customer' : 'supplier');
@@ -1219,8 +1239,9 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
                     <span>{c("New Party")}</span>
                   </button>
                 </div>
+                {receiptIntent && <p className="text-sm text-text-muted" role="status">{customerCashText(language, 'confirm')}</p>}
                 <select
-                  disabled={isSubmittingVoucher || submitVoucherMutation.isPending}
+                  disabled={Boolean(receiptIntent) || isSubmittingVoucher || submitVoucherMutation.isPending}
                   value={formPartyId}
                   onChange={(e) => setFormPartyId(e.target.value)}
                   data-testid="select-voucher-party" id={fieldId + '-party'}

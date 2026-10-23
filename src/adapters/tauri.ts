@@ -1,3 +1,5 @@
+import { readWebSettings, saveWebSettings, exportWebWorkspace, restoreWebWorkspace } from './web_workspace';
+import { version as appVersion } from '../../package.json';
 import { invoke } from '@tauri-apps/api/core';
 import type { BusinessSettings, PrintSupportInfo } from '../types';
 
@@ -7,10 +9,14 @@ export const isTauriEnvironment = (): boolean => {
 
 export async function getBusinessSettings(): Promise<BusinessSettings> {
   if (!isTauriEnvironment()) {
+    const durable = await readWebSettings();
+    if (durable) return durable as BusinessSettings;
     try {
       const stored = localStorage.getItem('billzen_browser_settings');
       if (stored) {
-        return JSON.parse(stored);
+        const migrated = JSON.parse(stored);
+        await saveWebSettings(migrated);
+        return migrated;
       }
       const isFresh = localStorage.getItem('billzen_mock_fresh_user') === 'true';
       return {
@@ -52,6 +58,7 @@ export async function updateBusinessSettings(
 ): Promise<BusinessSettings> {
   if (!isTauriEnvironment()) {
     const updated = { ...settings, updated_at: Date.now() };
+    await saveWebSettings(updated);
     try {
       localStorage.setItem('billzen_browser_settings', JSON.stringify(updated));
     } catch {}
@@ -70,6 +77,7 @@ export async function updateBusinessProfile(
       ...profile,
       updated_at: Date.now(),
     };
+    await saveWebSettings(updated);
     try {
       localStorage.setItem('billzen_browser_settings', JSON.stringify(updated));
     } catch {}
@@ -89,6 +97,7 @@ export async function completeBusinessSetup(
       is_setup_completed: true,
       updated_at: Date.now(),
     };
+    await saveWebSettings(updated);
     try {
       localStorage.setItem('billzen_browser_settings', JSON.stringify(updated));
       localStorage.setItem('billzen_mock_fresh_user', 'false');
@@ -105,14 +114,8 @@ export async function updateAppearancePreference(
     localStorage.setItem('billzen_appearance_pref', preference);
   } catch {}
   if (!isTauriEnvironment()) {
-    try {
-      const stored = localStorage.getItem('billzen_browser_settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        parsed.appearance_preference = preference;
-        localStorage.setItem('billzen_browser_settings', JSON.stringify(parsed));
-      }
-    } catch {}
+    const current = await getBusinessSettings();
+    await saveWebSettings({ ...current, appearance_preference: preference });
     return preference;
   }
   return await invoke<string>('update_appearance_preference', { preference });
@@ -126,15 +129,8 @@ export async function updateGuideStatus(
     localStorage.setItem('billzen_guide_status', status);
   } catch {}
   if (!isTauriEnvironment()) {
-    try {
-      const stored = localStorage.getItem('billzen_browser_settings');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        parsed.guide_status = status;
-        parsed.guide_version = version;
-        localStorage.setItem('billzen_browser_settings', JSON.stringify(parsed));
-      }
-    } catch {}
+    const current = await getBusinessSettings();
+    await saveWebSettings({ ...current, guide_status: status, guide_version: version });
     return status;
   }
   return await invoke<string>('update_guide_status', { status, version });
@@ -166,8 +162,8 @@ import { withWebCatalog } from './web_catalog';
 // Products
 export async function getProducts(filter: import('../types').ProductFilter = {}): Promise<import('../types').Product[]> {
   if (!isTauriEnvironment()) {
-    return withWebCatalog(({ products }) => {
-    return products.filter((p) => {
+    return withWebCatalog(({ products, categories }) => {
+    return products.map(p => ({...p, category_name: categories.find(c=>c.id===p.category_id)?.name || null})).filter((p) => {
       if (filter.is_active !== undefined && filter.is_active !== null && p.is_active !== filter.is_active) return false;
       if (filter.category_id && p.category_id !== filter.category_id) return false;
       if (filter.low_stock_only && (!p.is_stock_tracked || p.current_stock_scaled > p.min_stock_threshold_scaled)) return false;
@@ -176,36 +172,42 @@ export async function getProducts(filter: import('../types').ProductFilter = {})
         return p.name.toLowerCase().includes(s) || p.sku.toLowerCase().includes(s) || (p.barcode && p.barcode.includes(s));
       }
       return true;
-    }, false);
-
     });
+
+    }, false);
   }
   return await invoke<import('../types').Product[]>('get_products', { filter });
 }
 
 export async function createProduct(dto: import('../types').CreateProductDto): Promise<import('../types').Product> {
   if (!isTauriEnvironment()) {
-    return withWebCatalog(({ products }) => {
+    return withWebCatalog(({ products, stock_movements }) => {
+    if (dto.is_stock_tracked === false && (dto.opening_stock_scaled ?? 0) !== 0) throw Error('Untracked product cannot have opening stock');
     const prod: import('../types').Product = {
       id: crypto.randomUUID(),
       sku: dto.sku.trim().toUpperCase(),
-      barcode: dto.barcode ? dto.barcode.trim() : null,
+      barcode: dto.barcode?.trim() || null,
       name: dto.name.trim(),
       description: dto.description || null,
       category_id: dto.category_id || null,
       category_name: null,
       unit: dto.unit || 'unit',
       unit_price_minor: dto.unit_price_minor,
-      cost_price_minor: dto.cost_price_minor || 0,
-      tax_rate_bp: dto.tax_rate_bp || 0,
+      cost_price_minor: dto.cost_price_minor ?? 0,
+      tax_rate_bp: dto.tax_rate_bp ?? 0,
       is_stock_tracked: dto.is_stock_tracked ?? true,
-      current_stock_scaled: dto.opening_stock_scaled || 0,
-      min_stock_threshold_scaled: dto.min_stock_threshold_scaled || 0,
+      current_stock_scaled: dto.opening_stock_scaled ?? 0,
+      min_stock_threshold_scaled: dto.min_stock_threshold_scaled ?? 0,
       is_active: true,
       created_at: Date.now(),
       updated_at: Date.now(),
     };
     products.push(prod);
+    if (prod.is_stock_tracked && prod.current_stock_scaled > 0) stock_movements.push({
+      id: crypto.randomUUID(), product_id: prod.id, reference_type: 'opening', reference_id: null,
+      quantity_delta_scaled: prod.current_stock_scaled, resulting_stock_scaled: prod.current_stock_scaled,
+      notes: 'Opening Stock', created_at: prod.created_at,
+    });
     return prod;
 
     });
@@ -215,13 +217,14 @@ export async function createProduct(dto: import('../types').CreateProductDto): P
 
 export async function updateProduct(dto: import('../types').UpdateProductDto): Promise<import('../types').Product> {
   if (!isTauriEnvironment()) {
-    return withWebCatalog(({ products }) => {
+    return withWebCatalog(({ products, stock_movements }) => {
     const idx = products.findIndex((p) => p.id === dto.id);
     if (idx === -1) throw new Error('Product not found');
+    if (!products[idx].is_stock_tracked && dto.is_stock_tracked && products[idx].current_stock_scaled !== stock_movements.filter(m=>m.product_id===dto.id).reduce((n,m)=>n+m.quantity_delta_scaled,0)) throw Error('Stock ledger mismatch');
     products[idx] = {
       ...products[idx],
       sku: dto.sku.trim().toUpperCase(),
-      barcode: dto.barcode ? dto.barcode.trim() : null,
+      barcode: dto.barcode?.trim() || null,
       name: dto.name.trim(),
       description: dto.description || null,
       category_id: dto.category_id || null,
@@ -275,9 +278,9 @@ export async function getCustomers(filter: import('../types').CustomerFilter = {
         return c.name.toLowerCase().includes(s) || (c.phone && c.phone.includes(s)) || (c.tax_identifier && c.tax_identifier.includes(s));
       }
       return true;
-    }, false);
-
     });
+
+    }, false);
   }
   return await invoke<import('../types').Customer[]>('get_customers', { filter });
 }
@@ -312,7 +315,7 @@ export async function createCustomer(dto: import('../types').CreateCustomerDto):
 
 export async function updateCustomer(dto: import('../types').UpdateCustomerDto): Promise<import('../types').Customer> {
   if (!isTauriEnvironment()) {
-    return withWebCatalog(({ customers }) => {
+    return withWebCatalog(({ customers, cashbook_parties }) => {
     const idx = customers.findIndex((c) => c.id === dto.id);
     if (idx === -1) throw new Error('Customer not found');
     customers[idx] = {
@@ -329,6 +332,7 @@ export async function updateCustomer(dto: import('../types').UpdateCustomerDto):
       tax_identifier: dto.tax_identifier || null,
       updated_at: Date.now(),
     };
+    for (const party of cashbook_parties.filter(p=>p.customer_id===dto.id)) Object.assign(party,{name:customers[idx].name,phone:customers[idx].phone,email:customers[idx].email,tax_id:customers[idx].tax_identifier,address:[customers[idx].address_line1,customers[idx].address_line2,customers[idx].city,customers[idx].state,customers[idx].postal_code,customers[idx].country].filter(Boolean).join(', '),updated_at:customers[idx].updated_at});
     return customers[idx];
 
     });
@@ -393,36 +397,9 @@ export async function createCategory(dto: import('../types').CreateCategoryDto):
 export async function exportWorkspaceBackup(): Promise<import('../types/backup').WorkspaceBackupEnvelope> {
   if (!isTauriEnvironment()) {
     const settings = await getBusinessSettings();
-    const products = await getProducts();
-    const customers = await getCustomers();
-    const categories = await getCategories();
-    const { exportWebCashbookTables } = await import('./web_cashbook_db');
-    const cashbookTables = await exportWebCashbookTables();
-
     const payload: Record<string, any> = {
-      format_version: '1.0',
-      scope: 'workspace',
-      app_version: '0.1.0',
-      generated_at: Date.now(),
-      business_settings: settings,
-      categories,
-      category_merges: [],
-      products,
-      customers,
-      invoice_sequences: [],
-      invoice_items: [],
-      invoices: [],
-      stock_movements: [],
-      payments: [],
-      payment_allocations: [],
-      expenses: [],
-      money_accounts: cashbookTables.money_accounts,
-      cashbook_categories: cashbookTables.cashbook_categories,
-      cashbook_parties: cashbookTables.cashbook_parties,
-      cashbook_sequences: cashbookTables.cashbook_sequences,
-      cashbook_vouchers: cashbookTables.cashbook_vouchers,
-      cashbook_movements: cashbookTables.cashbook_movements,
-      cashbook_audit_events: cashbookTables.cashbook_audit_events,
+      ...await exportWebWorkspace(settings),
+      format_version: '1.0', scope: 'workspace', app_version: appVersion, generated_at: Date.now(),
     };
 
     const { computePayloadChecksum } = await import('../domain/backup_crypto');
@@ -444,29 +421,10 @@ export async function restoreWorkspaceBackup(
     if (!check.valid) {
       throw new Error(check.error || 'Invalid backup checksum');
     }
-    if (backupEnvelope.business_settings) {
-      localStorage.setItem('billzen_browser_settings', JSON.stringify(backupEnvelope.business_settings));
-    }
-    const { restoreWebCashbookTables } = await import('./web_cashbook_db');
-    await restoreWebCashbookTables({
-      money_accounts: backupEnvelope.money_accounts,
-      cashbook_categories: backupEnvelope.cashbook_categories,
-      cashbook_parties: backupEnvelope.cashbook_parties,
-      cashbook_vouchers: backupEnvelope.cashbook_vouchers,
-      cashbook_movements: backupEnvelope.cashbook_movements,
-      cashbook_sequences: backupEnvelope.cashbook_sequences,
-      cashbook_audit_events: backupEnvelope.cashbook_audit_events,
-    });
-    return {
-      success: true,
-      message: 'Workspace restored successfully in browser preview.',
-      restored_tables: Object.keys(backupEnvelope).filter((k) => k !== 'checksum_sha256'),
-      record_counts: {
-        money_accounts: backupEnvelope.money_accounts?.length || 0,
-        cashbook_vouchers: backupEnvelope.cashbook_vouchers?.length || 0,
-        cashbook_movements: backupEnvelope.cashbook_movements?.length || 0,
-      },
-    };
+    const result = await restoreWebWorkspace(backupEnvelope);
+    // Derived preference caches never participate in the committed workspace.
+    try { localStorage.setItem('billzen_browser_settings', JSON.stringify(backupEnvelope.business_settings)); } catch {}
+    return result;
   }
   return await invoke<import('../types/backup').RestoreBackupResult>('restore_workspace_backup', {
     backupJson: backupEnvelope,

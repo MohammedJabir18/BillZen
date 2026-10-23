@@ -163,6 +163,8 @@ pub fn run() {
             commands::cashbook::update_money_account,
             commands::cashbook::get_cashbook_categories,
             commands::cashbook::create_cashbook_category,
+            commands::cashbook::ensure_customer_cashbook_party,
+            commands::cashbook::get_customer_cash_history,
             commands::cashbook::get_cashbook_parties,
             commands::cashbook::create_cashbook_party,
             commands::cashbook::post_cashbook_voucher,

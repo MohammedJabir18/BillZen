@@ -21,7 +21,7 @@ import { getTodayBusinessDate } from '../domain/financial';
 import { computeClientIntentHash } from '../domain/backup_crypto';
 
 const DB_NAME = 'BillZen_Web_DB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const MAX_MONEY_MINOR = 100_000_000_000; // 10^11
 export const MAX_TOTAL_MINOR = 100_000_000_000_000; // 10^14
@@ -120,7 +120,7 @@ export function isIndexedDbAvailable(): boolean {
   return typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined';
 }
 
-function getCompanySettings(): {
+async function getCompanySettings(transaction?: IDBTransaction): Promise<{
   business_name: string;
   tax_identifier: string | null;
   phone: string | null;
@@ -128,7 +128,7 @@ function getCompanySettings(): {
   currency_code: string;
   currency_exponent: number;
   timezone: string;
-} {
+}> {
   try {
     const storage: Storage | undefined =
       typeof localStorage !== 'undefined'
@@ -136,14 +136,21 @@ function getCompanySettings(): {
         : typeof globalThis !== 'undefined' && (globalThis as any).localStorage
         ? (globalThis as any).localStorage
         : undefined;
-    const raw = storage ? storage.getItem('billzen_browser_settings') : null;
+    const db = transaction ? null : await openWebDb();
+    let durable: any = null;
+    if (db || transaction) {
+      const tx = transaction || db!.transaction('business_settings', 'readonly');
+      durable = await reqToPromise(tx.objectStore('business_settings').get('default'));
+      if (!transaction) await txToPromise(tx);
+    }
+    const raw = durable ? JSON.stringify(durable) : storage ? storage.getItem('billzen_browser_settings') : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
         business_name: parsed.business_name || 'BillZen Store (Browser Preview)',
-        tax_identifier: parsed.tax_identifier || '32AAAAA0000A1Z5',
-        phone: parsed.phone || '+91 9876543210',
-        address: parsed.address_line1 || '123 Market Road, Kochi',
+        tax_identifier: parsed.tax_identifier || null,
+        phone: parsed.phone || null,
+        address: parsed.address_line1 || null,
         currency_code: parsed.currency_code || 'INR',
         currency_exponent: typeof parsed.currency_exponent === 'number' ? parsed.currency_exponent : 2,
         timezone: parsed.timezone || 'Asia/Kolkata',
@@ -268,10 +275,29 @@ export async function openWebDb(): Promise<IDBDatabase | null> {
   dbPromise = new Promise((resolve, reject) => {
     const req = window.indexedDB.open(DB_NAME, DB_VERSION);
 
-    req.onupgradeneeded = () => {
+    let shouldSeed = false;
+    req.onupgradeneeded = (event) => {
+      shouldSeed = (event as IDBVersionChangeEvent).oldVersion === 0;
       const db = req.result;
-      for (const name of ['products', 'customers', 'categories']) {
-        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' });
+      const migrateOpeningStock = !db.objectStoreNames.contains('stock_movements');
+      for (const name of ['products', 'customers', 'categories', 'stock_movements', 'business_settings', 'category_merges']) {
+        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: name === 'category_merges' ? 'merged_category_id' : 'id' });
+      }
+
+      if (migrateOpeningStock) {
+        const tx = req.transaction!;
+        const cursor = tx.objectStore('products').openCursor();
+        cursor.onsuccess = () => {
+          const row = cursor.result;
+          if (!row) return;
+          const p = row.value;
+          if (p.is_stock_tracked && p.current_stock_scaled > 0) tx.objectStore('stock_movements').add({
+            id: `opening_${p.id}`, product_id: p.id, reference_type: 'opening', reference_id: null,
+            quantity_delta_scaled: p.current_stock_scaled, resulting_stock_scaled: p.current_stock_scaled,
+            notes: 'Opening Stock (catalog migration)', created_at: p.created_at,
+          });
+          row.continue();
+        };
       }
 
       if (!db.objectStoreNames.contains('money_accounts')) {
@@ -315,7 +341,7 @@ export async function openWebDb(): Promise<IDBDatabase | null> {
       };
 
       try {
-        await seedDefaultWebDataIfEmpty(db);
+        if (shouldSeed) await seedDefaultWebDataIfEmpty(db);
         cachedDb = db;
         resolve(db);
       } catch (seedErr) {
@@ -323,6 +349,7 @@ export async function openWebDb(): Promise<IDBDatabase | null> {
       }
     };
 
+    req.onblocked = () => { dbPromise = null; reject(new Error('Database upgrade blocked. Close other BillZen tabs and reload.')); };
     req.onerror = () => {
       dbPromise = null;
       reject(req.error);
@@ -446,7 +473,7 @@ export async function getWebMoneyAccounts(): Promise<MoneyAccount[]> {
 }
 
 export async function createWebMoneyAccount(dto: CreateMoneyAccountDto): Promise<MoneyAccount> {
-  const settings = getCompanySettings();
+  let settings = await getCompanySettings();
   const currencyCode = dto.currency_code?.trim() || settings.currency_code;
   const currencyExponent = dto.currency_exponent ?? settings.currency_exponent;
 
@@ -481,7 +508,13 @@ export async function createWebMoneyAccount(dto: CreateMoneyAccountDto): Promise
     return account;
   }
 
-  const tx = db.transaction(['money_accounts'], 'readwrite');
+  const tx = db.transaction(['business_settings', 'money_accounts'], 'readwrite');
+  const currentSettings = await getCompanySettings(tx);
+  if ((dto.currency_code && dto.currency_code !== currentSettings.currency_code) || (dto.currency_exponent != null && dto.currency_exponent !== currentSettings.currency_exponent)) {
+    tx.abort(); throw new Error('Currency changed; reload before creating this account');
+  }
+  account.currency_code = currentSettings.currency_code;
+  account.currency_exponent = currentSettings.currency_exponent;
   tx.objectStore('money_accounts').put(account);
   await txToPromise(tx);
 
@@ -631,7 +664,7 @@ export async function postWebCashbookVoucher(input: CreateVoucherInput): Promise
   validateDirectionAndClassification(input.direction, input.classification);
 
   const payloadHash = await computeClientIntentHash(input);
-  const settings = getCompanySettings();
+  let settings = await getCompanySettings();
 
   const db = await openWebDb();
 
@@ -776,10 +809,11 @@ export async function postWebCashbookVoucher(input: CreateVoucherInput): Promise
 
   // Durable IndexedDB Transaction Path
   const tx = db.transaction(
-    ['money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events'],
+    ['business_settings', 'money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events'],
     'readwrite'
   );
 
+  settings = await getCompanySettings(tx);
   const accStore = tx.objectStore('money_accounts');
   const catStore = tx.objectStore('cashbook_categories');
   const ptyStore = tx.objectStore('cashbook_parties');
@@ -957,7 +991,7 @@ export async function reverseWebCashbookVoucher(
   confirmedNegativeBalance: boolean = false,
   businessDate?: string
 ): Promise<PostVoucherResult> {
-  const settings = getCompanySettings();
+  let settings = await getCompanySettings();
   const db = await openWebDb();
 
   // In-Memory path
@@ -1054,10 +1088,11 @@ export async function reverseWebCashbookVoucher(
 
   // Durable IndexedDB Transaction Path
   const tx = db.transaction(
-    ['money_accounts', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events'],
+    ['business_settings', 'money_accounts', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_sequences', 'cashbook_audit_events'],
     'readwrite'
   );
 
+  settings = await getCompanySettings(tx);
   const accStore = tx.objectStore('money_accounts');
   const vchStore = tx.objectStore('cashbook_vouchers');
   const movStore = tx.objectStore('cashbook_movements');
@@ -1273,6 +1308,7 @@ export async function getWebCashbookLedger(
 
   // 5. Display filtering for ledger entries & matching metrics
   let filtered = [...periodVouchers];
+  if (filter.party_id) filtered = filtered.filter(v => v.party_id === filter.party_id);
   if (filter.classification) {
     filtered = filtered.filter((v) => v.classification === filter.classification);
   }
@@ -1341,7 +1377,7 @@ export async function getWebCashbookLedger(
     };
   });
 
-  const isDisplayFiltered = Boolean(filter.search || filter.classification);
+  const isDisplayFiltered = Boolean(filter.search || filter.classification || filter.party_id);
 
   const summary: CashbookSummary = {
     total_cash_minor: totalCash,

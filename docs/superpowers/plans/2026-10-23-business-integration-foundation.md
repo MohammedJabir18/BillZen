@@ -122,3 +122,7 @@ History consumes every linked party, including archived parties. Aggregate movem
 - [ ] Update `brain/sessions.md`, architecture only for shipped changes, and roadmap/verification evidence; refresh Graphify with honest fallback reporting.
 - [ ] Rebuild installers only as a separate delivery section after source tests pass. Source push is not an installed app update or published release.
 - [ ] Prepare P2 transfer design next. Keep invoice/purchase/valuation/sync implementation outside this foundation scope.
+
+## Execution record — 2026-10-23
+
+Tasks1–3 implemented as the supported-workspace/customer-cashbook foundation. See docs/customer-cashbook-guide.md and docs/verification-status.md for actual checks and scope. Safe browser rejection of nonempty commercial tables follows Task1's stated alternative; no data is silently discarded. Complete invoice/purchase workflows remain outside this plan. Desktop delivery and credential-gated APK packaging are tracked separately from source completion. Original step checkboxes are retained as the authored checklist; this execution record and verification report describe observed results.

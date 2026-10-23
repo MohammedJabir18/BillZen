@@ -203,6 +203,7 @@ export interface CreateVoucherInput {
 }
 
 export interface CashbookLedgerFilter {
+  party_id?: string | null;
   account_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
@@ -226,4 +227,31 @@ export interface ReportPrintData {
   currencyExponent?: number;
   timezone?: string;
   generatedAt?: string;
+}
+
+export interface CustomerCashHistoryFilter {
+  customer_id: string;
+  start_date?: string;
+  end_date?: string;
+  account_id?: string;
+}
+
+export interface CustomerCashHistory {
+  entries: CashbookLedgerEntry[];
+  received_minor: number;
+  paid_minor: number;
+  net_movement_minor: number;
+}
+
+export interface CustomerReceiptIntent {
+  customer_id: string;
+  party_id: string;
+}
+
+export type CustomerPartyErrorCode = 'PARTY_SELECTION_REQUIRED' | 'CUSTOMER_NOT_FOUND' | 'CUSTOMER_ARCHIVED' | 'PARTY_NOT_FOUND' | 'PARTY_ARCHIVED' | 'PARTY_LINK_CONFLICT';
+
+export interface CustomerReportFilter {
+  start_date?: string;
+  end_date?: string;
+  account_id?: string;
 }

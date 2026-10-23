@@ -16,10 +16,12 @@ import {
 import type { BusinessSettings } from '../types';
 import type { Language } from '../i18n';
 import { translations } from '../i18n';
+import { customerCashText } from '../i18n/customer_cashbook';
 import { reportText } from '../i18n/reports';
 import {
   getMoneyAccounts,
   getCashbookCategories,
+  getCashbookParties,
   getCashbookLedger,
 } from '../adapters/cashbook';
 import { getTodayBusinessDate, formatMinorUnits } from '../domain/financial';
@@ -30,6 +32,10 @@ interface ReportsViewProps {
   settings: BusinessSettings;
   language: Language;
   onPrintReport?: (reportData: ReportPrintData) => void;
+  initialPartyId?: string;
+  initialStartDate?: string;
+  initialEndDate?: string;
+  initialAccountId?: string;
   initialPeriod?: 'today' | 'month' | 'year' | 'custom';
 }
 
@@ -40,6 +46,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   language,
   onPrintReport,
   initialPeriod = 'today',
+  initialPartyId = '',
+  initialStartDate,
+  initialEndDate,
+  initialAccountId,
 }) => {
   const t = translations[language] || translations.en;
   const c = (text: keyof typeof reportText) => language === 'en' ? text : reportText[text][language];
@@ -51,16 +61,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const todayStr = useMemo(() => getTodayBusinessDate(timezone), [timezone]);
 
   // Filters State
-  const [period, setPeriod] = useState<ReportPeriod>(initialPeriod);
+  const [period, setPeriod] = useState<ReportPeriod>(initialStartDate || initialEndDate ? 'custom' : initialPeriod);
   const [referenceDate, setReferenceDate] = useState<string>(todayStr);
-  const [customStartDate, setCustomStartDate] = useState<string>(todayStr);
-  const [customEndDate, setCustomEndDate] = useState<string>(todayStr);
+  const [customStartDate, setCustomStartDate] = useState<string>(initialStartDate || todayStr);
+  const [customEndDate, setCustomEndDate] = useState<string>(initialEndDate || todayStr);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(initialAccountId || 'all');
   const [directionFilter, setDirectionFilter] = useState<'all' | 'inflow' | 'outflow'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [classificationFilter, setClassificationFilter] = useState<string>('all');
+  const [partyFilter, setPartyFilter] = useState(initialPartyId);
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
 
   // Compute active date range based on period and referenceDate
@@ -159,6 +170,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     queryFn: () => getMoneyAccounts(),
   });
 
+  const { data: parties = [], isLoading: partiesLoading, error: partiesError, refetch: refetchParties } = useQuery({ queryKey: ['cashbook_parties'], queryFn: getCashbookParties });
+
   // Fetch Categories
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useQuery({
     queryKey: ['cashbook_categories'],
@@ -173,9 +186,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       end_date: endDate,
       search: searchQuery.trim() ? searchQuery.trim() : null,
       classification: classificationFilter === 'all' ? null : classificationFilter,
-      include_archived: false,
+      party_id: partyFilter || null,
+      include_archived: Boolean(partyFilter),
     };
-  }, [selectedAccountId, startDate, endDate, searchQuery, classificationFilter]);
+  }, [selectedAccountId, startDate, endDate, searchQuery, classificationFilter, partyFilter]);
 
   const validRange = /^\d{4}-\d{2}-\d{2}$/.test(startDate) && /^\d{4}-\d{2}-\d{2}$/.test(endDate) && startDate <= endDate;
   const { data: ledgerData, isLoading, isFetching, error: ledgerError, refetch: refetchLedger } = useQuery({
@@ -187,9 +201,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const screenRef = useRef<HTMLDivElement>(null);
   useEntryMotion(screenRef, '[data-screen-entry]', [], 'cards', !isLoading);
 
-  const queryError = Boolean(ledgerError || accountsError || categoriesError);
+  const queryError = Boolean(ledgerError || accountsError || categoriesError || partiesError);
   const unavailable = !validRange || !ledgerData || queryError;
-  const canExport = !unavailable && !isFetching && !accountsLoading && !categoriesLoading;
+  const canExport = !unavailable && !isFetching && !accountsLoading && !categoriesLoading && !partiesLoading;
   const summaryAmount = (amount: number) => unavailable ? '—' : formatMinorUnits(amount, currencyExponent);
   const categoryNames = useMemo(() => Object.fromEntries(categories.map(category => [category.id, category.name])), [categories]);
   const categoryName = (id: string | null) => id ? categoryNames[id] ?? (categoriesLoading ? c('Loading records...') : c('Category unavailable')) : '—';
@@ -228,6 +242,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Is any detail filter currently active?
   const hasDetailFilter =
+    Boolean(partyFilter) ||
     Boolean(searchQuery.trim()) ||
     directionFilter !== 'all' ||
     categoryFilter !== 'all' ||
@@ -257,6 +272,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return accounts.find((a) => a.id === selectedAccountId);
   }, [accounts, selectedAccountId]);
 
+  const selectedParty = parties.find(party => party.id === partyFilter);
+  const partyContext = selectedParty ? `${customerCashText(language, 'party')}: ${selectedParty.name}` : undefined;
+
   // CSV Export Handler
   const handleExportCsv = () => {
     if (!canExport) return;
@@ -268,7 +286,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       startDate,
       endDate,
       accountName: currentAccount?.account_name,
-      filterSummary: hasDetailFilter ? c("Custom Filters Applied") : undefined,
+      filterSummary: partyContext || (hasDetailFilter ? c("Custom Filters Applied") : undefined),
     });
 
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
@@ -295,7 +313,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       periodTitle: periodLabel,
       dateRangeText: `${startDate} to ${endDate}`,
       accountName: currentAccount?.account_name,
-      filterSummary: hasDetailFilter ? c("Filtered dataset") : undefined,
+      filterSummary: partyContext || (hasDetailFilter ? c("Filtered dataset") : undefined),
       businessName: settings.business_name,
       taxIdentifier: settings.tax_identifier,
       phone: settings.phone,
@@ -310,7 +328,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     <div ref={screenRef} className="reports-screen min-w-0 space-y-6 text-text-main">
       {(!validRange || queryError) && <div role="alert" data-testid="report-error" className="p-4 bg-brand-coral-subtle text-brand-coral border border-border-medium rounded-xl text-sm flex flex-wrap items-center justify-between gap-3">
         <span>{!validRange ? c('Choose a valid date range.') : c('Could not load the report. Please retry.')}</span>
-        {validRange && <button className="focus-ring min-h-11 px-3 rounded-lg border border-border-medium" onClick={() => { refetchAccounts(); refetchCategories(); refetchLedger(); }}>{c('Retry')}</button>}
+        {validRange && <button className="focus-ring min-h-11 px-3 rounded-lg border border-border-medium" onClick={() => { refetchAccounts(); refetchCategories(); refetchParties(); refetchLedger(); }}>{c('Retry')}</button>}
       </div>}
       {/* Top Header & Actions */}
       <div data-screen-entry className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border-subtle">
@@ -478,6 +496,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           />
         </div>
 
+        <select value={partyFilter} onChange={e => setPartyFilter(e.target.value)} data-testid="report-party-select" aria-label={customerCashText(language, 'party')} className="min-h-[44px] max-w-full text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none focus:ring-2 focus:ring-border-focus">
+          <option value="">{customerCashText(language, 'allParties')}</option>
+          {parties.map(party => <option key={party.id} value={party.id}>{party.name}{party.phone || party.email ? ` · ${party.phone || party.email}` : ''}{party.is_archived ? ` (${customerCashText(language, 'archived')})` : ''}</option>)}
+        </select>
+        {partiesError && <button onClick={() => refetchParties()}>{customerCashText(language, 'retry')}</button>}
+
         {/* Direction Filter */}
         <select
           value={directionFilter}
@@ -540,6 +564,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         {hasDetailFilter && (
           <button
             onClick={() => {
+              setPartyFilter('');
               setSearchQuery('');
               setDirectionFilter('all');
               setCategoryFilter('all');

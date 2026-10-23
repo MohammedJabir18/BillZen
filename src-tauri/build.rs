@@ -36,6 +36,8 @@ fn main() {
                 "update_money_account",
                 "get_cashbook_categories",
                 "create_cashbook_category",
+                "ensure_customer_cashbook_party",
+                "get_customer_cash_history",
                 "get_cashbook_parties",
                 "create_cashbook_party",
                 "post_cashbook_voucher",

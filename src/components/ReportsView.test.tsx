@@ -5,6 +5,7 @@ import { ReportsView } from './ReportsView';
 import type { BusinessSettings } from '../types';
 
 vi.mock('../adapters/cashbook', () => ({
+  getCashbookParties: vi.fn().mockResolvedValue([]),
   getMoneyAccounts: vi.fn().mockResolvedValue([
     { id: 'acc1', account_name: 'Cash Register', account_type: 'cash' },
   ]),
@@ -86,7 +87,8 @@ it('waits for category labels before enabling a ready ledger export', async () =
   const date = getTodayBusinessDate('Asia/Kolkata');
   const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
   client.setQueryData(['money_accounts'], []);
-  client.setQueryData(['cashbook_ledger', { account_id: null, start_date: date, end_date: date, search: null, classification: null, include_archived: false }], {
+  client.setQueryData(['cashbook_parties'], []);
+  client.setQueryData(['cashbook_ledger', { account_id: null, start_date: date, end_date: date, search: null, classification: null, party_id: null, include_archived: false }], {
     summary: { total_cash_minor: 100, active_cash_minor: 100, opening_balance_minor: 0, period_inflows_minor: 100, period_outflows_minor: 0, closing_balance_minor: 100, net_operating_cash_flow_minor: 100 }, entries: [],
   });
   const html = renderToStaticMarkup(<QueryClientProvider client={client}><ReportsView settings={{ currency_exponent: 2, currency_symbol: '₹', timezone: 'Asia/Kolkata' } as BusinessSettings} language="en" /></QueryClientProvider>);

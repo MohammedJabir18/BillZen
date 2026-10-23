@@ -117,6 +117,14 @@ pub enum DbRequest {
         dto: CreateCashbookPartyDto,
         respond_to: oneshot::Sender<Result<CashbookParty, String>>,
     },
+    EnsureCustomerCashbookParty {
+        input: EnsureCustomerCashbookPartyInput,
+        respond_to: oneshot::Sender<Result<CashbookParty, String>>,
+    },
+    GetCustomerCashHistory {
+        filter: CustomerCashHistoryFilter,
+        respond_to: oneshot::Sender<Result<CustomerCashHistory, String>>,
+    },
     PostCashbookVoucher {
         input: CreateVoucherInput,
         respond_to: oneshot::Sender<Result<PostVoucherResult, String>>,
@@ -169,6 +177,8 @@ impl DbRequest {
             Self::GetCashbookCategories { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::CreateCashbookCategory { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::GetCashbookParties { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::EnsureCustomerCashbookParty { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
+            Self::GetCustomerCashHistory { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::CreateCashbookParty { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::PostCashbookVoucher { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
             Self::ReverseCashbookVoucher { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
@@ -346,6 +356,12 @@ impl DbWorkerHandle {
                         DbRequest::GetCashbookParties { respond_to } => {
                             let result = fetch_cashbook_parties(&conn);
                             let _ = respond_to.send(result);
+                        }
+                        DbRequest::EnsureCustomerCashbookParty { input, respond_to } => {
+                            let _ = respond_to.send(ensure_customer_cashbook_party(&mut conn, input));
+                        }
+                        DbRequest::GetCustomerCashHistory { filter, respond_to } => {
+                            let _ = respond_to.send(fetch_customer_cash_history(&conn, filter));
                         }
                         DbRequest::CreateCashbookParty { dto, respond_to } => {
                             let result = create_cashbook_party(&conn, dto);
@@ -668,6 +684,18 @@ impl DbWorkerHandle {
             .map_err(|_| "Database worker thread has terminated".to_string())?;
         rx.await
             .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn ensure_customer_cashbook_party(&self, input: EnsureCustomerCashbookPartyInput) -> Result<CashbookParty, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(DbRequest::EnsureCustomerCashbookParty { input, respond_to: tx }).await.map_err(|_| "Database worker unavailable".to_string())?;
+        rx.await.map_err(|_| "Database worker response dropped".to_string())?
+    }
+
+    pub async fn get_customer_cash_history(&self, filter: CustomerCashHistoryFilter) -> Result<CustomerCashHistory, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(DbRequest::GetCustomerCashHistory { filter, respond_to: tx }).await.map_err(|_| "Database worker unavailable".to_string())?;
+        rx.await.map_err(|_| "Database worker response dropped".to_string())?
     }
 
     pub async fn get_cashbook_parties(&self) -> Result<Vec<CashbookParty>, String> {
@@ -1634,7 +1662,8 @@ fn update_customer(conn: &mut Connection, dto: UpdateCustomerDto) -> Result<Cust
         )
         .map_err(|_| format!("Customer with id '{}' not found", dto.id))?;
 
-    conn.execute(
+    let tx = conn.transaction().map_err(|e|e.to_string())?;
+    tx.execute(
         "UPDATE customers SET
             name = ?1, phone = ?2, email = ?3, address_line1 = ?4, address_line2 = ?5,
             city = ?6, state = ?7, postal_code = ?8, country = ?9, tax_identifier = ?10,
@@ -1645,6 +1674,9 @@ fn update_customer(conn: &mut Connection, dto: UpdateCustomerDto) -> Result<Cust
         ],
     )
     .map_err(|e| format!("Failed to update customer: {}", e))?;
+
+    sync_customer_party_projection(&tx, &dto.id)?;
+    tx.commit().map_err(|e|e.to_string())?;
 
     Ok(Customer {
         id: dto.id,
@@ -2157,6 +2189,79 @@ fn fetch_cashbook_parties(conn: &Connection) -> Result<Vec<CashbookParty>, Strin
     }
     Ok(list)
 }
+
+// Customer owns the current contact projection. Voucher snapshot columns are never updated.
+fn sync_customer_party_projection(conn: &Connection, customer_id: &str) -> Result<(), String> {
+    conn.execute("UPDATE cashbook_parties SET
+        name = (SELECT name FROM customers WHERE id=?1),
+        phone = (SELECT phone FROM customers WHERE id=?1),
+        email = (SELECT email FROM customers WHERE id=?1),
+        tax_id = (SELECT tax_identifier FROM customers WHERE id=?1),
+        address = (SELECT NULLIF(TRIM(
+            COALESCE(address_line1 || ', ', '') || COALESCE(address_line2 || ', ', '') ||
+            COALESCE(city || ', ', '') || COALESCE(state || ', ', '') ||
+            COALESCE(postal_code || ', ', '') || COALESCE(country, ''), ', '), '')
+            FROM customers WHERE id=?1),
+        updated_at = (SELECT updated_at FROM customers WHERE id=?1)
+        WHERE customer_id=?1", [customer_id]).map_err(|e|e.to_string())?;
+    Ok(())
+}
+
+fn ensure_customer_cashbook_party(conn: &mut Connection, input: EnsureCustomerCashbookPartyInput) -> Result<CashbookParty, String> {
+    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate).map_err(|e|e.to_string())?;
+    let active: Option<bool> = tx.query_row("SELECT is_active FROM customers WHERE id=?", [&input.customer_id], |r|r.get(0)).optional().map_err(|e|e.to_string())?;
+    match active {
+        None => return Err(CustomerPartyError::CustomerNotFound.to_string()),
+        Some(false) => return Err(CustomerPartyError::CustomerArchived.to_string()),
+        Some(true) => (),
+    }
+    let parties = fetch_cashbook_parties(&tx)?;
+    let id = if let Some(ref party_id) = input.existing_party_id {
+        let party = parties.iter().find(|p| &p.id == party_id).ok_or_else(||CustomerPartyError::PartyNotFound.to_string())?;
+        if party.is_archived { return Err(CustomerPartyError::PartyArchived.to_string()); }
+        if party.customer_id.as_ref().is_some_and(|id|id != &input.customer_id) { return Err(CustomerPartyError::PartyLinkConflict.to_string()); }
+        if party.customer_id.is_none() {
+            tx.execute("UPDATE cashbook_parties SET customer_id=?1, updated_at=?2 WHERE id=?3", params![input.customer_id, chrono::Utc::now().timestamp_millis(), party_id]).map_err(|e|e.to_string())?;
+            let details = serde_json::json!({"party_id":party_id,"customer_id":input.customer_id,"previous_customer_id":null}).to_string();
+            tx.execute("INSERT INTO cashbook_audit_events (id,voucher_id,event_type,details_json,created_at) VALUES (?1,NULL,'customer_party_linked',?2,?3)",params![format!("aud_{}",uuid::Uuid::new_v4().simple()),details,chrono::Utc::now().timestamp_millis()]).map_err(|e|e.to_string())?;
+        }
+        party.id.clone()
+    } else {
+        let linked: Vec<_> = parties.iter().filter(|p|p.customer_id.as_ref()==Some(&input.customer_id)).collect();
+        match linked.as_slice() {
+            [] => {
+                let name: String = tx.query_row("SELECT name FROM customers WHERE id=?", [&input.customer_id], |r|r.get(0)).map_err(|e|e.to_string())?;
+                create_cashbook_party(&tx, CreateCashbookPartyDto {name,party_type:"customer".into(),customer_id:Some(input.customer_id.clone()),phone:None,email:None,tax_id:None,address:None})?.id
+            },
+            [party] if !party.is_archived => party.id.clone(),
+            _ => return Err(CustomerPartyError::PartySelectionRequired.to_string()),
+        }
+    };
+    sync_customer_party_projection(&tx, &input.customer_id)?;
+    let party = fetch_cashbook_parties(&tx)?.into_iter().find(|p|p.id==id).ok_or_else(||CustomerPartyError::PartyNotFound.to_string())?;
+    tx.commit().map_err(|e|e.to_string())?;
+    Ok(party)
+}
+
+fn fetch_customer_cash_history(conn: &Connection, filter: CustomerCashHistoryFilter) -> Result<CustomerCashHistory, String> {
+    let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM customers WHERE id=?)", [&filter.customer_id], |r|r.get(0)).map_err(|e|e.to_string())?;
+    if !exists { return Err(CustomerPartyError::CustomerNotFound.to_string()); }
+    for date in [&filter.start_date, &filter.end_date].into_iter().flatten() {
+        if chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() || date.len()!=10 { return Err(CashbookError::InvalidDateFormat(date.clone()).to_string()); }
+    }
+    if filter.start_date.as_ref().zip(filter.end_date.as_ref()).is_some_and(|(a,b)|a>b) { return Err("Start date must not follow end date".into()); }
+    let (entries, _) = fetch_cashbook_ledger_for_customer(conn, CashbookLedgerFilter {account_id:filter.account_id,start_date:filter.start_date,end_date:filter.end_date,include_archived:Some(true),..Default::default()},Some(&filter.customer_id))?;
+    let mut received_minor = 0i64;
+    let mut paid_minor = 0i64;
+    for entry in &entries {
+        let amount = entry.movement.amount_minor;
+        if amount > 0 { received_minor = received_minor.checked_add(amount).ok_or_else(||CashbookError::BalanceOverflow.to_string())?; }
+        else { paid_minor = paid_minor.checked_add(amount.checked_neg().ok_or_else(||CashbookError::BalanceOverflow.to_string())?).ok_or_else(||CashbookError::BalanceOverflow.to_string())?; }
+    }
+    let net_movement_minor = received_minor.checked_sub(paid_minor).ok_or_else(||CashbookError::BalanceOverflow.to_string())?;
+    Ok(CustomerCashHistory {entries,received_minor,paid_minor,net_movement_minor})
+}
+
 
 fn create_cashbook_party(conn: &Connection, dto: CreateCashbookPartyDto) -> Result<CashbookParty, String> {
     let name = dto.name.trim();
@@ -2742,6 +2847,10 @@ fn fetch_cashbook_ledger(
     conn: &Connection,
     filter: CashbookLedgerFilter,
 ) -> Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String> {
+    fetch_cashbook_ledger_for_customer(conn, filter, None)
+}
+
+fn fetch_cashbook_ledger_for_customer(conn: &Connection, filter: CashbookLedgerFilter, customer_id: Option<&str>) -> Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String> {
     let mut sql = "WITH ledger AS (
         SELECT 
             v.id AS v_id, v.voucher_number, v.idempotency_key, v.payload_hash, v.account_id AS v_account_id,
@@ -2780,6 +2889,14 @@ fn fetch_cashbook_ledger(
 
     let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
+    if let Some(customer_id) = customer_id {
+        sql.push_str(" AND EXISTS (SELECT 1 FROM cashbook_parties p WHERE p.id=ledger.party_id AND p.customer_id=?)");
+        params_vec.push(Box::new(customer_id.to_string()));
+    }
+    if let Some(ref party_id) = filter.party_id {
+        sql.push_str(" AND party_id = ?");
+        params_vec.push(Box::new(party_id.clone()));
+    }
     if let Some(ref acc_id) = filter.account_id {
         sql.push_str(" AND m_account_id = ?");
         params_vec.push(Box::new(acc_id.clone()));
@@ -2851,7 +2968,7 @@ fn fetch_cashbook_ledger(
         entries.push(entry);
     }
 
-    let is_display_filtered = filter.search.is_some() || filter.classification.is_some();
+    let is_display_filtered = filter.search.is_some() || filter.classification.is_some() || filter.party_id.is_some();
     let (matching_inflows_minor, matching_outflows_minor, matching_count) = if is_display_filtered {
         (Some(matching_inflows), Some(matching_outflows), Some(entries.len()))
     } else {

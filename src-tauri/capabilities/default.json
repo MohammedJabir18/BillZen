@@ -32,6 +32,8 @@
     "allow-update-money-account",
     "allow-get-cashbook-categories",
     "allow-create-cashbook-category",
+    "allow-ensure-customer-cashbook-party",
+    "allow-get-customer-cash-history",
     "allow-get-cashbook-parties",
     "allow-create-cashbook-party",
     "allow-post-cashbook-voucher",

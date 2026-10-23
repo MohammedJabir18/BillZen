@@ -25,7 +25,9 @@
     "test:android-update": "node scripts/verify_android_update_flow.js",
     "test:dashboard": "node scripts/verify_dashboard_reports.js",
     "tauri": "tauri",
-    "icons:generate": "node scripts/generate_icons.mjs"
+    "icons:generate": "node scripts/generate_icons.mjs",
+    "test:workspace": "node scripts/verify_web_foundation.js",
+    "test:customer-cashbook": "node scripts/verify_customer_cashbook.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

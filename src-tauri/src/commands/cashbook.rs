@@ -79,3 +79,13 @@ pub async fn get_cashbook_ledger(
 ) -> Result<(Vec<CashbookLedgerEntry>, CashbookSummary), String> {
     worker.get_cashbook_ledger(filter).await
 }
+
+#[tauri::command]
+pub async fn ensure_customer_cashbook_party(worker: State<'_, DbWorkerHandle>, input: EnsureCustomerCashbookPartyInput) -> Result<CashbookParty, String> {
+    worker.ensure_customer_cashbook_party(input).await
+}
+
+#[tauri::command]
+pub async fn get_customer_cash_history(worker: State<'_, DbWorkerHandle>, filter: CustomerCashHistoryFilter) -> Result<CustomerCashHistory, String> {
+    worker.get_customer_cash_history(filter).await
+}
