@@ -1,5 +1,7 @@
 # Android update delivery — implementation and verified release status
 
+Latest delivery: **v0.1.5 / code1010 published** with the original certificate and pinned signed feed. See [distribution checksums and acceptance](distribution-v0.1.5.md). Older implementation evidence below is historical.
+
 Status: **Updater-enabled bootstrap release APK (v0.1.1 / versionCode 1005) built, signed, and verified**. Full automated 27-assertion verification suite passed on Android 14 (`npm run test:android-update`). Signed release APK and signed production manifest ready in `dist-android/`.
 
 BillZen now prepares anonymous signed release checks, bounded private APK downloads, Settings controls, certificate/package/version validation and Android installer consent. Offline company records remain local. The production feed is `https://github.com/MohammedJabir18/BillZen/releases/latest/download/android-update.json`. The original BillZen repository is public. The separate BillZen-releases repository was deleted at the owner's explicit request and confirmation.

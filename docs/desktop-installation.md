@@ -1,6 +1,10 @@
 # BillZen desktop installation
 
-**Latest verified local build candidates: v0.1.4.** See [distribution files and checksums](distribution-v0.1.4.md). Windows friend file: `dist-desktop/windows/v0.1.4/BillZen_0.1.4_x64-setup.exe`. Linux per-user installation has been refreshed to this build. These candidates have not been promoted to a public release.
+**v0.1.5 distribution:** [release files](https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.5) · [release notes and signing limitations](releases/v0.1.5.md).
+
+Use `BillZen-0.1.5-macOS-AppleSilicon.dmg` for M-series Macs, `BillZen-0.1.5-Windows-x64.exe` for64-bit Windows, and `.deb`/`.AppImage` files with the same version/platform prefix for Linux. Mac is ad-hoc signed, not Apple-notarized; Windows has no Authenticode signature. The signed Android APK/feed is separate. Desktop automatic updates are not configured.
+
+The installed Linux per-user executable has been refreshed from the verified v0.1.5 Debian package; restart the application. Older candidate notes below are historical and superseded by this release.
 
 ## T1 transfer candidate — 2026-10-23
 

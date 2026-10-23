@@ -26,12 +26,12 @@ The shop counter should keep moving when the internet stops. Your catalog, custo
 <tr>
 <td width="33%"><strong>◈ Local at the core</strong><br /><br />Native catalog operations persist in SQLite. No cloud account is needed for the implemented local workflows.</td>
 <td width="33%"><strong>⌁ Exact by design</strong><br /><br />Integer minor units, scaled quantities and checked calculations form the financial foundation.</td>
-<td width="33%"><strong>↗ Room to grow</strong><br /><br />A shared Rust/React foundation, with desktop validation first and standalone mobile/web persistence on the roadmap.</td>
+<td width="33%"><strong>↗ Room to grow</strong><br /><br />A shared Rust/React foundation with native SQLite and durable browser IndexedDB workflows.</td>
 </tr>
 </table>
 
 > [!IMPORTANT]
-> **v0.1.0 is a development preview.** Catalog and financial foundations are implemented; complete invoice, payment and backup workflows are still ahead. A legacy-category migration issue must be resolved before M3 is considered closed. Use synthetic data. [Current verification & known issues →](docs/verification-status.md)
+> **BillZen is a beta.** Company Cashbook, customer-linked history, account transfers, stock adjustments and complete workspace backups are available. Complete invoice finalization, supplier bills and device synchronization remain future work. [Download v0.1.5 packages →](https://github.com/MohammedJabir18/BillZen/releases/tag/v0.1.5) · [Verification & limitations →](docs/verification-status.md)
 
 ## 🎬 See it in motion
 
@@ -61,14 +61,14 @@ The shop counter should keep moving when the internet stops. Your catalog, custo
 | Area | Implemented foundation | Still ahead |
 | :--- | :--- | :--- |
 | **Catalog** | Products, customers, categories, search, archive/restore and barcode lookup | Variants, vendor workflows and large-catalog performance validation |
-| **Inventory** | Tracked opening stock + ledger transaction; quantity bounds and tracking-transition checks | Sale/restock workflows and complete reconciliation tooling |
+| **Inventory** | Opening stock, Add/Reduce adjustments, immutable history/corrections and quantity bounds | Automatic sale/purchase-linked inventory and wider reconciliation tooling |
 | **Cashbook & transfers** | Receipts/payments, customer-linked cash history, atomic account transfers and paired reversals, period/account reports, CSV and A4 transfer documents | Invoice-linked debt/settlements and supplier bills |
 | **Financial core** | Checked Rust/TypeScript arithmetic, currency/exponent validation and document models | Persisted draft/finalize invoice workflow and payment allocation UI |
 | **Regional UX** | English, Malayalam and Arabic resources; RTL mode; INR + six GCC currencies | Full translation/input acceptance and jurisdiction-specific tax adapters |
 | **Documents** | Reusable A4 component and four automated Chromium/Chrome PDF fixtures | Native export parity, physical printer validation and 80 mm/58 mm layouts |
 | **Local platform** | Rust worker, SQLite migrations, startup checks, advisory lock and versioned complete native/supported-browser workspace backup/restore | Encryption, sync and wider OS verification |
 
-Account transfers: [operator guide](docs/account-transfers-guide.md) · [engine/backup contracts](docs/transfer-engine-status.md) · [verification and candidate checksums](docs/verification-status.md). Local T1 candidates are rebuilt; installed applications and public updater releases are separate delivery steps.
+Account transfers: [operator guide](docs/account-transfers-guide.md) · [engine/backup contracts](docs/transfer-engine-status.md) · [verification and candidate checksums](docs/verification-status.md). Product stock: [operator guide](docs/product-stock-guide.md). Platform packages and signing/update limitations: [v0.1.5 release notes](docs/releases/v0.1.5.md).
 
 **Status is evidence-based.** Schema tables and sample invoice documents do not imply that complete billing workflows have shipped. Currency formatting is not a GST/VAT or statutory e-invoicing certification.
 

@@ -8,7 +8,7 @@ const ARTIFACTS_DIR = path.resolve('test_artifacts/native_cashbook');
 fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 const REPORT_PATH = path.join(ARTIFACTS_DIR, 'native_cashbook_verification_report.json');
 
-const BINARY_PATH = path.resolve('src-tauri/target/release/billzen');
+const BINARY_PATH = path.resolve(process.env.BILLZEN_NATIVE_BINARY || 'src-tauri/target/release/billzen');
 
 function getFileSha256(filePath) {
   if (!fs.existsSync(filePath)) return null;
