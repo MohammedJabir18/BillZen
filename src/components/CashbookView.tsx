@@ -1,3 +1,4 @@
+import { AnimatedSegmentedControl } from './AnimatedSegmentedControl';
 import { TransferControls } from './TransferControls';
 import { transferText } from '../i18n/transfers';
 import React, { useState, useMemo, useRef } from 'react';
@@ -1864,30 +1865,12 @@ export const CashbookView: React.FC<CashbookViewProps> = ({
 
               <div className="flex items-center gap-2">
                 {/* Format Switcher */}
-                <div className="flex bg-surface-subtle p-0.5 rounded-lg text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setVoucherPrintFormat('a4')}
-                    className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                      voucherPrintFormat === 'a4'
-                        ? 'bg-surface text-text-main shadow-xs'
-                        : 'text-text-muted'
-                    }`}
-                  >
-                    {c("A4 Voucher")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVoucherPrintFormat('thermal80')}
-                    className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
-                      voucherPrintFormat === 'thermal80'
-                        ? 'bg-surface text-text-main shadow-xs'
-                        : 'text-text-muted'
-                    }`}
-                  >
-                    {c("80mm Thermal")}
-                  </button>
-                </div>
+                <AnimatedSegmentedControl value={voucherPrintFormat} onChange={setVoucherPrintFormat} language={language}
+                  label={c('A4 Voucher')+' / '+c('80mm Thermal')} testId="voucher-format-control" options={[
+                    {value:'a4',label:c('A4 Voucher'),testId:'voucher-format-a4'},
+                    {value:'thermal80',label:c('80mm Thermal'),testId:'voucher-format-thermal80'},
+                  ]}/>
+
 
                 <button
                   type="button"

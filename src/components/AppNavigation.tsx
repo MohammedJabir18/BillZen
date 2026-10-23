@@ -58,6 +58,14 @@ export function MobileNavigation({ activeTab, language, onNavigate }: Navigation
   const dialog = useRef<HTMLDivElement>(null);
   const capsuleRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const measure = () => document.documentElement.style.setProperty('--app-mobile-nav-height', `${nav.getBoundingClientRect().height}px`);
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);measure();
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty('--app-mobile-nav-height'); };
+  }, []);
   useBackHandler(open, () => setOpen(false));
   const t = translations[language];
   const items = destinations(language);

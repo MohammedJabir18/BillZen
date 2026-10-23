@@ -168,10 +168,10 @@ const AppContent: React.FC = () => {
 
 
   return (
-    <div className={`min-h-screen bg-[var(--bg-canvas)] text-[var(--text-main)] flex flex-col font-sans transition-colors ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`app-shell min-h-screen bg-[var(--bg-canvas)] text-[var(--text-main)] flex flex-col font-sans transition-colors ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Top Application Bar (no-print) */}
       <header
-        className="bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] sticky top-0 z-20 no-print shadow-sm transition-colors"
+        className="app-header bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] sticky top-0 z-20 no-print shadow-sm transition-colors"
         style={{
           paddingTop: isAndroid
             ? 'max(24px, env(safe-area-inset-top, 0px), var(--sat, 0px))'
@@ -206,7 +206,7 @@ const AppContent: React.FC = () => {
 
       {/* Main Content Area with bottom padding on mobile for thumb bar */}
       <main
-        className="app-main flex-1 min-w-0 w-full mx-auto py-4 sm:py-6 px-3 sm:px-6 lg:px-8"
+        className="app-main flex-1 min-w-0 w-full mx-auto pt-4 sm:pt-6 px-3 sm:px-6 lg:px-8"
       >
         {activeTab === 'dashboard' && (
           <DashboardView

@@ -1,3 +1,4 @@
+import { AnimatedSegmentedControl } from './AnimatedSegmentedControl';
 import { transferText } from '../i18n/transfers';
 import { useEntryMotion } from '../hooks/useEntryMotion';
 import React, { useState, useMemo, useRef } from 'react';
@@ -371,52 +372,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       {/* Period Controls & Date Selector Bar */}
       <div data-screen-entry className="bg-surface border border-border-subtle rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-4">
         {/* Period Switcher (Today, Month, Year, Custom) */}
-        <div className="flex flex-wrap items-center gap-1 bg-surface-subtle p-1 rounded-xl w-full sm:w-auto max-w-full">
-          <button
-            onClick={() => setPeriod('today')}
-            data-testid="report-period-today" aria-pressed={period === 'today'}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              period === 'today'
-                ? 'bg-surface text-text-main shadow-sm'
-                : 'text-text-muted hover:text-slate-900 dark:hover:text-zinc-100'
-            }`}
-          >
-            {t.period_today}
-          </button>
-          <button
-            onClick={() => setPeriod('month')}
-            data-testid="report-period-month" aria-pressed={period === 'month'}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              period === 'month'
-                ? 'bg-surface text-text-main shadow-sm'
-                : 'text-text-muted hover:text-slate-900 dark:hover:text-zinc-100'
-            }`}
-          >
-            {t.period_month}
-          </button>
-          <button
-            onClick={() => setPeriod('year')}
-            data-testid="report-period-year" aria-pressed={period === 'year'}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              period === 'year'
-                ? 'bg-surface text-text-main shadow-sm'
-                : 'text-text-muted hover:text-slate-900 dark:hover:text-zinc-100'
-            }`}
-          >
-            {t.period_year}
-          </button>
-          <button
-            onClick={() => setPeriod('custom')}
-            data-testid="report-period-custom" aria-pressed={period === 'custom'}
-            className={`flex-1 sm:flex-initial px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              period === 'custom'
-                ? 'bg-surface text-text-main shadow-sm'
-                : 'text-text-muted hover:text-slate-900 dark:hover:text-zinc-100'
-            }`}
-          >
-            {t.period_custom}
-          </button>
-        </div>
+        <AnimatedSegmentedControl value={period} onChange={setPeriod} language={language} label={t.period_today+' / '+t.period_month+' / '+t.period_year} testId="report-period-control"
+          className="w-full sm:w-auto" options={[
+            {value:'today',label:t.period_today,testId:'report-period-today'},
+            {value:'month',label:t.period_month,testId:'report-period-month'},
+            {value:'year',label:t.period_year,testId:'report-period-year'},
+            {value:'custom',label:t.period_custom,testId:'report-period-custom'},
+          ]}/>
 
         {/* Date Navigator / Custom Range */}
         {period !== 'custom' ? (
@@ -483,87 +445,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       </div>
 
-      {/* Detail Filters Row */}
-      <div data-screen-entry className="bg-surface border border-border-subtle rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-        {/* Search Input */}
-        <div className="relative min-w-0 w-full sm:col-span-2">
-          <Search className="w-4 h-4 text-text-muted absolute start-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testid="report-search-input" aria-label={c("Search")}
-            placeholder={t.search_transactions_hint}
-            className="w-full ps-9 pe-3 py-1.5 text-xs bg-surface-subtle border border-border-medium rounded-xl text-text-main placeholder:text-text-muted focus:ring-1 focus:ring-border-focus outline-none"
-          />
-        </div>
-
-        <select value={partyFilter} onChange={e => setPartyFilter(e.target.value)} data-testid="report-party-select" aria-label={customerCashText(language, 'party')} className="min-h-[44px] max-w-full text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none focus:ring-2 focus:ring-border-focus">
-          <option value="">{customerCashText(language, 'allParties')}</option>
-          {parties.map(party => <option key={party.id} value={party.id}>{party.name}{party.phone || party.email ? ` · ${party.phone || party.email}` : ''}{party.is_archived ? ` (${customerCashText(language, 'archived')})` : ''}</option>)}
-        </select>
-        {partiesError && <button onClick={() => refetchParties()}>{customerCashText(language, 'retry')}</button>}
-
-        {/* Direction Filter */}
-        <select
-          value={directionFilter}
-          onChange={(e) => setDirectionFilter(e.target.value as any)}
-          data-testid="report-direction-select" aria-label={c("Direction:")}
-          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
-        >
-          <option value="all">{t.filter_direction_all}</option>
-          <option value="inflow">{t.filter_direction_inflow}</option>
-          <option value="outflow">{t.filter_direction_outflow}</option>
-        </select>
-
-        {/* Category Filter */}
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          data-testid="report-category-select" aria-label={c("All Categories")}
-          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
-        >
-          <option value="all">{c("All Categories")}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-
-        {/* Classification Filter */}
-        <select
-          value={classificationFilter}
-          onChange={(e) => setClassificationFilter(e.target.value)}
-          data-testid="report-classification-select" aria-label={c("Classification")}
-          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
-        >
-          <option value="all">{c("All Classifications")}</option>
-          <option value="operating_income">{c("Operating Income")}</option>
-          <option value="operating_expense">{c("Operating Expense")}</option>
-          <option value="capital">{c("Capital")}</option>
-          <option value="loan">{c("Loan")}</option>
-          <option value="advance">{c("Advance")}</option>
-          <option value="refund">{c("Refund")}</option>
-          <option value="transfer">{c("Transfer")}</option>
-        </select>
-
-        {/* Payment Method Filter */}
-        <select
-          value={paymentMethodFilter}
-          onChange={(e) => setPaymentMethodFilter(e.target.value)}
-          data-testid="report-method-select" aria-label={c("Payment Method")}
-          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
-        >
-          <option value="all">{t.filter_payment_method_all}</option>
-          <option value="cash">{c("Cash")}</option>
-          <option value="upi">{c("UPI / QR")}</option>
-          <option value="card">{c("Card")}</option>
-          <option value="bank_transfer">{c("Bank Transfer")}</option>
-          <option value="cheque">{c("Cheque")}</option>
-        </select>
-
-        {/* Reset Filters button if any active */}
+      <section data-screen-entry data-testid="report-filters" className="reports-filters bg-surface border border-border-subtle rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-5 py-3 border-b border-border-subtle flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-text-main">{c('Transaction details')}</h2>
+                  {/* Reset Filters button if any active */}
         {hasDetailFilter && (
           <button
             onClick={() => {
@@ -581,7 +466,95 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <span>{c("Reset")}</span>
           </button>
         )}
-      </div>
+
+        </div>
+        <div className="p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(12rem,.6fr)] gap-3 items-start">
+                    {/* Search Input */}
+        <div className="relative min-w-0 w-full">
+          <label className="block text-[11px] font-semibold text-text-muted mb-1.5 leading-4" htmlFor="report-transaction-search">{c("Search")}</label>
+          <Search className="w-4 h-4 text-text-muted absolute start-3 bottom-3.5" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            id="report-transaction-search" data-testid="report-search-input" aria-label={c("Search")}
+            placeholder={t.search_transactions_hint}
+            className="w-full min-h-11 ps-9 pe-3 py-1.5 text-xs bg-surface-subtle border border-border-medium rounded-xl text-text-main placeholder:text-text-muted focus:ring-1 focus:ring-border-focus outline-none"
+          />
+        </div>
+
+<label className="block min-w-0"><span className="block text-[11px] font-semibold text-text-muted mb-1.5 leading-4">{customerCashText(language,'party')}</span>        <select value={partyFilter} onChange={e => setPartyFilter(e.target.value)} data-testid="report-party-select" aria-label={customerCashText(language, 'party')} className="min-h-[44px] max-w-full text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none focus:ring-2 focus:ring-border-focus">
+          <option value="">{customerCashText(language, 'allParties')}</option>
+          {parties.map(party => <option key={party.id} value={party.id}>{party.name}{party.phone || party.email ? ` · ${party.phone || party.email}` : ''}{party.is_archived ? ` (${customerCashText(language, 'archived')})` : ''}</option>)}
+        </select>
+        </label>
+        {partiesError && <button onClick={() => refetchParties()}>{customerCashText(language, 'retry')}</button>}
+          </div>
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-4 gap-3 pt-4 border-t border-border-subtle">
+                    {/* Direction Filter */}
+        <label className="block min-w-0"><span className="block text-[11px] font-semibold text-text-muted mb-1.5 leading-4">{c("Direction:")}</span><select
+          value={directionFilter}
+          onChange={(e) => setDirectionFilter(e.target.value as any)}
+          data-testid="report-direction-select" aria-label={c("Direction:")}
+          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
+        >
+          <option value="all">{t.filter_direction_all}</option>
+          <option value="inflow">{t.filter_direction_inflow}</option>
+          <option value="outflow">{t.filter_direction_outflow}</option>
+        </select></label>
+
+        {/* Category Filter */}
+        <label className="block min-w-0"><span className="block text-[11px] font-semibold text-text-muted mb-1.5 leading-4">{c("All Categories")}</span><select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          data-testid="report-category-select" aria-label={c("All Categories")}
+          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
+        >
+          <option value="all">{c("All Categories")}</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select></label>
+
+        {/* Classification Filter */}
+        <label className="block min-w-0"><span className="block text-[11px] font-semibold text-text-muted mb-1.5 leading-4">{c("Classification")}</span><select
+          value={classificationFilter}
+          onChange={(e) => setClassificationFilter(e.target.value)}
+          data-testid="report-classification-select" aria-label={c("Classification")}
+          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
+        >
+          <option value="all">{c("All Classifications")}</option>
+          <option value="operating_income">{c("Operating Income")}</option>
+          <option value="operating_expense">{c("Operating Expense")}</option>
+          <option value="capital">{c("Capital")}</option>
+          <option value="loan">{c("Loan")}</option>
+          <option value="advance">{c("Advance")}</option>
+          <option value="refund">{c("Refund")}</option>
+          <option value="transfer">{c("Transfer")}</option>
+        </select></label>
+
+        {/* Payment Method Filter */}
+        <label className="block min-w-0"><span className="block text-[11px] font-semibold text-text-muted mb-1.5 leading-4">{c("Payment Method")}</span><select
+          value={paymentMethodFilter}
+          onChange={(e) => setPaymentMethodFilter(e.target.value)}
+          data-testid="report-method-select" aria-label={c("Payment Method")}
+          className="text-xs bg-surface-subtle border border-border-medium rounded-xl px-2.5 py-1.5 text-text-main font-medium outline-none"
+        >
+          <option value="all">{t.filter_payment_method_all}</option>
+          <option value="cash">{c("Cash")}</option>
+          <option value="upi">{c("UPI / QR")}</option>
+          <option value="card">{c("Card")}</option>
+          <option value="bank_transfer">{c("Bank Transfer")}</option>
+          <option value="cheque">{c("Cheque")}</option>
+        </select></label>
+
+
+          </div>
+        </div>
+      </section>
 
       {/* Balance Summary Bar */}
       <div data-screen-entry className="bg-surface text-text-main border border-border-subtle rounded-2xl p-4 shadow-sm">

@@ -112,6 +112,8 @@ jobs:
 
       - name: Verify interruptible motion and live reduced-motion preferences
         run: npm run test:motion
+      - name: Reports responsive filters and segmented motion
+        run: npm run test:reports-refresh
 
       - name: Audit navigation and screen layouts across languages and themes
         run: node scripts/verify_layout_regression.js

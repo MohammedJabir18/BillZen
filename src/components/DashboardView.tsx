@@ -1,3 +1,4 @@
+import { AnimatedSegmentedControl } from './AnimatedSegmentedControl';
 import { transferText } from '../i18n/transfers';
 import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
@@ -324,69 +325,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 2. Filter Bar: Period buttons, date step, account selector */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl shadow-sm">
         {/* Segmented Period Switcher */}
-        <div className="flex flex-wrap items-center gap-1 bg-[var(--bg-surface-subtle)] p-1 rounded-xl max-w-full">
-          <button
-            onClick={() => {
-              setPeriod('today');
-              setReferenceDate(todayStr);
-              setSelectedBarLabel(null);
-            }}
-            data-testid="period-today"
-            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
-              period === 'today'
-                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
-            }`}
-          >
-            {t.period_today}
-          </button>
-          <button
-            onClick={() => {
-              setPeriod('month');
-              setReferenceDate(todayStr);
-              setSelectedBarLabel(null);
-            }}
-            data-testid="period-month"
-            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
-              period === 'month'
-                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
-            }`}
-          >
-            {t.period_month}
-          </button>
-          <button
-            onClick={() => {
-              setPeriod('year');
-              setReferenceDate(todayStr);
-              setSelectedBarLabel(null);
-            }}
-            data-testid="period-year"
-            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
-              period === 'year'
-                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
-            }`}
-          >
-            {t.period_year}
-          </button>
-          <button
-            onClick={() => {
-              setPeriod('custom');
-              setSelectedBarLabel(null);
-            }}
-            data-testid="period-custom"
-            className={`px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
-              period === 'custom'
-                ? 'bg-[var(--brand-lime)] text-[#142811] dark:bg-[#2e5733] dark:text-[#ceeaa0] font-bold shadow-xs'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--bg-surface)] font-medium'
-            }`}
-          >
-            {t.period_custom}
-          </button>
-        </div>
+        <AnimatedSegmentedControl value={period} language={language} label={t.period_today+' / '+t.period_month+' / '+t.period_year} testId="dashboard-period-control"
+          onChange={next=>{setPeriod(next);if(next!=='custom')setReferenceDate(todayStr);setSelectedBarLabel(null);}}
+          options={[
+            {value:'today',label:t.period_today,testId:'period-today'},
+            {value:'month',label:t.period_month,testId:'period-month'},
+            {value:'year',label:t.period_year,testId:'period-year'},
+            {value:'custom',label:t.period_custom,testId:'period-custom'},
+          ]}/>
 
-        {/* Previous / Next period step controls (disabled in custom mode) */}
         {period !== 'custom' ? (
           <div className="flex items-center gap-1 text-[var(--text-muted)]">
             <button
@@ -452,32 +399,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </select>
 
           {/* Simple vs Detailed Analytics Mode */}
-          <div className="flex items-center gap-1 bg-[var(--bg-surface-subtle)] p-0.5 rounded-xl border border-[var(--border-subtle)]">
-            <button
-              onClick={() => setMode('simple')}
-              data-testid="tab-simple"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
-                mode === 'simple'
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-main)] font-bold shadow-xs'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)] font-medium'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>{t.simple_view}</span>
-            </button>
-            <button
-              onClick={() => setMode('analytics')}
-              data-testid="tab-analytics"
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all duration-120 active:scale-[0.975] focus-ring ${
-                mode === 'analytics'
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-main)] font-bold shadow-xs'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)] font-medium'
-              }`}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>{t.analytics_view}</span>
-            </button>
-          </div>
+          <AnimatedSegmentedControl value={mode} onChange={setMode} language={language} label={t.simple_view+' / '+t.analytics_view} testId="dashboard-mode-control"
+            options={[
+              {value:'simple',label:<><List className="w-3.5 h-3.5"/>{t.simple_view}</>,testId:'tab-simple'},
+              {value:'analytics',label:<><BarChart2 className="w-3.5 h-3.5"/>{t.analytics_view}</>,testId:'tab-analytics'},
+            ]}/>
+
         </div>
       </div>
 

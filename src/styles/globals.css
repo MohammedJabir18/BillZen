@@ -208,7 +208,10 @@ html.dark {
 /* Navigation owns its own safe-area space; content never sits behind the thumb bar. */
 .app-mobile-nav { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)); }
 .app-more-navigation { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px), var(--sab, 0px)); }
-.app-main { padding-bottom: calc(7rem + max(env(safe-area-inset-bottom, 0px), var(--sab, 0px))); }
+.app-shell { min-height: 100dvh; min-width: 0; }
+.app-main { padding-bottom: calc(var(--app-mobile-nav-height, 7rem) + 1.5rem); min-height: 0; }
+html { scroll-padding-bottom: calc(var(--app-mobile-nav-height, 0px) + 1rem); }
+@media (max-height: 520px) { .app-header { position: static; } }
 @media (min-width: 1024px) { .app-main { padding-bottom: 1.5rem; } }
 
 /* Cashbook screen controls: touch-sized and keyboard-visible without affecting paper. */
@@ -254,3 +257,13 @@ html.dark {
 }
 .reports-screen button:disabled { opacity: .55; cursor: not-allowed; }
 .reports-screen [dir="ltr"] { unicode-bidi: isolate; }
+
+/* Reports: labelled fields and a balanced secondary row, independent of native select rendering. */
+.reports-filters select {
+  width: 100%; appearance: none; padding-inline: .85rem 2.4rem;
+  background-color: var(--bg-canvas); border-color: var(--border-subtle);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238b998b' stroke-width='1.6'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right .8rem center;
+}
+[dir="rtl"] .reports-filters select { background-position: left .8rem center; }
+.reports-filters input { background-color: var(--bg-canvas); }

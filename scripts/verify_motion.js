@@ -232,7 +232,8 @@ try {
             (samples[key] ||= []).push(scale);
           }
         });
-        observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+        // Capsule motion outside the chart must not sample stale, settled query bars.
+        observer.observe(document.querySelector('[data-testid="analytics-bars-container"]'), { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
         window.__periodTrace = { samples, observer };
       });
       await page.getByTestId('period-' + period).click();

@@ -1,3 +1,4 @@
+import { useNavigationCapsule } from '../hooks/useNavigationCapsule';
 import { useEntryMotion } from '../hooks/useEntryMotion';
 import {UpdatesSettings} from './UpdatesSettings';
 import React, { useState, useEffect, useRef } from 'react';
@@ -182,6 +183,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
+  const appearanceRef = useRef<HTMLDivElement>(null), appearanceCapsule = useRef<HTMLDivElement>(null);
+  useNavigationCapsule(appearanceRef, appearanceCapsule, `appearance-option-${appearance}`, `${currentLanguage}:${Boolean(formData)}`);
   const screenRef = useRef<HTMLDivElement>(null);
   useEntryMotion(screenRef, '[data-screen-entry]', [], 'cards', !isLoading && Boolean(formData));
 
@@ -363,7 +366,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div ref={appearanceRef} data-testid="appearance-control" className="relative isolate grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div ref={appearanceCapsule} data-segmented-capsule aria-hidden="true" className="absolute inset-0 z-0 bg-lime-50 dark:bg-lime-950/40 pointer-events-none" style={{clipPath:'inset(0 100% 100% 0)'}}/>
           {appearanceOptions.map((opt) => {
             const isSelected = appearance === opt.mode;
             return (
@@ -372,9 +376,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 type="button"
                 data-testid={`appearance-option-${opt.mode}`}
                 onClick={() => setAppearance(opt.mode)}
-                className={`p-4 rounded-xl border text-left flex flex-col justify-between transition-all min-h-[96px] ${
+                aria-pressed={isSelected}
+                className={`relative z-10 p-4 rounded-xl border text-start flex flex-col justify-between transition-all min-h-[96px] ${
                   isSelected
-                    ? 'border-lime-500 bg-lime-50/50 dark:bg-lime-950/20 ring-2 ring-lime-500/20'
+                    ? 'border-lime-500 bg-transparent ring-2 ring-lime-500/20'
                     : 'border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700 bg-gray-50/50 dark:bg-zinc-800/40'
                 }`}
               >

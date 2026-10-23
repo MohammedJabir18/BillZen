@@ -30,7 +30,8 @@
     "test:customer-cashbook": "node scripts/verify_customer_cashbook.js",
     "test:transfers": "node scripts/verify_web_transfers.js",
     "test:transfer-interop": "node scripts/verify_transfer_interop.js",
-    "test:transfers-ui": "node scripts/verify_transfers_ui.js"
+    "test:transfers-ui": "node scripts/verify_transfers_ui.js",
+    "test:reports-refresh": "node scripts/verify_reports_refresh.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
