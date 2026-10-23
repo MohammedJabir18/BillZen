@@ -2,6 +2,11 @@ name: Desktop Release Packages
 
 on:
   workflow_dispatch:
+    inputs:
+      mac_only:
+        description: Build only the Apple Silicon installer
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -12,19 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: macOS-AppleSilicon
-            os: macos-15
-            target: aarch64-apple-darwin
-            bundles: dmg
-          - platform: Windows-x64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundles: nsis
-          - platform: Linux-x64
-            os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            bundles: deb,appimage
+        include: ${{ fromJSON(inputs.mac_only && '[{"platform":"macOS-AppleSilicon","os":"macos-15","target":"aarch64-apple-darwin","bundles":"dmg"}]' || '[{"platform":"macOS-AppleSilicon","os":"macos-15","target":"aarch64-apple-darwin","bundles":"dmg"},{"platform":"Windows-x64","os":"windows-latest","target":"x86_64-pc-windows-msvc","bundles":"nsis"},{"platform":"Linux-x64","os":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -70,10 +63,20 @@ jobs:
       - name: Verify macOS bundle architecture and signature
         if: runner.os == 'macOS'
         run: |
-          APP=src-tauri/target/${{ matrix.target }}/release/bundle/macos/BillZen.app
+          # Tauri removes the intermediate .app when only DMG is requested.
+          # Inspect the app actually delivered inside the read-only disk image.
+          DMG_DIR=src-tauri/target/${{ matrix.target }}/release/bundle/dmg
+          DMGS=("$DMG_DIR"/*.dmg)
+          test "${#DMGS[@]}" -eq 1
+          MOUNT=$(mktemp -d)
+          trap 'hdiutil detach "$MOUNT" >/dev/null; rmdir "$MOUNT"' EXIT
+          hdiutil attach "${DMGS[0]}" -readonly -nobrowse -mountpoint "$MOUNT"
+          APP="$MOUNT/BillZen.app"
           lipo "$APP/Contents/MacOS/billzen" -verify_arch arm64
           codesign --verify --deep --strict --verbose=2 "$APP"
-          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist"
+          ACTUAL=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")
+          EXPECTED=$(node -p "JSON.parse(require('fs').readFileSync('release/version.json')).version")
+          test "$ACTUAL" = "$EXPECTED"
       - name: Collect exact installers and provenance
         env:
           PACKAGE_TARGET: ${{ matrix.target }}
