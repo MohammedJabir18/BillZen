@@ -1,5 +1,8 @@
 # BillZen Architecture & System Design
 
+> **Current-state notice —2026-10-24:** This file contains chronological architecture snapshots, including proposed and later-superseded work. Read [session-handoff.md](session-handoff.md) for current delivered state and [../docs/architecture.md](../docs/architecture.md) for the maintained technical overview. Customer cash history/transfers/stock/backup and desktop updater are delivered; commercial invoice drafts/finalization are not yet delivered. Old outbox/compliance diagrams describe intended architecture, not a certified working integration.
+
+
 ## 1. Overview
 BillZen is an offline-first desktop billing and financial management system designed for retail, wholesale, and service businesses. It prioritizes financial precision, zero external network dependency during point-of-sale operations, commercial invoice immutability, and single-instance data durability.
 
@@ -10,8 +13,8 @@ BillZen is an offline-first desktop billing and financial management system desi
 - **Frontend Framework**: React 19.3.1 (`@tanstack/react-query 5.66.0`, `lucide-react 0.475.0`)
 - **Bundler & Toolchain**: Vite 8.3.4, Node.js v22.23.3 LTS (Active)
 - **Styling**: Tailwind CSS 3.4.17 (tabular numbers, print CSS media queries)
-- **Testing**: Vitest 5.0.5 (frontend calculation parity), Cargo test (13 unit and integration tests across domain, migrations, rollback, worker handshake, single-instance lock, and capability isolation)
-- **Packaging**: Debian installer (`.deb`, 7.27 MiB) and standalone release binary
+- **Testing**: Vitest 5.0.5 (frontend calculation parity), Cargo test (latest recorded full native suite:118 tests; see dated verification evidence)
+- **Packaging**: Linux AppImage/deb, Windows x64 NSIS and Apple Silicon DMG/updater packages; Android has its independent APK/feed. Desktop0.1.6 and Android0.1.5 are distinct releases; see current handoff
 
 ## 3. High-Level Architecture
 ```mermaid

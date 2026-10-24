@@ -12,7 +12,7 @@ You are the Lead AI Pair Programmer for this project. We strictly use a "Second 
 
 ### 2. Session Start Protocol (MANDATORY at the beginning of EVERY session)
 Before writing any code or answering task questions:
-1. Read `brain/sessions.md` to restore context from previous sessions.
+1. Read `brain/README.md`, `brain/session-handoff.md` and `brain/decisions.md`, then the recent entries of `brain/sessions.md` to restore context. Load `brain/conversation-history.md` on demand for earlier requests; it is a reconstruction, not a verbatim transcript.
 2. Read `brain/architecture.md` and the Graphify graph in `brain/` to understand current dependencies.
 3. Greet the user with a short 2-bullet summary:
    - "Where we left off last time:"
@@ -31,9 +31,10 @@ When the user says "Wrap up this session" or when major milestones are completed
 2. Update `brain/architecture.md` if any architectural changes occurred.
 3. Re-sync Graphify by running:
    ```bash
-   graphify . --obsidian --obsidian-dir ./brain --update
+   graphify . --obsidian --obsidian-dir ./brain --update --code-only
    ```
 
+Use local code-only extraction for this checkout. Semantic extraction may upload repository content and was previously rejected by automatic approval review; do not retry without separately authorized safe configuration. Record missing SQL/semantic coverage honestly.
 
 ## GitHub Delivery — User-authorized workflow
 
