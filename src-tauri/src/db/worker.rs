@@ -1,3 +1,4 @@
+use crate::domain::invoice_drafts::*;
 use crate::db::stock::{StockAdjustmentInput, StockMovement};
 use crate::domain::transfers::*;
 use crate::db::initialize_database;
@@ -12,6 +13,11 @@ use std::path::PathBuf;
 use tokio::sync::{mpsc, oneshot};
 
 pub enum DbRequest {
+    DeleteInvoiceDraft { id: String, expected_version: i64, respond_to: oneshot::Sender<Result<(), String>> },
+    ListInvoiceDrafts { respond_to: oneshot::Sender<Result<Vec<InvoiceDraftSummaryDto>, String>> },
+    GetInvoiceDraft { id: String, respond_to: oneshot::Sender<Result<InvoiceDraftDetailDto, String>> },
+    UpdateInvoiceDraft { request: UpdateDraftInvoiceRequest, respond_to: oneshot::Sender<Result<InvoiceDraftDetailDto, String>> },
+    CreateInvoiceDraft { request: CreateDraftInvoiceRequest, respond_to: oneshot::Sender<Result<InvoiceDraftDetailDto, String>> },
     PostStockAdjustment { input: StockAdjustmentInput, respond_to: oneshot::Sender<Result<StockMovement,String>> },
     GetStockHistory { product_id: String, respond_to: oneshot::Sender<Result<Vec<StockMovement>,String>> },
  PostTransfer{input:CreateTransferInput,respond_to:oneshot::Sender<Result<TransferResult,String>>},
@@ -157,6 +163,11 @@ pub enum DbRequest {
 impl DbRequest {
     fn reject_during_update(self) {
         match self {
+            Self::DeleteInvoiceDraft { respond_to, .. } => { let _=respond_to.send(Err("Update installation in progress".into())); },
+            Self::ListInvoiceDrafts { respond_to, .. } => { let _=respond_to.send(Err("Update installation in progress".into())); },
+            Self::GetInvoiceDraft { respond_to, .. } => { let _=respond_to.send(Err("Update installation in progress".into())); },
+            Self::UpdateInvoiceDraft { respond_to, .. } => { let _=respond_to.send(Err("Update installation in progress".into())); },
+            Self::CreateInvoiceDraft { respond_to, .. } => { let _=respond_to.send(Err("Update installation in progress".into())); },
  Self::PostTransfer{respond_to,..}|Self::ReverseTransfer{respond_to,..}=>{let _=respond_to.send(Err("Update installation in progress".into()));},
  Self::GetTransfers{respond_to,..}=>{let _=respond_to.send(Err("Update installation in progress".into()));},
             Self::PrepareUpdate { respond_to, .. } => { let _ = respond_to.send(Err("An update is being installed. Return from the installer to continue.".into())); },
@@ -255,6 +266,16 @@ impl DbWorkerHandle {
                         continue;
                     }
                     match request {
+                        DbRequest::DeleteInvoiceDraft { id, expected_version, respond_to } => { let _=respond_to.send(super::invoice_drafts::delete_invoice_draft(&mut conn, &id,expected_version)); }
+
+                        DbRequest::ListInvoiceDrafts { respond_to } => { let _=respond_to.send(super::invoice_drafts::list_invoice_drafts(&conn)); }
+
+                        DbRequest::GetInvoiceDraft { id, respond_to } => { let _=respond_to.send(super::invoice_drafts::get_invoice_draft(&conn, &id)); }
+
+                        DbRequest::UpdateInvoiceDraft { request, respond_to } => { let _=respond_to.send(super::invoice_drafts::update_invoice_draft(&mut conn, request)); }
+
+                        DbRequest::CreateInvoiceDraft { request, respond_to } => { let _=respond_to.send(super::invoice_drafts::create_invoice_draft(&mut conn, request)); }
+
                         DbRequest::PrepareUpdate { respond_to } => {
                             let directory = db_path.parent().unwrap_or_else(|| std::path::Path::new(".")).join("recovery");
                             let result = (|| {
@@ -533,6 +554,36 @@ impl DbWorkerHandle {
             .map_err(|_| "Database worker thread has terminated".to_string())?;
         rx.await
             .map_err(|_| "Database worker failed to respond".to_string())?
+    }
+
+    pub async fn create_invoice_draft(&self, request: CreateDraftInvoiceRequest) -> Result<InvoiceDraftDetailDto, String> {
+        let (tx,rx)=oneshot::channel();
+        self.sender.send(DbRequest::CreateInvoiceDraft { request, respond_to:tx }).await.map_err(|e|e.to_string())?;
+        rx.await.map_err(|e|e.to_string())?
+    }
+
+    pub async fn update_invoice_draft(&self, request: UpdateDraftInvoiceRequest) -> Result<InvoiceDraftDetailDto, String> {
+        let (tx,rx)=oneshot::channel();
+        self.sender.send(DbRequest::UpdateInvoiceDraft { request, respond_to:tx }).await.map_err(|e|e.to_string())?;
+        rx.await.map_err(|e|e.to_string())?
+    }
+
+    pub async fn get_invoice_draft(&self, id: String) -> Result<InvoiceDraftDetailDto, String> {
+        let (tx,rx)=oneshot::channel();
+        self.sender.send(DbRequest::GetInvoiceDraft { id, respond_to:tx }).await.map_err(|e|e.to_string())?;
+        rx.await.map_err(|e|e.to_string())?
+    }
+
+    pub async fn list_invoice_drafts(&self) -> Result<Vec<InvoiceDraftSummaryDto>, String> {
+        let (tx,rx)=oneshot::channel();
+        self.sender.send(DbRequest::ListInvoiceDrafts { respond_to:tx }).await.map_err(|e|e.to_string())?;
+        rx.await.map_err(|e|e.to_string())?
+    }
+
+    pub async fn delete_invoice_draft(&self, id: String, expected_version: i64) -> Result<(), String> {
+        let (tx,rx)=oneshot::channel();
+        self.sender.send(DbRequest::DeleteInvoiceDraft { id, expected_version, respond_to:tx }).await.map_err(|e|e.to_string())?;
+        rx.await.map_err(|e|e.to_string())?
     }
 
     pub async fn post_stock_adjustment(&self, input: StockAdjustmentInput) -> Result<StockMovement,String> {

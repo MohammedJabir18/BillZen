@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-invoice-drafts"
+description = "Enables the list_invoice_drafts command without any pre-configured scope."
+commands.allow = ["list_invoice_drafts"]
+
+[[permission]]
+identifier = "deny-list-invoice-drafts"
+description = "Denies the list_invoice_drafts command without any pre-configured scope."
+commands.deny = ["list_invoice_drafts"]

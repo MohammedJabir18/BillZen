@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-calculate-draft-totals"
+description = "Enables the calculate_draft_totals command without any pre-configured scope."
+commands.allow = ["calculate_draft_totals"]
+
+[[permission]]
+identifier = "deny-calculate-draft-totals"
+description = "Denies the calculate_draft_totals command without any pre-configured scope."
+commands.deny = ["calculate_draft_totals"]

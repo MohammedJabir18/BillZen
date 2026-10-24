@@ -30,6 +30,13 @@ fn main() {
                 "restore_product",
                 "post_stock_adjustment",
                 "get_stock_history",
+                "create_invoice_draft",
+                "update_invoice_draft",
+                "get_invoice_draft",
+                "list_invoice_drafts",
+                "delete_invoice_draft",
+                "calculate_draft_totals",
+
                 "get_customers",
                 "create_customer",
                 "update_customer",

@@ -52,14 +52,14 @@ Public desktop0.1.5 did not include an updater: install0.1.6 once. Thereafter Se
 
 ## Next development: B1 offline invoice drafts
 
-Owner already approved transfers/billing first with inline implementation and independent final review. T1 transfers is delivered; B1 has a plan, **not an implemented Sales workflow**. Confirm this against current source before starting.
+Owner already approved transfers/billing first with inline implementation and independent final review. T1 transfers is delivered; B1 Task1 native foundation is implemented in this session; browser/backup/editor are still pending, and there is no Sales workflow yet. See ../docs/invoice-drafts-implementation.md.
 
 Read:
 - ../docs/superpowers/plans/2026-10-23-invoice-drafts.md
 - ../docs/m4a-invoice-drafts-spec.md
 - ../docs/superpowers/specs/2026-10-23-transfers-and-billing.md
 
-Start Task1: map DTOs/schema, choose creation/deletion retry tombstone representation, write failing native lifecycle/conflict/rollback/zero-effect tests, then implement domain + serialized worker + scoped commands. Keep migrations1–9 intact; use an additive migration only if needed. Do not expose a half-working Sales screen.
+Task1 uses additive migration10 draft_create_operations with deletion tombstones; existing migrations1–9 unchanged. Native lifecycle/worker/scoped commands and shared TS DTO/calculation fixtures pass. Export fails closed while a journal is populated until Task2 makes it portable. Next is Task2; do not expose a half-working Sales screen.
 
 Then Task2: durable browser transactions + complete backup compatibility/native↔browser roundtrip. Task3: responsive Sales/Drafts editor, multiple saved drafts, unsaved/conflict recovery and translated accessible preview clearly marked DRAFT. Drafts never touch stock, money, customer debt or final numbering. Finalization/B2/B3, supplier bills and sync need their later gates.
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-delete-invoice-draft"
+description = "Enables the delete_invoice_draft command without any pre-configured scope."
+commands.allow = ["delete_invoice_draft"]
+
+[[permission]]
+identifier = "deny-delete-invoice-draft"
+description = "Denies the delete_invoice_draft command without any pre-configured scope."
+commands.deny = ["delete_invoice_draft"]

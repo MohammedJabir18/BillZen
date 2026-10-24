@@ -6,3 +6,5 @@ pub mod cashbook;
 
 
 pub mod transfers;
+
+pub mod invoice_drafts;

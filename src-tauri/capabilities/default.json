@@ -56,6 +56,12 @@
     "allow-check-desktop-update",
     "allow-download-desktop-update",
     "allow-install-desktop-update",
-    "allow-cancel-desktop-update"
+    "allow-cancel-desktop-update",
+    "allow-create-invoice-draft",
+    "allow-update-invoice-draft",
+    "allow-get-invoice-draft",
+    "allow-list-invoice-drafts",
+    "allow-delete-invoice-draft",
+    "allow-calculate-draft-totals"
   ]
 }

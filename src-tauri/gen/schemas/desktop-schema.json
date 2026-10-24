@@ -189,6 +189,12 @@
           "markdownDescription": "Enables the archive_product command without any pre-configured scope."
         },
         {
+          "description": "Enables the calculate_draft_totals command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-calculate-draft-totals",
+          "markdownDescription": "Enables the calculate_draft_totals command without any pre-configured scope."
+        },
+        {
           "description": "Enables the cancel_desktop_update command without any pre-configured scope.",
           "type": "string",
           "const": "allow-cancel-desktop-update",
@@ -249,6 +255,12 @@
           "markdownDescription": "Enables the create_customer command without any pre-configured scope."
         },
         {
+          "description": "Enables the create_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-invoice-draft",
+          "markdownDescription": "Enables the create_invoice_draft command without any pre-configured scope."
+        },
+        {
           "description": "Enables the create_money_account command without any pre-configured scope.",
           "type": "string",
           "const": "allow-create-money-account",
@@ -259,6 +271,12 @@
           "type": "string",
           "const": "allow-create-product",
           "markdownDescription": "Enables the create_product command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the delete_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-invoice-draft",
+          "markdownDescription": "Enables the delete_invoice_draft command without any pre-configured scope."
         },
         {
           "description": "Enables the download_android_update command without any pre-configured scope.",
@@ -339,6 +357,12 @@
           "markdownDescription": "Enables the get_desktop_update_status command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-invoice-draft",
+          "markdownDescription": "Enables the get_invoice_draft command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_money_accounts command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-money-accounts",
@@ -367,6 +391,12 @@
           "type": "string",
           "const": "allow-install-desktop-update",
           "markdownDescription": "Enables the install_desktop_update command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the list_invoice_drafts command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-list-invoice-drafts",
+          "markdownDescription": "Enables the list_invoice_drafts command without any pre-configured scope."
         },
         {
           "description": "Enables the ping command without any pre-configured scope.",
@@ -465,6 +495,12 @@
           "markdownDescription": "Enables the update_guide_status command without any pre-configured scope."
         },
         {
+          "description": "Enables the update_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-invoice-draft",
+          "markdownDescription": "Enables the update_invoice_draft command without any pre-configured scope."
+        },
+        {
           "description": "Enables the update_money_account command without any pre-configured scope.",
           "type": "string",
           "const": "allow-update-money-account",
@@ -487,6 +523,12 @@
           "type": "string",
           "const": "deny-archive-product",
           "markdownDescription": "Denies the archive_product command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the calculate_draft_totals command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-calculate-draft-totals",
+          "markdownDescription": "Denies the calculate_draft_totals command without any pre-configured scope."
         },
         {
           "description": "Denies the cancel_desktop_update command without any pre-configured scope.",
@@ -549,6 +591,12 @@
           "markdownDescription": "Denies the create_customer command without any pre-configured scope."
         },
         {
+          "description": "Denies the create_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-invoice-draft",
+          "markdownDescription": "Denies the create_invoice_draft command without any pre-configured scope."
+        },
+        {
           "description": "Denies the create_money_account command without any pre-configured scope.",
           "type": "string",
           "const": "deny-create-money-account",
@@ -559,6 +607,12 @@
           "type": "string",
           "const": "deny-create-product",
           "markdownDescription": "Denies the create_product command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-invoice-draft",
+          "markdownDescription": "Denies the delete_invoice_draft command without any pre-configured scope."
         },
         {
           "description": "Denies the download_android_update command without any pre-configured scope.",
@@ -639,6 +693,12 @@
           "markdownDescription": "Denies the get_desktop_update_status command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-invoice-draft",
+          "markdownDescription": "Denies the get_invoice_draft command without any pre-configured scope."
+        },
+        {
           "description": "Denies the get_money_accounts command without any pre-configured scope.",
           "type": "string",
           "const": "deny-get-money-accounts",
@@ -667,6 +727,12 @@
           "type": "string",
           "const": "deny-install-desktop-update",
           "markdownDescription": "Denies the install_desktop_update command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the list_invoice_drafts command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-list-invoice-drafts",
+          "markdownDescription": "Denies the list_invoice_drafts command without any pre-configured scope."
         },
         {
           "description": "Denies the ping command without any pre-configured scope.",
@@ -763,6 +829,12 @@
           "type": "string",
           "const": "deny-update-guide-status",
           "markdownDescription": "Denies the update_guide_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_invoice_draft command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-invoice-draft",
+          "markdownDescription": "Denies the update_invoice_draft command without any pre-configured scope."
         },
         {
           "description": "Denies the update_money_account command without any pre-configured scope.",

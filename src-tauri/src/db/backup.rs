@@ -108,6 +108,9 @@ pub fn compute_canonical_checksum(payload_map: &BTreeMap<String, Value>) -> Resu
 
 /// Exports the entire workspace into a versioned JSON backup envelope with SHA-256 integrity hash.
 pub fn create_workspace_backup(conn: &Connection) -> Result<Value, String> {
+    let has_draft_operations: bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM draft_create_operations)",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+    if has_draft_operations {return Err("Invoice draft backup support is pending; export would omit draft retry history".into());}
+
 
     let mut payload_map = BTreeMap::new();
     let now_ts = chrono::Utc::now().timestamp_millis();

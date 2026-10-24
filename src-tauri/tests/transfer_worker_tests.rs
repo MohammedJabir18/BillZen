@@ -9,7 +9,7 @@ fn migration_adds_transfer_header_without_changing_existing_cashbook() {
     let exists:i64=conn.query_row("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='cashbook_transfers'",[],|r|r.get(0)).unwrap();
     assert_eq!(exists,1,"transfer schema must be registered");
     // Reconstruct a populated v8 fixture, then perform the genuine v8->v9 upgrade.
-    conn.execute_batch("DROP TRIGGER trg_transfer_single_movement; DROP TABLE cashbook_transfers; DELETE FROM schema_migrations WHERE version=9;").unwrap();
+    conn.execute_batch("DROP TABLE draft_create_operations; DROP TRIGGER trg_transfer_single_movement; DROP TABLE cashbook_transfers; DELETE FROM schema_migrations WHERE version>=9;").unwrap();
     seed_account(&conn,"legacy");
     conn.execute("INSERT INTO cashbook_vouchers(id,voucher_number,idempotency_key,payload_hash,account_id,direction,classification,payment_method,amount_minor,business_date,created_at,posted_at) VALUES ('rcp','RCP-202610-00001','old-key','old-hash','legacy','inflow','operating_income','cash',12345,'2026-10-23',1,1)",[]).unwrap();
     conn.execute("INSERT INTO cashbook_movements(id,voucher_id,account_id,amount_minor,business_date,sequence_number,created_at) VALUES ('m','rcp','legacy',12345,'2026-10-23',1,1)",[]).unwrap();
@@ -17,7 +17,7 @@ fn migration_adds_transfer_header_without_changing_existing_cashbook() {
     drop(conn);let conn=initialize_database(&path).unwrap();
     let after:i64=conn.query_row("SELECT count(*) FROM cashbook_movements",[],|r|r.get(0)).unwrap();assert_eq!(before,after);
     let amount:i64=conn.query_row("SELECT amount_minor FROM cashbook_movements WHERE id='m'",[],|r|r.get(0)).unwrap();assert_eq!(amount,12345);
-    let version:i64=conn.query_row("SELECT max(version) FROM schema_migrations",[],|r|r.get(0)).unwrap();assert_eq!(version,9);
+    let version:i64=conn.query_row("SELECT max(version) FROM schema_migrations",[],|r|r.get(0)).unwrap();assert_eq!(version,billzen_lib::db::recovery::CURRENT_SCHEMA_VERSION);
 }
 
 #[test]
