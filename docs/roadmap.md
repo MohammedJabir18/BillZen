@@ -11,17 +11,17 @@ Current product state: 24 October 2026. Acceptance evidence, not a calendar prom
 | Customer integration | Explicit customer-party links, immutable cash history, receipt shortcuts and Reports context |
 | T1 transfers | Atomic account pairs, idempotent retry, negative-balance confirmation, paired reversal and transfer-aware reports/documents |
 | Product stock | Opening stock, Add/Reduce, reasons/previews, immutable movement history and opposite correction entries |
-| Durability | Persistent browser IndexedDB, complete native/browser backup 1.1, legacy transfer-free 1.0 import and validated restore/recovery |
+| Durability | Persistent browser IndexedDB, current-source native/browser backup1.2 with draft retry history, legacy1.0/1.1 import and validated restore/recovery |
 | Interface | Today-first/simple/analytical dashboards, responsive navigation/Reports, settings theme/language, skippable guide, EN/ML/AR and reduced-motion-aware transitions |
 | Distribution | Desktop 0.1.6 Windows x64/Linux x64/Apple Silicon, Android ARM64 0.1.5, signed desktop/Android update paths; no new Android APK in 0.1.6 |
 
 Hosted packaging/signature checks do not substitute for physical Windows/macOS device runtime testing. Linux exact-package and actual private-baseline signed upgrade acceptance are recorded separately.
 
-## Next commercial slice: B1 invoice drafts
+## B1 invoice drafts — implemented in source, not released
 
 [Implementation plan](superpowers/plans/2026-10-23-invoice-drafts.md) · [Preserved draft specification](m4a-invoice-drafts-spec.md).
 
-Drafts must save/reopen/edit offline with conflict protection and native/browser backup parity. A draft must not change stock, cash, debt or final invoice numbering. Do not infer draft/finalize completion from existing invoice schema or printable fixtures.
+Sales/Drafts saves/reopens/edits several drafts offline with conflict protection, local unsaved recovery and native/browser backup parity. Drafts change no stock, cash, debt or final invoice numbering. See [guide](invoice-drafts-guide.md) and [implementation evidence](invoice-drafts-implementation.md). Existing published installers remain unchanged.
 
 ## Planned after the relevant acceptance gates
 

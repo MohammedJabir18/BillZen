@@ -24,6 +24,10 @@ fn input(key: &str) -> CreateDraftInvoiceRequest {
         business_date: Some("2026-10-24".into()),
         notes: Some(" held ".into()),
         items: vec![item(), item()],
+        expected_currency: Some(DraftCurrency {
+            code: "INR".into(),
+            exponent: 2,
+        }),
     }
 }
 fn update(d: &InvoiceDraftDetailDto) -> UpdateDraftInvoiceRequest {
@@ -34,6 +38,10 @@ fn update(d: &InvoiceDraftDetailDto) -> UpdateDraftInvoiceRequest {
         business_date: Some(d.business_date.clone()),
         notes: Some("edited".into()),
         items: vec![item()],
+        expected_currency: Some(DraftCurrency {
+            code: d.currency_code.clone(),
+            exponent: d.currency_exponent,
+        }),
     }
 }
 fn effects(c: &Connection) -> String {
@@ -271,8 +279,22 @@ async fn concurrent_create_and_updates_serialize_and_three_decimal_empty_drafts_
     )
     .unwrap();
     let (a, b) = tokio::join!(
-        w.create_invoice_draft(input("concurrent")),
-        w.create_invoice_draft(input("concurrent"))
+        w.create_invoice_draft({
+            let mut r = input("concurrent");
+            r.expected_currency = Some(DraftCurrency {
+                code: "KWD".into(),
+                exponent: 3,
+            });
+            r
+        }),
+        w.create_invoice_draft({
+            let mut r = input("concurrent");
+            r.expected_currency = Some(DraftCurrency {
+                code: "KWD".into(),
+                exponent: 3,
+            });
+            r
+        })
     );
     let d = a.unwrap();
     assert_eq!(b.unwrap(), d);
@@ -282,6 +304,10 @@ async fn concurrent_create_and_updates_serialize_and_three_decimal_empty_drafts_
     assert_eq!([a.is_ok(), b.is_ok()].iter().filter(|x| **x).count(), 1);
     let mut empty = input("empty");
     empty.business_date = None;
+    empty.expected_currency = Some(DraftCurrency {
+        code: "KWD".into(),
+        exponent: 3,
+    });
     empty.items.clear();
     let d = w.create_invoice_draft(empty.clone()).await.unwrap();
     assert_eq!(d.grand_total_minor, 0);
@@ -299,7 +325,9 @@ async fn portable_draft_journal_roundtrip_rejects_malformed_totals_and_tombstone
     w.delete_invoice_draft(removed.id, 1).await.unwrap();
     let backup = billzen_lib::db::backup::create_workspace_backup(&c).unwrap();
     assert_eq!(backup["format_version"], "1.2");
-    if let Ok(path)=std::env::var("BILLZEN_DRAFT_FIXTURE") {std::fs::write(path,serde_json::to_vec(&backup).unwrap()).unwrap();}
+    if let Ok(path) = std::env::var("BILLZEN_DRAFT_FIXTURE") {
+        std::fs::write(path, serde_json::to_vec(&backup).unwrap()).unwrap();
+    }
     assert_eq!(
         backup["draft_create_operations"].as_array().unwrap().len(),
         2
@@ -340,6 +368,53 @@ async fn portable_draft_journal_roundtrip_rejects_malformed_totals_and_tombstone
 #[test]
 #[ignore = "synthetic browser interoperability harness supplies fixture"]
 fn browser_draft_fixture_import() {
- let fixture=std::fs::read(std::env::var("BILLZEN_WEB_DRAFT_FIXTURE").unwrap()).unwrap();let b:serde_json::Value=serde_json::from_slice(&fixture).unwrap();let dir=tempfile::tempdir().unwrap();let path=dir.path().join("restored.db");drop(initialize_database(&path).unwrap());billzen_lib::db::backup::restore_workspace_backup(&path,&b).unwrap();let c=initialize_database(&path).unwrap();let out=billzen_lib::db::backup::create_workspace_backup(&c).unwrap();
- for key in ["invoices","invoice_items","draft_create_operations"] {let mut a=b[key].as_array().unwrap().clone();let mut z=out[key].as_array().unwrap().clone();a.sort_by_key(|v|v["id"].as_str().or(v["idempotency_key"].as_str()).unwrap().to_string());z.sort_by_key(|v|v["id"].as_str().or(v["idempotency_key"].as_str()).unwrap().to_string());assert_eq!(a,z,"{key}");}
+    let fixture = std::fs::read(std::env::var("BILLZEN_WEB_DRAFT_FIXTURE").unwrap()).unwrap();
+    let b: serde_json::Value = serde_json::from_slice(&fixture).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("restored.db");
+    drop(initialize_database(&path).unwrap());
+    billzen_lib::db::backup::restore_workspace_backup(&path, &b).unwrap();
+    let c = initialize_database(&path).unwrap();
+    let out = billzen_lib::db::backup::create_workspace_backup(&c).unwrap();
+    for key in ["invoices", "invoice_items", "draft_create_operations"] {
+        let mut a = b[key].as_array().unwrap().clone();
+        let mut z = out[key].as_array().unwrap().clone();
+        a.sort_by_key(|v| {
+            v["id"]
+                .as_str()
+                .or(v["idempotency_key"].as_str())
+                .unwrap()
+                .to_string()
+        });
+        z.sort_by_key(|v| {
+            v["id"]
+                .as_str()
+                .or(v["idempotency_key"].as_str())
+                .unwrap()
+                .to_string()
+        });
+        assert_eq!(a, z, "{key}");
+    }
+}
+
+#[tokio::test]
+async fn stale_currency_intent_rejects_without_reinterpreting_prices() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let w = DbWorkerHandle::new(path.clone()).unwrap();
+    let c = Connection::open(path).unwrap();
+    c.execute_batch(
+        "UPDATE business_settings SET currency_code='KWD',currency_symbol='KD',currency_exponent=3",
+    )
+    .unwrap();
+    assert!(w
+        .create_invoice_draft(input("stale-currency"))
+        .await
+        .unwrap_err()
+        .contains("CURRENCY_CHANGED"));
+    assert_eq!(
+        c.query_row("SELECT count(*) FROM invoices", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
 }

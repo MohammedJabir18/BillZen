@@ -1,3 +1,4 @@
+mod draft_recovery;
 pub mod commands;
 pub mod db;
 pub mod domain;
@@ -186,6 +187,8 @@ pub fn run() {
             commands::invoice_drafts::list_invoice_drafts,
             commands::invoice_drafts::delete_invoice_draft,
             commands::invoice_drafts::calculate_draft_totals,
+            draft_recovery::get_draft_editor_recovery,
+            draft_recovery::set_draft_editor_recovery,
             commands::catalog::post_stock_adjustment,
             commands::catalog::get_stock_history,
             commands::catalog::get_customers,

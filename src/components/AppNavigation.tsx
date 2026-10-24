@@ -1,3 +1,4 @@
+import {draftText} from '../i18n/drafts';
 import { useEffect, useRef, useState } from 'react';
 import { Building2, FileText, LayoutDashboard, MoreHorizontal, Package, Users, Wallet, X, type LucideIcon } from 'lucide-react';
 import { translations, type Language } from '../i18n';
@@ -5,7 +6,7 @@ import { useBackHandler } from '../hooks/useBackHandler';
 import { useNavigationCapsule } from '../hooks/useNavigationCapsule';
 import { usePanelMotion } from '../hooks/usePanelMotion';
 
-export type AppTab = 'dashboard' | 'reports' | 'cashbook' | 'products' | 'customers' | 'settings';
+export type AppTab = 'sales' | 'dashboard' | 'reports' | 'cashbook' | 'products' | 'customers' | 'settings';
 interface NavigationProps { activeTab: AppTab; language: Language; onNavigate: (tab: AppTab) => void }
 interface Destination { id: AppTab; label: string; icon: LucideIcon }
 
@@ -15,6 +16,7 @@ function destinations(language: Language): Destination[] {
     { id: 'dashboard', label: t.tab_dashboard, icon: LayoutDashboard },
     { id: 'cashbook', label: t.tab_cashbook, icon: Wallet },
     { id: 'reports', label: t.tab_reports, icon: FileText },
+    { id: 'sales', label: draftText[language].sales, icon: FileText },
     { id: 'products', label: t.tab_products, icon: Package },
     { id: 'customers', label: t.tab_customers, icon: Users },
     { id: 'settings', label: t.tab_settings, icon: Building2 },
@@ -29,7 +31,7 @@ export function DesktopNavigation({ activeTab, language, onNavigate }: Navigatio
 
   return (
     <nav aria-label="Main Navigation" className="hidden lg:block relative border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] no-print transition-colors">
-      <div ref={navRef} className="max-w-7xl mx-auto grid grid-cols-6 gap-1 px-4 py-1.5 relative">
+      <div ref={navRef} className="max-w-7xl mx-auto grid grid-cols-7 gap-1 px-4 py-1.5 relative">
         <div
           ref={capsuleRef} data-nav-capsule aria-hidden="true"
           className="absolute inset-0 z-0 bg-[var(--brand-primary)] dark:bg-[#2e5733] transition-none"

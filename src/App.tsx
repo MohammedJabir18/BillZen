@@ -1,3 +1,4 @@
+import {InvoicingView} from './components/InvoicingView';
 import { PrintableTransferDocument } from './components/PrintableTransferDocument';
 import { DesktopNavigation, MobileNavigation, type AppTab } from './components/AppNavigation';
 import {useUpdateStartupCheck} from './hooks/useUpdateStartupCheck';
@@ -77,7 +78,7 @@ const AppContent: React.FC = () => {
   const tabParam = urlParams?.get('tab') as ActiveTab | null;
 
   React.useEffect(() => {
-    if (tabParam && ['dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings'].includes(tabParam)) {
+    if (tabParam && ['sales', 'dashboard', 'reports', 'cashbook', 'products', 'customers', 'settings'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -254,6 +255,7 @@ const AppContent: React.FC = () => {
             onClearInitialModal={() => { setCashbookInitialModal(null); setCustomerReceiptIntent(null); }}
           />
         )}
+        {activeTab === 'sales' && <InvoicingView settings={activeSettings} language={language} />}
         {activeTab === 'products' && (
           <ProductCatalogView settings={activeSettings} language={language} />
         )}

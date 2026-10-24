@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-draft-editor-recovery"
+description = "Enables the set_draft_editor_recovery command without any pre-configured scope."
+commands.allow = ["set_draft_editor_recovery"]
+
+[[permission]]
+identifier = "deny-set-draft-editor-recovery"
+description = "Denies the set_draft_editor_recovery command without any pre-configured scope."
+commands.deny = ["set_draft_editor_recovery"]

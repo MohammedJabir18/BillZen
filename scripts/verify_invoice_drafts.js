@@ -25,11 +25,11 @@ try {
   const eq=(a,b,label)=>{if(JSON.stringify(a)!==JSON.stringify(b))throw Error(label+': '+JSON.stringify(a));};
   const rejects=async(fn,label)=>{try{await fn();}catch{return;}throw Error('Accepted '+label);};
   const item={product_id:null,product_name:' Tea ',product_sku:null,unit:'kg',cost_price_minor:20,quantity_scaled:1500,unit_price_minor:1001,discount_minor:2,tax_rate_bp:500};
-  const input={idempotency_key:'create-one',customer_id:null,business_date:'2026-10-24',notes:' held ',items:[item,item]};
+  const input={idempotency_key:'create-one',customer_id:null,business_date:'2026-10-24',notes:' held ',items:[item,item],expected_currency:{code:'INR',exponent:2}};
   const effects=()=>ws.workspaceTransaction(false,t=>JSON.stringify(Object.fromEntries(Object.entries(t).filter(([k])=>!['invoices','invoice_items','draft_create_operations'].includes(k)))));
   const before=await effects();const [a,b]=await Promise.all([drafts.createInvoiceDraft(input),drafts.createInvoiceDraft(input)]);eq(a.id,b.id,'concurrent retry');eq(a.grand_total_minor,3150,'exact total');eq(a.notes,'held','notes');
   await rejects(()=>drafts.createInvoiceDraft({...input,notes:'changed'}),'creation conflict');
-  const u={id:a.id,expected_version:1,customer_id:null,business_date:input.business_date,notes:'edited',items:[item]};const [r1,r2]=await Promise.allSettled([drafts.updateInvoiceDraft(u),drafts.updateInvoiceDraft(u)]);eq([r1,r2].filter(r=>r.status==='fulfilled').length,1,'update conflict');
+  const u={id:a.id,expected_version:1,customer_id:null,business_date:input.business_date,notes:'edited',items:[item],expected_currency:{code:'INR',exponent:2}};const [r1,r2]=await Promise.allSettled([drafts.updateInvoiceDraft(u),drafts.updateInvoiceDraft(u)]);eq([r1,r2].filter(r=>r.status==='fulfilled').length,1,'update conflict');
   const saved=await drafts.getInvoiceDraft(a.id);eq(saved.draft_version,2,'version');eq(saved.grand_total_minor,1575,'updated total');
   await rejects(()=>drafts.deleteInvoiceDraft(a.id,1),'stale delete');
   const add=IDBObjectStore.prototype.add;let seen=0;const snap=await ws.workspaceTransaction(false,t=>JSON.stringify(t));

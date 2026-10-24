@@ -88,6 +88,13 @@ pub fn validate(d: &BTreeMap<String, Value>) -> Result<(), String> {
         } else {
             check!(j["deleted_version"].is_null(), "live deletion version");
             let i = invoice.ok_or("Live draft journal missing invoice")?;
+            if let Some(expected) = &request.expected_currency {
+                check!(
+                    d["business_settings"]["currency_code"] == expected.code
+                        && d["business_settings"]["currency_exponent"] == expected.exponent,
+                    "creation currency"
+                );
+            }
             check!(
                 i["status"] == "draft"
                     && i["idempotency_key"] == key

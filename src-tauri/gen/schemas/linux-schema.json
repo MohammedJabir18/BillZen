@@ -357,6 +357,12 @@
           "markdownDescription": "Enables the get_desktop_update_status command without any pre-configured scope."
         },
         {
+          "description": "Enables the get_draft_editor_recovery command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-get-draft-editor-recovery",
+          "markdownDescription": "Enables the get_draft_editor_recovery command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_invoice_draft command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-invoice-draft",
@@ -463,6 +469,12 @@
           "type": "string",
           "const": "allow-reverse-cashbook-voucher",
           "markdownDescription": "Enables the reverse_cashbook_voucher command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_draft_editor_recovery command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-draft-editor-recovery",
+          "markdownDescription": "Enables the set_draft_editor_recovery command without any pre-configured scope."
         },
         {
           "description": "Enables the update_appearance_preference command without any pre-configured scope.",
@@ -693,6 +705,12 @@
           "markdownDescription": "Denies the get_desktop_update_status command without any pre-configured scope."
         },
         {
+          "description": "Denies the get_draft_editor_recovery command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-get-draft-editor-recovery",
+          "markdownDescription": "Denies the get_draft_editor_recovery command without any pre-configured scope."
+        },
+        {
           "description": "Denies the get_invoice_draft command without any pre-configured scope.",
           "type": "string",
           "const": "deny-get-invoice-draft",
@@ -799,6 +817,12 @@
           "type": "string",
           "const": "deny-reverse-cashbook-voucher",
           "markdownDescription": "Denies the reverse_cashbook_voucher command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_draft_editor_recovery command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-draft-editor-recovery",
+          "markdownDescription": "Denies the set_draft_editor_recovery command without any pre-configured scope."
         },
         {
           "description": "Denies the update_appearance_preference command without any pre-configured scope.",

@@ -21,7 +21,7 @@ import { getTodayBusinessDate } from '../domain/financial';
 import { computeClientIntentHash } from '../domain/backup_crypto';
 
 const DB_NAME = 'BillZen_Web_DB';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 export const MAX_MONEY_MINOR = 100_000_000_000; // 10^11
 export const MAX_TOTAL_MINOR = 100_000_000_000_000; // 10^14
@@ -284,7 +284,7 @@ export async function openWebDb(): Promise<IDBDatabase | null> {
         transfers.createIndex('by_idempotency_key', 'idempotency_key', { unique: true });
         transfers.createIndex('by_transfer_number', 'transfer_number', { unique: true });
       }
-      for (const name of ['invoices', 'invoice_items', 'draft_create_operations']) {
+      for (const name of ['invoices', 'invoice_items', 'draft_create_operations', 'draft_editor_recovery']) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, {keyPath: name === 'draft_create_operations' ? 'idempotency_key' : 'id'});
       }
       const migrateOpeningStock = !db.objectStoreNames.contains('stock_movements');

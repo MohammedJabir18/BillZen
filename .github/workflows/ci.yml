@@ -98,6 +98,8 @@ jobs:
         run: |
           npm run test:workspace
           npm run test:drafts
+          npm run test:drafts-ui
+          npm run test:draft-ownership
           npm run test:transfers
           npm run test:transfers-ui
           npm run test:customer-cashbook

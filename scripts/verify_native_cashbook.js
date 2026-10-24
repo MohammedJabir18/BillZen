@@ -937,8 +937,22 @@ async function runNativeVerification() {
     assert(stockCorrection.resulting_stock_scaled===48000,'Native stock correction preserves balance');
     const stockHistory=await activeInstance.invokeInApp('get_stock_history',{productId:stockProduct.id});
     assert(stockHistory.length===4&&stockHistory.some(m=>m.reference_id===stockPosted.id),'Native stock history retains opening and correction');
+    const draftItem={product_id:stockProduct.id,product_name:stockProduct.name,product_sku:stockProduct.sku,unit:'pcs',cost_price_minor:0,quantity_scaled:1500,unit_price_minor:1001,discount_minor:2,tax_rate_bp:500};
+    const draftRequest={idempotency_key:'native-draft-create',customer_id:null,business_date:'2026-10-24',notes:'Native held draft',items:[draftItem],expected_currency:{code:'INR',exponent:2}};
+    const nativeDraft=await activeInstance.invokeInApp('create_invoice_draft',{request:draftRequest});
+    const nativeDraftRetry=await activeInstance.invokeInApp('create_invoice_draft',{request:draftRequest});
+    assert(nativeDraft.grand_total_minor===1575&&nativeDraftRetry.id===nativeDraft.id,'Native draft exact totals and creation retry');
+    const nativeUpdatedDraft=await activeInstance.invokeInApp('update_invoice_draft',{request:{id:nativeDraft.id,expected_version:1,customer_id:null,business_date:'2026-10-24',notes:'Updated native draft',items:[draftItem],expected_currency:{code:'INR',exponent:2}}});
+    assert(nativeUpdatedDraft.draft_version===2,'Native draft optimistic version increments');
+    let staleDraft=false;try{await activeInstance.invokeInApp('delete_invoice_draft',{id:nativeDraft.id,expectedVersion:1});}catch(error){staleDraft=String(error).includes('CONCURRENT_MODIFICATION_ERROR');}assert(staleDraft,'Native stale draft delete rejects');
+    const recovery={schema:1,source_id:nativeDraft.id,source_version:2,form:{notes:'Native unsaved editor'},pending:null};
+    await activeInstance.invokeInApp('set_draft_editor_recovery',{value:recovery});
+    const storedRecovery=await activeInstance.invokeInApp('get_draft_editor_recovery',{});assert(storedRecovery.source_id===recovery.source_id&&storedRecovery.source_version===2&&storedRecovery.form.notes===recovery.form.notes,'Native app-local editor recovery roundtrip');
+    assert(fs.existsSync(path.join(tempDir,'invoice-draft-editor.json')),'Native recovery honors isolated data directory');
+    const draftStock=(await activeInstance.invokeInApp('get_products',{filter:{}})).find(p=>p.id===stockProduct.id);
+    assert(draftStock.current_stock_scaled===48000,'Native drafts leave current stock unchanged');
     const portable=await activeInstance.invokeInApp('export_workspace_backup',{});
-    assert(portable.format_version==='1.1'&&portable.cashbook_transfers.length===2,'Native IPC backup1.1 retains both headers');
+    assert(portable.format_version==='1.2'&&portable.cashbook_transfers.length===2,'Native IPC backup1.2 retains both headers');
     recordTest('native_transfer_ipc_atomic_retry_reversal_and_backup',true,{number:postedTransfer.transfer.transfer_number});
 
     // Gracefully terminate instance 2
@@ -951,6 +965,13 @@ async function runNativeVerification() {
     assert(coldStock.length===4,'Native stock history survives cold restart');
     const coldHeaders=await activeInstance.invokeInApp('get_cashbook_transfers',{filter:{account_id:transferAccounts[0]}});
     assert(coldHeaders.length===2&&coldHeaders.find(h=>h.id===postedTransfer.transfer.id)?.is_reversed,'Native cold restart preserves paired reversal');
+    const coldDraft=await activeInstance.invokeInApp('get_invoice_draft',{id:nativeDraft.id});
+    assert(coldDraft.draft_version===2&&coldDraft.grand_total_minor===1575,'Native draft survives cold restart');
+    assert((await activeInstance.invokeInApp('get_draft_editor_recovery',{})).source_id===nativeDraft.id,'Native editor recovery survives cold restart');
+    await activeInstance.invokeInApp('delete_invoice_draft',{id:nativeDraft.id,expectedVersion:2});
+    let deletedRetry=false;try{await activeInstance.invokeInApp('create_invoice_draft',{request:draftRequest});}catch(error){deletedRetry=String(error).includes('DRAFT_DELETED');}assert(deletedRetry,'Native deleted draft key cannot recreate after restart');
+    await activeInstance.invokeInApp('set_draft_editor_recovery',{value:null});
+    assert(!fs.existsSync(path.join(tempDir,'invoice-draft-editor.json')),'Native recovery clears in isolated directory');
     await activeInstance.terminate();activeInstance=null;
 
     // =========================================================================

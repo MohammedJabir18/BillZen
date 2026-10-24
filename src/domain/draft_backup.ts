@@ -14,7 +14,7 @@ export function validateDraftWorkspace(t:Tables){
   check(integer(j.created_at)&&typeof j.request_json==='string'&&/^[a-f0-9]{64}$/.test(j.request_fingerprint),'journal metadata');
   const original=JSON.parse(j.request_json),normalized=normalizeDraftRequest(original);draftDate(normalized.business_date!);check(JSON.stringify(normalized)===j.request_json&&j.idempotency_key==='draft-create:'+normalized.idempotency_key,'journal canonical intent');
   if(j.deleted_at!==null){check(integer(j.deleted_at)&&integer(j.deleted_version,1)&&!invoices.has(j.invoice_id),'tombstone');}
-  else{check(j.deleted_version===null&&invoices.has(j.invoice_id),'live journal owner');const i=invoices.get(j.invoice_id);check(i.idempotency_key===j.idempotency_key&&i.request_fingerprint===j.request_fingerprint&&i.created_at===j.created_at,'invoice creation evidence');}
+  else{check(j.deleted_version===null&&invoices.has(j.invoice_id),'live journal owner');const i=invoices.get(j.invoice_id);if(normalized.expected_currency)check(normalized.expected_currency.code===t.business_settings.currency_code&&normalized.expected_currency.exponent===t.business_settings.currency_exponent,'creation currency');check(i.idempotency_key===j.idempotency_key&&i.request_fingerprint===j.request_fingerprint&&i.created_at===j.created_at,'invoice creation evidence');}
  }
  for(const i of invoices.values()){
   check(journals.has(i.id)&&integer(i.draft_version,1)&&integer(i.created_at)&&integer(i.updated_at),'invoice version/journal');draftDate(i.business_date);

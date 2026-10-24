@@ -16,6 +16,11 @@ pub struct DraftItemInput {
     pub discount_minor: i64,
     pub tax_rate_bp: i64,
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DraftCurrency {
+    pub code: String,
+    pub exponent: i32,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDraftInvoiceRequest {
     pub idempotency_key: String,
@@ -23,6 +28,8 @@ pub struct CreateDraftInvoiceRequest {
     pub business_date: Option<String>,
     pub notes: Option<String>,
     pub items: Vec<DraftItemInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_currency: Option<DraftCurrency>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateDraftInvoiceRequest {
@@ -32,6 +39,8 @@ pub struct UpdateDraftInvoiceRequest {
     pub business_date: Option<String>,
     pub notes: Option<String>,
     pub items: Vec<DraftItemInput>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_currency: Option<DraftCurrency>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct InvoiceDraftItemDto {

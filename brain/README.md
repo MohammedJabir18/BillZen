@@ -16,7 +16,8 @@ Updated2026-10-24. This is the bounded entry index for continuing in a fresh cha
 - [Conversation reconstruction](conversation-history.md) — detailed available request/response themes and evolution; sanitized summary, not verbatim export.
 - [Next-chat starter](next-chat-prompt.md) — ready-to-paste continuation prompt.
 - [Current technical architecture](../docs/architecture.md) and [verification ledger](../docs/verification-status.md).
-- [Invoice-draft next-phase plan](../docs/superpowers/plans/2026-10-23-invoice-drafts.md).
+- [Invoice drafts guide](../docs/invoice-drafts-guide.md) and [implementation evidence](../docs/invoice-drafts-implementation.md).
+- [Invoice-draft implementation plan](../docs/superpowers/plans/2026-10-23-invoice-drafts.md).
 - [Published desktop delivery](../docs/distribution-v0.1.6.md) and [current project README](../README.md).
 
 ## Memory rules

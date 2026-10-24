@@ -83,6 +83,8 @@ Business records live in **SQLite on installed apps** and **IndexedDB in support
 
 **Current releases:** desktop **v0.1.6** · Android **v0.1.5 / code 1010**. The desktop update did not introduce a new Android APK.
 
+**Latest source, not yet released:** Sales / Invoice drafts and workspace backup1.2 are implemented. Published installers above remain unchanged. [Drafts guide](docs/invoice-drafts-guide.md).
+
 | Your device | Download | Update path |
 | :--- | :--- | :--- |
 | 🪟 Windows 64-bit | [Windows installer `.exe`](https://github.com/MohammedJabir18/BillZen/releases/download/v0.1.6/BillZen-0.1.6-Windows-x64.exe) | In-app signed updates after this bootstrap install |
@@ -126,7 +128,7 @@ The project has grown from catalog and financial foundations into daily company-
 - **Money operations:** receipts/payments, Cash/Bank accounts, customer-party linking, safe negative-balance confirmation and auditable reversals.
 - **Connected views:** a Today-first dashboard, simple/analytical modes, period filters, CSV/print reports and customer-history navigation.
 - **Transfers and inventory:** atomic paired transfers, transfer-aware reports/documents, Add/Reduce stock and correction history.
-- **Durability:** persistent browser storage, complete backup 1.1, legacy transfer-free 1.0 import, validated restore and recovery snapshots.
+- **Durability:** persistent browser storage, current-source backup1.2 with saved drafts/retry history, legacy1.0/1.1 import, validated restore and recovery snapshots.
 - **Interface:** responsive navigation/short-window scrolling, cleaner Reports filters, GSAP transitions, shared selection capsules, dialog focus/inert protection, RTL and live reduced-motion support.
 - **Delivery:** Windows/Linux/Apple Silicon installers, signed Android distribution and signed desktop update feeds in the original BillZen repository.
 
@@ -305,7 +307,7 @@ Native UI checks require a graphical/WebKit environment and a production binary.
 | State | Work |
 | --- | --- |
 | ✅ **Available** | Company Cashbook, customer history, account transfers, stock adjustments, period reports, complete backup/restore, regional interface and desktop/Android delivery |
-| 🛠 **Next commercial slice** | Save/reopen/edit invoice drafts, with no stock/cash/debt effects while still draft |
+| 🛠 **Latest source (not yet released)** | Sales / Invoice drafts: save/reopen/edit with no stock/cash/debt effects, plus backup1.2 |
 | 📋 **Planned** | Atomic invoice finalization, numbering and snapshots, sale-linked stock decrement, receivables/settlements and supplier bills |
 | 🔭 **Deferred / unshipped** | Device sync/team collaboration, encrypted data storage, scheduled backups, attachments, XLSX workbooks, budgets, thermal printing and Intel Mac/iOS installers |
 
@@ -326,7 +328,7 @@ INR plus GCC currency/exponent support and Arabic formatting are regional founda
 
 Read [CONTRIBUTING](CONTRIBUTING.md), keep fixtures synthetic and submit reviewable changes with actual verification. The owner-requested delivery loop is **one logical section → checks → commit → push → inspect CI**. [Agent instructions](AGENTS.md) and [session history](brain/sessions.md) preserve context across coding agents.
 
-Local SQLite files and portable workspace JSON are **unencrypted** today. Backup 1.1 and recovery snapshots provide durability, not encryption. Keep copies outside the app's data directory, protect access to the device, and never upload real business records to Git. [Security policy](SECURITY.md).
+Local SQLite files and portable workspace JSON are **unencrypted** today. Workspace backups and recovery snapshots provide durability, not encryption. Keep copies outside the app's data directory, protect access to the device, and never upload real business records to Git. [Security policy](SECURITY.md).
 
 ## 👋 Made by Mohammed Jabir
 

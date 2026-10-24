@@ -27,6 +27,22 @@ fn date(conn: &Connection, value: Option<String>) -> Result<String, String> {
     }
     Ok(value)
 }
+fn validate_currency(conn: &Connection, expected: &Option<DraftCurrency>) -> Result<(), String> {
+    let live: (String, i32) = conn
+        .query_row(
+            "SELECT currency_code,currency_exponent FROM business_settings WHERE id='default'",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(sql)?;
+    if !expected
+        .as_ref()
+        .is_some_and(|e| e.code == live.0 && e.exponent == live.1)
+    {
+        return Err("DRAFT_REJECTED: CURRENCY_CHANGED".into());
+    }
+    Ok(())
+}
 fn validate_refs(
     conn: &Connection,
     customer: &Option<String>,
@@ -181,6 +197,7 @@ pub fn create_invoice_draft(
         }
         return get_invoice_draft(&tx, &id);
     }
+    validate_currency(&tx, &request.expected_currency)?;
     validate_refs(&tx, &request.customer_id, &request.items, None)?;
     let exponent: i32 = tx
         .query_row(
@@ -216,6 +233,7 @@ pub fn update_invoice_draft(
         return Err("CONCURRENT_MODIFICATION_ERROR: Reload saved draft".into());
     }
     let business_date = date(&tx, r.business_date.or(Some(old.business_date.clone())))?;
+    validate_currency(&tx, &r.expected_currency)?;
     validate_refs(&tx, &r.customer_id, &r.items, Some(&old))?;
     let now = chrono::Utc::now().timestamp_millis();
     tx.execute("DELETE FROM invoice_items WHERE invoice_id=?", [&r.id])

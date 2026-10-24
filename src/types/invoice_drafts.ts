@@ -15,6 +15,7 @@ export interface CreateDraftInvoiceRequest {
   business_date: string | null;
   notes: string | null;
   items: DraftItemInput[];
+  expected_currency?: {code:string;exponent:number};
 }
 export interface UpdateDraftInvoiceRequest extends Omit<CreateDraftInvoiceRequest,'idempotency_key'> {
   id: string;

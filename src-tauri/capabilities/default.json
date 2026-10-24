@@ -62,6 +62,8 @@
     "allow-get-invoice-draft",
     "allow-list-invoice-drafts",
     "allow-delete-invoice-draft",
-    "allow-calculate-draft-totals"
+    "allow-calculate-draft-totals",
+    "allow-get-draft-editor-recovery",
+    "allow-set-draft-editor-recovery"
   ]
 }

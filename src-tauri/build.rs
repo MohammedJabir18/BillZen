@@ -36,6 +36,8 @@ fn main() {
                 "list_invoice_drafts",
                 "delete_invoice_draft",
                 "calculate_draft_totals",
+                "get_draft_editor_recovery",
+                "set_draft_editor_recovery",
 
                 "get_customers",
                 "create_customer",

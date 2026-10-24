@@ -1,6 +1,6 @@
 # BillZen — resume here
 
-Snapshot: 2026-10-24, Asia/Kolkata. This memory-only handoff follows README commit `4ee58984ccf2f561110f2f8bf3057c32899794f5`; it is not a new product release. Re-check live Git/CI before acting.
+Snapshot: 2026-10-24, Asia/Kolkata. Updated during B1 invoice-drafts implementation; source commits f5a9317/49279a0 plus final editor section are separate from published desktop0.1.6/Android0.1.5. Re-check live Git/CI before acting.
 
 ## Startup / authority
 
@@ -16,7 +16,8 @@ Snapshot: 2026-10-24, Asia/Kolkata. This memory-only handoff follows README comm
 - Catalog/customers/categories, archive/restore and barcode lookup. Explicit Customer ↔ Cashbook party linking, all-linked-party history and Receive money shortcut; history links to party-filtered Reports. This is not invoice receivables.
 - Atomic Cash↔Bank transfer header/two legs, retry/conflict protection, paired reversals and shared-number print/CSV presentation. Transfers excluded from business receipt/payment totals, included in account balances.
 - Opening stock, Add/Reduce stock with reason, immutable history/opposite correction. No automatic sales or purchase cash posting.
-- Complete workspace backup1.1 and validated atomic restore; transfer-free legacy1.0 imports; native SQLite durability/worker/recovery and browser IndexedDB workspace persistence.
+- Current-source complete workspace backup1.2 includes saved invoice drafts and retry/deletion journal, with validated atomic restore and legacy1.0/1.1 imports. Native SQLite durability/worker/recovery and browser IndexedDB persistence remain. Published desktop0.1.6 uses backup1.1.
+- Current-source Sales/Invoice drafts: multiple saved drafts, exact totals, customer/product/barcode/custom lines, conflict/lost-response handling, native/browser unsaved recovery and translated accessible DRAFT preview. No stock/cash/debt/final numbering changes. Not released or installed.
 - EN/ML/AR+RTL; India/GCC currency exponents. Settings-only language and System/Light/Dark; onboarding/guide; responsive Reports and short-window scrolling; shared cancellable capsule/card/chart/dialog motion and reduced-motion support.
 - Desktop signed updater and independent signed Android update manifest. Original branded platform icons and current README/media/Archify diagrams.
 
@@ -47,23 +48,20 @@ Public desktop0.1.5 did not include an updater: install0.1.6 once. Thereafter Se
 - Desktop package workflow40002290661 and draft assembly40003661548 passed. Exact released Linux AppImage passed68 native assertions; actual signed private-baseline upgrade/restart preserved synthetic records/settings. Original updater-less public0.1.5 was not that baseline.
 - Windows/Mac hosted package/icon/architecture/signature checks passed; physical install/restart remains unverified. Browser screenshots are not native/device acceptance.
 - README:11 fictional-data screenshots,2 original GIF/static sets, local media/link/provenance validation and1440/390 GFM preview passed. Archify viewers/specs/receipts and dark/light preview checked; PNG previews are SVG-region screenshots, not successful canonical menu exports.
-- Handoff Graphify local code-only refresh succeeded:1978nodes/4280links. SQL parser unavailable; this is not full semantic/SQL coverage. Generated graph output ignored.
+- B1 final Graphify local code-only refresh succeeded:2171nodes/4833links. SQL parser unavailable; this is not full semantic/SQL coverage. Generated graph output ignored.
 - Evidence: ../docs/verification-status.md, ../docs/distribution-v0.1.6.md, ../docs/readme-design.md, sessions.md.
 
-## Next development: B1 offline invoice drafts
+## B1 completed in source; next gates
 
-Owner already approved transfers/billing first with inline implementation and independent final review. T1 transfers is delivered; B1 Task1 native foundation and Task2 browser/backup parity are implemented in this session; editor is still pending, and there is no Sales workflow yet. See ../docs/invoice-drafts-implementation.md.
+Read ../docs/invoice-drafts-guide.md and ../docs/invoice-drafts-implementation.md for current behavior/verification. Native lifecycle uses migration10 draft_create_operations and scoped serialized commands. Browser IndexedDBv6 has matching saved drafts/journal and separate local editor recovery. Backup1.2 preserves saved drafts/journal across native↔browser; legacy1.0/1.1 checksum-first imports remain. Original migration1–9 SQL is unchanged.
 
-Read:
-- ../docs/superpowers/plans/2026-10-23-invoice-drafts.md
-- ../docs/m4a-invoice-drafts-spec.md
-- ../docs/superpowers/specs/2026-10-23-transfers-and-billing.md
+Sales/Drafts editor supports active catalog/customer selections, existing archived-reference warnings, exact quantities/money/tax, multiple drafts, preview, Back/focus and EN/ML/AR/RTL. Native recovery uses an atomic app-local file; browser Web Locks give one editor ownership before recovery read/actions. Expected currency is bound to intents/recovery and rechecked live; stale versions/currency cannot silently overwrite/reinterpret saved data. Unknown outcomes keep exact pending requests.
 
-Task1 uses additive migration10 draft_create_operations with deletion tombstones; existing migrations1–9 unchanged. Native lifecycle/worker/scoped commands and shared TS DTO/calculation fixtures pass. Backup1.2 now preserves creation/deletion journal in both runtimes and validates draft arithmetic/ownership. Legacy1.0/1.1 remain checksum-first compatible. Next is Task3 editor and whole-B1 independent final review.
+The independent final review found3 Important issues (cross-tab recovery loss, stale-currency reinterpretation, missing barcode Enter/focus); failing regression tests preceded fixes. No Critical/Minor reported. Full Rust128/frontend97/build, synthetic native→browser→native draft backup, expanded editor matrix and existing motion23/responsive/transfer UI passed. Exact local Linux production candidate passed78 native IPC assertions including draft/recovery/cold restart and unchanged real-data fingerprints. Header17 and full layout816states/0failed passed. Final source CI evidence is appended to sessions/verification status.
 
-Task2 durable browser transactions + complete backup compatibility/native↔browser roundtrip passed. Task3: responsive Sales/Drafts editor, multiple saved drafts, unsaved/conflict recovery and translated accessible preview clearly marked DRAFT. Drafts never touch stock, money, customer debt or final numbering. Finalization/B2/B3, supplier bills and sync need their later gates.
+Task1 f5a9317 CI40107048721 and Task2 49279a0 CI40107658193 completed/success. Final editor source commit/CI must be checked live. No public updater feed, version, installed app, APK or signing credential changed. A local production Linux test binary is not an updater release.
 
-Relevant commands (inspect package scripts first): `npm run build`, native `cargo test` in src-tauri, and applicable financial/workspace/customer/transfer/stock/new draft suites. Follow test-first evidence, independent final review, relevant full checks, commit/push/remote CI. Do not rebuild/publish just because this memory document exists.
+Next approved product gates after B1: before B2 finalization, settle regional invoice profile/required fields, legal numbering/year/reset rules, availability policy and cost snapshots. B3 settlement/return/credit/allocation semantics remain separately gated. Supplier bills and device synchronization remain later phases. Do not begin financial posting or release publication based only on this handoff.
 
 ## Memory maintenance / safety
 

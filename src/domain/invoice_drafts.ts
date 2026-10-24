@@ -26,7 +26,8 @@ export function normalizeDraftRequest(r:CreateDraftInvoiceRequest):CreateDraftIn
  if(!key||new TextEncoder().encode(key).length>200||Array.from(notes||'').length>2000)throw Error('DRAFT_REJECTED: Invalid retry key or notes');
  const items=normalizeDraftItems(r.items).map(i=>({product_id:i.product_id,product_name:i.product_name,product_sku:i.product_sku,unit:i.unit,cost_price_minor:i.cost_price_minor,quantity_scaled:i.quantity_scaled,unit_price_minor:i.unit_price_minor,discount_minor:i.discount_minor,tax_rate_bp:i.tax_rate_bp}));
  calculateDraftTotals(items);
- return {idempotency_key:key,customer_id:normalizeDraftOptional(r.customer_id),business_date:r.business_date,notes,items};
+ const result:CreateDraftInvoiceRequest={idempotency_key:key,customer_id:normalizeDraftOptional(r.customer_id),business_date:r.business_date,notes,items};
+ if(r.expected_currency!==undefined){if(typeof r.expected_currency.code!=='string'||![2,3].includes(r.expected_currency.exponent))throw Error('DRAFT_REJECTED: Invalid currency');result.expected_currency={code:r.expected_currency.code,exponent:r.expected_currency.exponent};}return result;
 }
 export async function draftHash(json:string):Promise<string>{
  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(json));return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
