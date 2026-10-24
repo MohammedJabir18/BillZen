@@ -1,9 +1,10 @@
+import {validateDraftWorkspace,verifyDraftHashes} from '../domain/draft_backup';
 import { validateTransferWorkspace, verifyTransferHashes } from '../domain/transfer_backup';
 import { openWebDb, MAX_MONEY_MINOR, MAX_TOTAL_MINOR } from './web_cashbook_db';
 import { validateCatalog } from './web_catalog';
 import type { WorkspaceBackupEnvelope } from '../types/backup';
-export const workspaceTables = ['business_settings', 'categories', 'category_merges', 'products', 'customers', 'stock_movements', 'money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_sequences', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_audit_events', 'cashbook_transfers'] as const;
-const unsupported = ['invoice_sequences', 'invoice_items', 'invoices', 'payments', 'payment_allocations', 'expenses'] as const;
+export const workspaceTables = ['business_settings', 'categories', 'category_merges', 'products', 'customers', 'stock_movements', 'money_accounts', 'cashbook_categories', 'cashbook_parties', 'cashbook_sequences', 'cashbook_vouchers', 'cashbook_movements', 'cashbook_audit_events', 'cashbook_transfers', 'invoices', 'invoice_items', 'draft_create_operations'] as const;
+const unsupported = ['invoice_sequences', 'payments', 'payment_allocations', 'expenses'] as const;
 type Tables = Record<string, any[]>;
 /** One transaction/snapshot across the workspace. Callbacks must be synchronous. */
 export async function workspaceTransaction<T>(write: boolean, run: (tables: Tables) => T, shouldPersist: (result: T) => boolean = () => true): Promise<T> {
@@ -50,7 +51,7 @@ export async function saveWebSettings(settings: any) {
             throw Error('Unsupported currency or exponent');
         const old = t.business_settings[0] || t.money_accounts[0];
         if (old && (old.currency_code !== settings.currency_code || old.currency_exponent !== settings.currency_exponent)) {
-            if (t.products.length || t.cashbook_vouchers.length || t.cashbook_movements.length || t.money_accounts.some(a => a.opening_balance_minor !== 0))
+            if (t.products.length || t.invoices.length || t.cashbook_vouchers.length || t.cashbook_movements.length || t.money_accounts.some(a => a.opening_balance_minor !== 0))
                 throw Error('Cannot change base currency after catalog or financial records exist.');
             for (const a of t.money_accounts) {
                 a.currency_code = settings.currency_code;
@@ -78,7 +79,7 @@ export function validateWebWorkspace(data: WorkspaceBackupEnvelope): void {
             throw Error(`Missing workspace table: ${key}`);
         const ids = new Set<string>();
         for (const row of d[key]) {
-            const id = key === 'cashbook_sequences' ? row.sequence_key : key === 'category_merges' ? row.merged_category_id : row.id;
+            const id = key === 'draft_create_operations' ? row.idempotency_key : key === 'cashbook_sequences' ? row.sequence_key : key === 'category_merges' ? row.merged_category_id : row.id;
             if (typeof id !== 'string' || !id || ids.has(id))
                 throw Error(`Invalid/duplicate key in ${key}`);
             ids.add(id);
@@ -116,6 +117,7 @@ export function validateWebWorkspace(data: WorkspaceBackupEnvelope): void {
             throw Error('Account currency mismatch');
     }
     validateTransferWorkspace(d);
+    validateDraftWorkspace(d);
     const seenIntent = new Set(), seenNumber = new Set();
     for (const v of d.cashbook_vouchers) {
         ref('money_accounts', v.account_id);
@@ -179,9 +181,10 @@ export function validateWebWorkspace(data: WorkspaceBackupEnvelope): void {
 }
 export async function restoreWebWorkspace(data: WorkspaceBackupEnvelope) {
     // Caller verifies the original checksum before this compatibility normalization.
-    data = { ...data, cashbook_transfers: data.cashbook_transfers ?? [] };
+    data = { ...data, cashbook_transfers: data.cashbook_transfers ?? [], draft_create_operations: data.draft_create_operations ?? [] };
     validateWebWorkspace(data);
     await verifyTransferHashes(data);
+    await verifyDraftHashes(data);
     await workspaceTransaction(true, t => { for (const key of workspaceTables)
         t[key] = key === 'business_settings' ? [data.business_settings] : (data as any)[key].map((row: any) => { const copy = { ...row }; for (const field of ['is_active', 'is_stock_tracked', 'is_archived', 'is_default', 'allow_negative_balance', 'is_reversal', 'is_reversed'])
             if (field in copy)

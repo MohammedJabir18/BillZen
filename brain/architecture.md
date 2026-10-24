@@ -1,6 +1,6 @@
 # BillZen Architecture & System Design
 
-> **Current-state notice —2026-10-24:** This file contains chronological architecture snapshots, including proposed and later-superseded work. Read [session-handoff.md](session-handoff.md) for current delivered state and [../docs/architecture.md](../docs/architecture.md) for the maintained technical overview. Customer cash history/transfers/stock/backup and desktop updater are delivered; native B1 draft lifecycle foundation now exists (migration10 retry/deletion journal), while browser/backup/editor and commercial finalization are still pending. Old outbox/compliance diagrams describe intended architecture, not a certified working integration.
+> **Current-state notice —2026-10-24:** This file contains chronological architecture snapshots, including proposed and later-superseded work. Read [session-handoff.md](session-handoff.md) for current delivered state and [../docs/architecture.md](../docs/architecture.md) for the maintained technical overview. Customer cash history/transfers/stock/backup and desktop updater are delivered; native B1 draft lifecycle foundation now exists (migration10 retry/deletion journal), with durable browser parity and backup1.2; editor and commercial finalization are still pending. Old outbox/compliance diagrams describe intended architecture, not a certified working integration.
 
 
 ## 1. Overview

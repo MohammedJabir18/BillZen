@@ -45,10 +45,10 @@ export async function verifyBackupEnvelope(envelope: Record<string, any>): Promi
     return { valid: false, error: 'Backup envelope must be an object' };
   }
 
-  if (!['1.0', '1.1'].includes(envelope.format_version)) {
+  if (!['1.0', '1.1', '1.2'].includes(envelope.format_version)) {
     return {
       valid: false,
-      error: `Unsupported backup format version '${envelope.format_version}': expected '1.0' or '1.1'`,
+      error: `Unsupported backup format version '${envelope.format_version}': expected '1.0', '1.1' or '1.2'`,
     };
   }
 
@@ -87,6 +87,9 @@ export async function verifyBackupEnvelope(envelope: Record<string, any>): Promi
       return { valid: false, error: 'Legacy 1.0 backup cannot contain transfers' };
     }
   } else if (!Array.isArray(envelope.cashbook_transfers)) return { valid: false, error: 'Missing transfer headers in 1.1 backup' };
+  if (envelope.format_version === '1.2') {
+    if (!Array.isArray(envelope.draft_create_operations)) return {valid:false,error:'Missing draft retry journal'};
+  } else if (envelope.draft_create_operations != null && (!Array.isArray(envelope.draft_create_operations) || envelope.draft_create_operations.length)) return {valid:false,error:'Legacy backup cannot contain draft retry journal'};
   return { valid: true, expectedChecksum, computedChecksum };
 }
 

@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
-pub const BACKUP_FORMAT_VERSION: &str = "1.1";
+pub const BACKUP_FORMAT_VERSION: &str = "1.2";
 pub const BACKUP_SCOPE_WORKSPACE: &str = "workspace";
 pub const APP_VERSION: &str = "0.1.0";
 
@@ -28,6 +28,7 @@ pub struct TableSpec {
 }
 
 pub const WORKSPACE_TABLE_SPECS: &[TableSpec] = &[
+    TableSpec {name:"draft_create_operations",order_by:"idempotency_key ASC",is_single_object:false},
     TableSpec { name: "business_settings", order_by: "id ASC", is_single_object: true },
     TableSpec { name: "categories", order_by: "id ASC", is_single_object: false },
     TableSpec { name: "category_merges", order_by: "merged_at ASC, merged_category_id ASC", is_single_object: false },
@@ -108,9 +109,6 @@ pub fn compute_canonical_checksum(payload_map: &BTreeMap<String, Value>) -> Resu
 
 /// Exports the entire workspace into a versioned JSON backup envelope with SHA-256 integrity hash.
 pub fn create_workspace_backup(conn: &Connection) -> Result<Value, String> {
-    let has_draft_operations: bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM draft_create_operations)",[],|r|r.get(0)).map_err(|e|e.to_string())?;
-    if has_draft_operations {return Err("Invoice draft backup support is pending; export would omit draft retry history".into());}
-
 
     let mut payload_map = BTreeMap::new();
     let now_ts = chrono::Utc::now().timestamp_millis();
@@ -153,7 +151,7 @@ pub fn verify_tier1_checksum(backup_json: &Value) -> Result<BTreeMap<String, Val
         .and_then(|v| v.as_str())
         .ok_or_else(|| "Missing 'format_version' in backup payload".to_string())?;
 
-    if format_version != BACKUP_FORMAT_VERSION && format_version != "1.0" {
+    if ![BACKUP_FORMAT_VERSION,"1.0","1.1"].contains(&format_version) {
         return Err(format!(
             "Unsupported backup format version '{}': expected '{}'",
             format_version, BACKUP_FORMAT_VERSION
@@ -202,6 +200,12 @@ pub fn verify_tier1_checksum(backup_json: &Value) -> Result<BTreeMap<String, Val
         canonical_map.insert("cashbook_transfers".into(),Value::Array(vec![]));
     } else if !canonical_map.get("cashbook_transfers").is_some_and(Value::is_array) {
         return Err("Missing transfer headers in 1.1 backup".into());
+    }
+    if format_version == "1.2" {
+        if !canonical_map.get("draft_create_operations").is_some_and(Value::is_array) {return Err("Missing draft retry journal".into());}
+    } else {
+        if canonical_map.get("draft_create_operations").is_some_and(|v|v.as_array().map_or(true,|a|!a.is_empty())) {return Err("Legacy backup cannot contain draft retry journal".into());}
+        canonical_map.insert("draft_create_operations".into(),Value::Array(vec![]));
     }
     Ok(canonical_map)
 }
@@ -405,6 +409,7 @@ pub fn restore_workspace_backup(
     // Tier 1 Validation
     let canonical_map = verify_tier1_checksum(backup_json)?;
     transfer_backup::validate(&canonical_map)?;
+    super::draft_backup::validate(&canonical_map)?;
 
     let db_dir = db_path
         .parent()
@@ -515,7 +520,7 @@ mod tests {
         let conn = initialize_database(&db_path).unwrap();
 
         let backup = create_workspace_backup(&conn).unwrap();
-        assert_eq!(backup["format_version"], "1.1");
+        assert_eq!(backup["format_version"], "1.2");
         assert_eq!(backup["scope"], "workspace");
         assert_eq!(backup["app_version"], "0.1.0");
         assert!(backup["checksum_sha256"].is_string());
@@ -523,7 +528,7 @@ mod tests {
 
         // Verify valid tier 1 passes
         let verified_map = verify_tier1_checksum(&backup).unwrap();
-        assert_eq!(verified_map["format_version"], "1.1");
+        assert_eq!(verified_map["format_version"], "1.2");
 
         // Verify corrupted checksum is rejected
         let mut corrupted_backup = backup.clone();

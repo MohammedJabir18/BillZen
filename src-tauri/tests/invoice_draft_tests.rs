@@ -233,24 +233,6 @@ fn populated_v9_upgrade_preserves_data_and_checksums() {
         .any(|p| p.unwrap().path().extension().is_some_and(|e| e == "db")));
 }
 #[tokio::test]
-async fn backup_fails_closed_until_retry_journal_is_portable() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("db");
-    let w = DbWorkerHandle::new(path.clone()).unwrap();
-    let c = Connection::open(path).unwrap();
-    let d = w
-        .create_invoice_draft(input("journal-backup"))
-        .await
-        .unwrap();
-    assert!(billzen_lib::db::backup::create_workspace_backup(&c)
-        .unwrap_err()
-        .contains("draft"));
-    w.delete_invoice_draft(d.id, 1).await.unwrap();
-    assert!(billzen_lib::db::backup::create_workspace_backup(&c)
-        .unwrap_err()
-        .contains("draft"));
-}
-#[tokio::test]
 async fn catalog_references_archive_warnings_and_real_balances_are_preserved() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("db");
@@ -305,4 +287,59 @@ async fn concurrent_create_and_updates_serialize_and_three_decimal_empty_drafts_
     assert_eq!(d.grand_total_minor, 0);
     assert_eq!(d.currency_code, "KWD");
     assert_eq!(w.create_invoice_draft(empty).await.unwrap(), d);
+}
+#[tokio::test]
+async fn portable_draft_journal_roundtrip_rejects_malformed_totals_and_tombstones() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let w = DbWorkerHandle::new(path.clone()).unwrap();
+    let c = Connection::open(&path).unwrap();
+    let d = w.create_invoice_draft(input("portable")).await.unwrap();
+    let removed = w.create_invoice_draft(input("removed")).await.unwrap();
+    w.delete_invoice_draft(removed.id, 1).await.unwrap();
+    let backup = billzen_lib::db::backup::create_workspace_backup(&c).unwrap();
+    assert_eq!(backup["format_version"], "1.2");
+    if let Ok(path)=std::env::var("BILLZEN_DRAFT_FIXTURE") {std::fs::write(path,serde_json::to_vec(&backup).unwrap()).unwrap();}
+    assert_eq!(
+        backup["draft_create_operations"].as_array().unwrap().len(),
+        2
+    );
+    let target = dir.path().join("restored.db");
+    drop(initialize_database(&target).unwrap());
+    billzen_lib::db::backup::restore_workspace_backup(&target, &backup).unwrap();
+    let restored = DbWorkerHandle::new(target.clone()).unwrap();
+    assert_eq!(restored.get_invoice_draft(d.id.clone()).await.unwrap(), d);
+    assert!(restored
+        .create_invoice_draft(input("removed"))
+        .await
+        .unwrap_err()
+        .contains("DRAFT_DELETED"));
+    for kind in 0..4 {
+        let mut bad = backup.clone();
+        match kind {
+            0 => bad["invoices"][0]["grand_total_minor"] = serde_json::json!(3151),
+            1 => bad["invoice_items"][0]["taxable_minor"] = serde_json::json!(1499),
+            2 => {
+                bad["draft_create_operations"][0]["request_fingerprint"] = serde_json::json!("bad")
+            }
+            _ => bad["draft_create_operations"][0]["deleted_version"] = serde_json::json!(0),
+        };
+        let mut map: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_value(bad.clone()).unwrap();
+        map.remove("checksum_sha256");
+        bad["checksum_sha256"] =
+            serde_json::json!(billzen_lib::db::backup::compute_canonical_checksum(&map).unwrap());
+        assert!(
+            billzen_lib::db::backup::restore_workspace_backup(&target, &bad).is_err(),
+            "kind {kind}"
+        );
+        assert_eq!(restored.get_invoice_draft(d.id.clone()).await.unwrap(), d);
+    }
+}
+
+#[test]
+#[ignore = "synthetic browser interoperability harness supplies fixture"]
+fn browser_draft_fixture_import() {
+ let fixture=std::fs::read(std::env::var("BILLZEN_WEB_DRAFT_FIXTURE").unwrap()).unwrap();let b:serde_json::Value=serde_json::from_slice(&fixture).unwrap();let dir=tempfile::tempdir().unwrap();let path=dir.path().join("restored.db");drop(initialize_database(&path).unwrap());billzen_lib::db::backup::restore_workspace_backup(&path,&b).unwrap();let c=initialize_database(&path).unwrap();let out=billzen_lib::db::backup::create_workspace_backup(&c).unwrap();
+ for key in ["invoices","invoice_items","draft_create_operations"] {let mut a=b[key].as_array().unwrap().clone();let mut z=out[key].as_array().unwrap().clone();a.sort_by_key(|v|v["id"].as_str().or(v["idempotency_key"].as_str()).unwrap().to_string());z.sort_by_key(|v|v["id"].as_str().or(v["idempotency_key"].as_str()).unwrap().to_string());assert_eq!(a,z,"{key}");}
 }

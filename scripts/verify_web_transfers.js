@@ -58,7 +58,7 @@ try {
   const rows=await ws.workspaceTransaction(false,t=>({headers:t.cashbook_transfers,vouchers:t.cashbook_vouchers,movements:t.cashbook_movements,audits:t.cashbook_audit_events}));
   eq([rows.headers.length,rows.vouchers.length,rows.movements.length],[3,6,6],'exact pair count');
   if(!rows.audits.some(e=>e.event_type==='negative_balance_confirmed'))throw Error('Missing override audit');
-  const backup=await api.exportWorkspaceBackup();eq(backup.format_version,'1.1','new backup version');
+  const backup=await api.exportWorkspaceBackup();eq(backup.format_version,'1.2','new backup version');
   const checksum=await import('/src/domain/backup_crypto.ts');
   const resign=async b=>{const {checksum_sha256,...payload}=b;b.checksum_sha256=await checksum.computePayloadChecksum(payload);};
   for(const mode of ['missing_header','missing_leg','sequence','snapshot','half_reverse','hash','legacy_injection','raw_key']){

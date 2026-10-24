@@ -52,16 +52,16 @@ Public desktop0.1.5 did not include an updater: install0.1.6 once. Thereafter Se
 
 ## Next development: B1 offline invoice drafts
 
-Owner already approved transfers/billing first with inline implementation and independent final review. T1 transfers is delivered; B1 Task1 native foundation is implemented in this session; browser/backup/editor are still pending, and there is no Sales workflow yet. See ../docs/invoice-drafts-implementation.md.
+Owner already approved transfers/billing first with inline implementation and independent final review. T1 transfers is delivered; B1 Task1 native foundation and Task2 browser/backup parity are implemented in this session; editor is still pending, and there is no Sales workflow yet. See ../docs/invoice-drafts-implementation.md.
 
 Read:
 - ../docs/superpowers/plans/2026-10-23-invoice-drafts.md
 - ../docs/m4a-invoice-drafts-spec.md
 - ../docs/superpowers/specs/2026-10-23-transfers-and-billing.md
 
-Task1 uses additive migration10 draft_create_operations with deletion tombstones; existing migrations1–9 unchanged. Native lifecycle/worker/scoped commands and shared TS DTO/calculation fixtures pass. Export fails closed while a journal is populated until Task2 makes it portable. Next is Task2; do not expose a half-working Sales screen.
+Task1 uses additive migration10 draft_create_operations with deletion tombstones; existing migrations1–9 unchanged. Native lifecycle/worker/scoped commands and shared TS DTO/calculation fixtures pass. Backup1.2 now preserves creation/deletion journal in both runtimes and validates draft arithmetic/ownership. Legacy1.0/1.1 remain checksum-first compatible. Next is Task3 editor and whole-B1 independent final review.
 
-Then Task2: durable browser transactions + complete backup compatibility/native↔browser roundtrip. Task3: responsive Sales/Drafts editor, multiple saved drafts, unsaved/conflict recovery and translated accessible preview clearly marked DRAFT. Drafts never touch stock, money, customer debt or final numbering. Finalization/B2/B3, supplier bills and sync need their later gates.
+Task2 durable browser transactions + complete backup compatibility/native↔browser roundtrip passed. Task3: responsive Sales/Drafts editor, multiple saved drafts, unsaved/conflict recovery and translated accessible preview clearly marked DRAFT. Drafts never touch stock, money, customer debt or final numbering. Finalization/B2/B3, supplier bills and sync need their later gates.
 
 Relevant commands (inspect package scripts first): `npm run build`, native `cargo test` in src-tauri, and applicable financial/workspace/customer/transfer/stock/new draft suites. Follow test-first evidence, independent final review, relevant full checks, commit/push/remote CI. Do not rebuild/publish just because this memory document exists.
 

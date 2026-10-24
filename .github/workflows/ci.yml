@@ -97,6 +97,7 @@ jobs:
       - name: Verify durable workspace and customer cashbook integration
         run: |
           npm run test:workspace
+          npm run test:drafts
           npm run test:transfers
           npm run test:transfers-ui
           npm run test:customer-cashbook

@@ -13,7 +13,7 @@ fn setup()->(tempfile::TempDir,std::path::PathBuf,Value){
 }
 #[test]
 fn paired_transfer_backup_roundtrip_and_rejection_preserves_active(){
- let(_d,path,b)=setup();assert_eq!(b["format_version"],"1.1");assert_eq!(b["cashbook_transfers"].as_array().unwrap().len(),2);
+ let(_d,path,b)=setup();assert_eq!(b["format_version"],"1.2");assert_eq!(b["cashbook_transfers"].as_array().unwrap().len(),2);
  restore_workspace_backup(&path,&b).unwrap();
  let c=initialize_database(&path).unwrap();let after=create_workspace_backup(&c).unwrap();drop(c);
  for key in ["cashbook_transfers","cashbook_vouchers","cashbook_movements","cashbook_audit_events"]{assert_eq!(after[key],b[key],"{key} preserved");}

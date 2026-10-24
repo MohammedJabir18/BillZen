@@ -34,7 +34,9 @@
     "test:reports-refresh": "node scripts/verify_reports_refresh.js",
     "test:stock": "node scripts/verify_stock.js",
     "test:stock-ui": "node scripts/verify_stock_ui.js",
-    "test:desktop-update-ui": "node scripts/verify_desktop_update_ui.js"
+    "test:desktop-update-ui": "node scripts/verify_desktop_update_ui.js",
+    "test:drafts": "node scripts/verify_invoice_drafts.js",
+    "test:draft-interop": "node scripts/verify_draft_interop.js"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
