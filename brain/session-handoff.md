@@ -1,6 +1,6 @@
 # BillZen — resume here
 
-Snapshot: 2026-10-24, Asia/Kolkata. Updated during B1 invoice-drafts implementation; source commits f5a9317/49279a0 plus final editor section are separate from published desktop0.1.6/Android0.1.5. Re-check live Git/CI before acting.
+Snapshot: 2026-10-25, Asia/Kolkata. B1 is complete in source at9158c40; current work is Laya research/design. Source commits f5a9317/49279a0/9158c40 are separate from published desktop0.1.6/Android0.1.5. Re-check live Git/CI before acting.
 
 ## Startup / authority
 
@@ -59,9 +59,15 @@ Sales/Drafts editor supports active catalog/customer selections, existing archiv
 
 The independent final review found3 Important issues (cross-tab recovery loss, stale-currency reinterpretation, missing barcode Enter/focus); failing regression tests preceded fixes. No Critical/Minor reported. Full Rust128/frontend97/build, synthetic native→browser→native draft backup, expanded editor matrix and existing motion23/responsive/transfer UI passed. Exact local Linux production candidate passed78 native IPC assertions including draft/recovery/cold restart and unchanged real-data fingerprints. Header17 and full layout816states/0failed passed. Final source CI evidence is appended to sessions/verification status.
 
-Task1 f5a9317 CI40107048721 and Task2 49279a0 CI40107658193 completed/success. Final editor source commit/CI must be checked live. No public updater feed, version, installed app, APK or signing credential changed. A local production Linux test binary is not an updater release.
+Task1 f5a9317 CI40107048721 and Task2 49279a0 CI40107658193 completed/success. Final editor9158c404b88113f4f02eacf0eac43832b08c97a5 CI40109783757 was rechecked completed/success during Laya research: https://github.com/MohammedJabir18/BillZen/actions/runs/40109783757 . No public updater feed, version, installed app, APK or signing credential changed. A local production Linux test binary is not an updater release.
 
 Next approved product gates after B1: before B2 finalization, settle regional invoice profile/required fields, legal numbering/year/reset rules, availability policy and cost snapshots. B3 settlement/return/credit/allocation semantics remain separately gated. Supplier bills and device synchronization remain later phases. Do not begin financial posting or release publication based only on this handoff.
+
+## Current requested work: Laya research, not implementation
+
+Owner requested detailed study of https://github.com/nandhakishorm/laya and BillZen, useful application scenarios and a structured fine-tuning/integration plan. Owner chose desktop first, Android later; hardware undecided. See ../docs/research/2026-10-25-laya-billzen-assessment.md and ../docs/superpowers/plans/2026-10-25-laya-billzen-integration.md . Only one external repository URL was identifiable; no unidentified second upload was claimed reviewed.
+
+Research pins Laya code7a77439b0923d6efe00052d50a7f787840bfce98 (Python0.4.15). It is an encoder/typed-decision engine, not a general generative chatbot. Proposed initial features: action routing and Cashbook category suggestions using a single multilingual checkpoint, no financial writes. Rust ONNX runtime export/abstention/calibration parity and desktop memory/latency are explicit gates; weights revision/hashes still need resolving. No weights downloaded, training/inference benchmarks run, runtime installed or product code changed by this research. Do not describe proposed metrics as achieved. Later implementation requires owner review/approval; preserve inline execution and independent final review.
 
 ## Memory maintenance / safety
 

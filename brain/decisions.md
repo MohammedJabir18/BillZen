@@ -35,6 +35,12 @@ Captured 2026-10-24 from available conversation; later explicit owner decisions 
 - Separate source implementation, candidate builds, installed application and published release. Separate browser, Linux native, hosted packaging and physical device evidence.
 - User likes creative professional README, suitable original GIFs/emojis, honest screenshots, Archify architecture/workflows and author/support links. Never fabricate awards, metrics or universal support.
 
+## Laya research scope — 2026-10-25
+
+- Owner requested detailed study of Laya and BillZen and a structured integration/fine-tuning plan. Current task is research/design, not permission to train on private business data, install models or publish releases.
+- Owner explicitly selected desktop first, Android later; training hardware is unknown and will be decided after feasibility evidence. Responses in this chat should be Malayalam with important technical terms in English.
+- Proposed design is an optional local typed-decision assistant with nonbinding suggestions and ordinary explicit financial confirmation. This is a recommendation awaiting implementation approval, not an already delivered feature or an owner-approved runtime architecture.
+
 ## Public author links
 
 GitHub: https://github.com/MohammedJabir18 ; website: https://mohammedjabir.me ; email: jabirahmedz111@gmail.com
