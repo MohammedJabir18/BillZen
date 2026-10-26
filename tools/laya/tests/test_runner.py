@@ -158,9 +158,8 @@ def test_onnx_laya_provider_real_inference_with_mock_session(tmp_path):
             return [InputMeta()]
 
         def run(self, output_names, input_feed):
-            import numpy as np
-            # Logits where index 1 ("rent") has the highest score
-            return [np.array([[0.2, 3.8, 0.5]], dtype=np.float32)]
+            # Logits where index 1 ("rent") has the highest score (batch_size 1, 3 classes)
+            return [[[0.2, 3.8, 0.5]]]
 
     provider._session = MockOrtSession()
     provider._is_session_ready = True
