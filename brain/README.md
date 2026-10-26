@@ -24,6 +24,7 @@ Updated2026-10-26. This is the bounded entry index for continuing in a fresh cha
 - [Antigravity foundation review](../docs/reviews/2026-10-26-antigravity-laya-foundation-review.md) and [corrective prompt](../docs/prompts/2026-10-26-antigravity-laya-foundation-corrections.md) — current next step before runtime/UI; rules-only59-case success does not pass the Laya model gate.
 - [c021767 re-review](../docs/reviews/2026-10-26-antigravity-laya-c021767-rereview.md) and [next feasibility-pilot prompt](../docs/prompts/2026-10-26-antigravity-laya-feasibility-next.md) — latest review:30 tests/CI pass, corrections improved; remaining validator/report gaps and unmeasured model still gate runtime/UI.
 - [8858613 model-handoff review](../docs/reviews/2026-10-26-laya-model-handoff-review.md) and [functional external-handoff prompt](../docs/prompts/2026-10-26-antigravity-laya-external-handoff.md) — latest:43 tests/CI pass, but typed dataset export wrong and model predictors still placeholders; complete functional tools before external execution.
+- [d8dd86b contract review](../docs/reviews/2026-10-26-laya-d8dd86b-contract-review.md) and [contract-first correction prompt](../docs/prompts/2026-10-26-antigravity-laya-contract-first.md) — latest:49 tests/CI pass, but providers/schema/runbook disagree with pinned upstream; do not execute external handoff until C1–C3 pass.
 - [Published desktop delivery](../docs/distribution-v0.1.6.md) and [current project README](../README.md).
 
 ## Memory rules

@@ -1,5 +1,7 @@
 # Reproducible Laya Export and Evaluation Runbook (CPU-Capable)
 
+> **Do not execute yet — d8dd86b review:** The [contract review](../../reviews/2026-10-26-laya-d8dd86b-contract-review.md) found mismatching asset hashes/paths, dependency/CLI incompatibility and rules-only commands advertised as model evaluation. This runbook remains an unverified draft until C1–C3 corrections and upstream-derived acceptance checks pass. No external preparation or model compatibility is certified by current mocks/CI.
+
 **Target Upstream Revision**: `b9fe351ce81e2d974bca2bf219c1e4030c0a05ea`  
 **Base Model**: `convaiinnovations/laya-multilingual` (Apache 2.0)  
 **Host Context**: Research tooling & portable execution handoff for BillZen assistive assistant.  
