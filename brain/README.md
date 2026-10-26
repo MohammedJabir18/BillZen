@@ -22,6 +22,7 @@ Updated2026-10-26. This is the bounded entry index for continuing in a fresh cha
 - [Gemini-plan reconciliation](../docs/research/2026-10-26-laya-gemini-reconciliation.md), [revised Release A plan](../docs/superpowers/plans/2026-10-26-laya-reconciled-desktop.md) and [Antigravity execution prompt](../docs/prompts/2026-10-26-antigravity-laya.md) — current planning handoff; newer Rust gate status corrected.
 - [Laya feasibility & provenance report](../docs/research/laya/desktop-feasibility.md) and [baseline evaluation report](../docs/research/laya/baseline.md) — initial Task1/2 tooling; model feasibility/quality unmeasured and foundation corrections required.
 - [Antigravity foundation review](../docs/reviews/2026-10-26-antigravity-laya-foundation-review.md) and [corrective prompt](../docs/prompts/2026-10-26-antigravity-laya-foundation-corrections.md) — current next step before runtime/UI; rules-only59-case success does not pass the Laya model gate.
+- [c021767 re-review](../docs/reviews/2026-10-26-antigravity-laya-c021767-rereview.md) and [next feasibility-pilot prompt](../docs/prompts/2026-10-26-antigravity-laya-feasibility-next.md) — latest review:30 tests/CI pass, corrections improved; remaining validator/report gaps and unmeasured model still gate runtime/UI.
 - [Published desktop delivery](../docs/distribution-v0.1.6.md) and [current project README](../README.md).
 
 ## Memory rules

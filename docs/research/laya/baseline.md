@@ -1,5 +1,7 @@
 # BillZen Assistant: Grouped Synthetic Dataset & Baseline Evaluation Report
 
+> **c021767 re-review:** Holdout metrics below reproduce; development metrics are stale (fresh source gives58/59,macro-F1.9866,ECE.0708). Read the [re-review](../../reviews/2026-10-26-antigravity-laya-c021767-rereview.md) for counts/uncertainty and remaining report/validation gates. Neither this23-case rules result nor "zero memory" wording establishes production readiness or Laya model performance. No model was run.
+
 **Date:** 2026-10-26, Asia/Kolkata  
 **Scope:** Task 2 (Grouped Synthetic Labels & Rules-Versus-Model Baseline Prototype)  
 **Status:** Diagnostic Harness Delivered; Foundation Review R1–R7 Corrections Applied  
