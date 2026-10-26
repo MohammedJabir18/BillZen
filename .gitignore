@@ -80,3 +80,17 @@ dist-android/
 
 # Generated desktop installers and downloaded workflow artifacts
 dist-desktop/
+
+# Python & AI tooling (isolated from repo)
+.venv/
+tools/laya/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+models/
+tools/laya/models/
+*.safetensors
+*.onnx
+*.onnx_data
+

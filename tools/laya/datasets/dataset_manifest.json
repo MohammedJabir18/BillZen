@@ -1,0 +1,26 @@
+{
+  "dataset_version": "1.0.0",
+  "total_cases": 59,
+  "split_counts": {
+    "train": 38,
+    "dev": 9,
+    "calibration": 6,
+    "test": 6
+  },
+  "split_hashes": {
+    "train": "456fa6e389c3d205aaa2ae9e63d5a207c1870288016f284f3b67e9502caeace5",
+    "dev": "c571859c1803b0b14073d485a527e925d05c05ff699cff30c8da9ef2789e36a0",
+    "calibration": "99a9a02da574327281d9ffcc623f460b7b3922f5ac0e215721964f19963d411c",
+    "test": "8faae8524a7377fa5f96e236580820ead7a62d007d91f2bf16952d7ecbc87329"
+  },
+  "tasks": [
+    "navigate.v1",
+    "cashbook_category.v1"
+  ],
+  "languages": [
+    "en",
+    "ml",
+    "manglish",
+    "ar"
+  ]
+}

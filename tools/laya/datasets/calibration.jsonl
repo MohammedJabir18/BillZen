@@ -1,0 +1,6 @@
+{"case_id": "cat_pay_07", "task": "cashbook_category.v1", "direction": "payment", "language": "ml", "text": "ഹെൽപ്പർമാർക്ക് ആഴ്ച ശമ്പളം നൽകി", "candidates": ["rent", "utilities", "salary", "maintenance", "transport", "none"], "expected": "salary", "tags": ["category_salary"]}
+{"case_id": "cat_pay_09", "task": "cashbook_category.v1", "direction": "payment", "language": "manglish", "text": "Staffinu weekly salary koduthu", "candidates": ["rent", "utilities", "salary", "maintenance", "transport", "none"], "expected": "salary", "tags": ["category_salary"]}
+{"case_id": "cat_rec_03", "task": "cashbook_category.v1", "direction": "receipt", "language": "en", "text": "Sold waste cardboard boxes and scrap iron", "candidates": ["sales_cash", "service_income", "scrap_sale", "refund", "none"], "expected": "scrap_sale", "tags": ["category_scrap"]}
+{"case_id": "nav_mgl_03", "task": "navigate.v1", "language": "manglish", "text": "Cashil ninn bankilekku 5000 ittu", "expected": "account_transfer", "tags": ["transfer_cash_to_bank"]}
+{"case_id": "nav_ml_02", "task": "navigate.v1", "language": "ml", "text": "കസ്റ്റമർ തന്ന 3500 രൂപ ക്യാഷ് വാങ്ങി", "expected": "cashbook_receipt", "tags": ["standard_receipt"]}
+{"case_id": "nav_ml_07", "task": "navigate.v1", "language": "ml", "text": "ഇന്ന് കടവാടക കൊടുക്കേണ്ടതില്ലെന്ന് മുതലാളി പറഞ്ഞു", "expected": "clarify", "tags": ["negation"]}

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BillZenLayaAssetManifest",
+  "description": "Schema for validating Laya model asset bundles, source revisions, and provenance for BillZen.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "model_id",
+    "checkpoint_revision",
+    "base_encoder",
+    "upstream_source_commit",
+    "license",
+    "assets",
+    "hardware_target",
+    "resource_ceiling"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "model_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+$"
+    },
+    "checkpoint_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "base_encoder": {
+      "type": "object",
+      "required": ["id", "license"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "license": { "type": "string" }
+      }
+    },
+    "upstream_source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "python_package_version": {
+      "type": "string"
+    },
+    "rust_crate_version": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string"
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["filename", "sha256", "size_bytes", "role", "provenance"],
+        "additionalProperties": false,
+        "properties": {
+          "filename": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.-]+(/?[a-zA-Z0-9_.-]+)*$",
+            "not": {
+              "pattern": "(^\\.\\./|/\\.\\./|/\\.\\.$|^\\.\\.$|^/)"
+            }
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "weights_safetensors",
+              "weights_onnx",
+              "tokenizer_config",
+              "tokenizer_vocabulary",
+              "model_config",
+              "calibration_bins"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "upstream_huggingface",
+              "locally_exported_onnx",
+              "synthetic_calibration"
+            ]
+          }
+        }
+      }
+    },
+    "hardware_target": {
+      "type": "object",
+      "required": ["cpu", "min_ram_mb", "has_accelerator"],
+      "additionalProperties": false,
+      "properties": {
+        "cpu": { "type": "string" },
+        "min_ram_mb": { "type": "integer", "minimum": 512 },
+        "has_accelerator": { "type": "boolean" }
+      }
+    },
+    "resource_ceiling": {
+      "type": "object",
+      "required": ["max_rss_mb", "max_warm_latency_ms", "max_load_timeout_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "max_rss_mb": { "type": "integer", "maximum": 1024 },
+        "max_warm_latency_ms": { "type": "integer", "maximum": 2000 },
+        "max_load_timeout_ms": { "type": "integer", "maximum": 15000 }
+      }
+    }
+  }
+}

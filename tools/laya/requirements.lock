@@ -1,0 +1,2 @@
+# tools/laya pinned dependencies for dataset validation and offline evaluation
+pytest==9.0.2
