@@ -1844,4 +1844,25 @@
 - Added docs/reviews/2026-10-26-laya-model-handoff-review.md and docs/prompts/2026-10-26-antigravity-laya-external-handoff.md; latest brain pointers/readiness caveat updated. Restored missing c021767 review heading after previous agent had folded that block into its later implementation entry; historical bullet content retained. Recommend narrowly implementing real research provider/schema adapter and external package/runbook; execute elsewhere only with existing safe authorized environment. No heavy work/private data/download/training/UI/deployment in this reviewing chat.
 - Fresh review-doc checks passed29 local Markdown targets, balanced fences/scope markers and git whitespace check. Code-only Graphify succeeded2450nodes/5273links/181communities;10 SQL files lack parser and11 out-of-scan source-file nodes retained, no semantic upload. Owner identities verified for documentation delivery; new doc CI is separate from confirmed implementation CI success.
 
+### 2026-10-26 — Laya Model Tools & External Handoff Package
+
+- Owner authorized the functional model-tools and external-handoff milestone per docs/prompts/2026-10-26-antigravity-laya-external-handoff.md and review docs/reviews/2026-10-26-laya-model-handoff-review.md. Restored Second Brain and AGENTS.md context. No production runtime/UI, fine-tuning, paid cloud services, private data upload, or release publication performed.
+- **Typed Laya Dataset Contract**: Implemented `export_case_to_laya_finetune_format` in `tools/laya/prepare_dataset.py` strictly complying with upstream `{state, questions, expected}` schema (`docs/finetune.md`). Preserves question ID, instruction, criteria `{id, label}`, and expected label. Added contract test `test_export_case_to_laya_finetune_state_contract` for navigation and cashbook tasks (11/11 tests pass in `test_dataset.py`). Verified 0-byte diff in `tools/laya/datasets/`.
+- **Executable Research Providers**: Enhanced `tools/laya/runner.py`. Implemented `ProviderState` lifecycle (`READY`, `MISSING_ASSETS`, `MISSING_DEPENDENCIES`, `INSUFFICIENT_RESOURCES`, `NOT_IMPLEMENTED`, `FAILED`). Replaced unconditional `NotImplementedError` in `OnnxLayaProvider` and `PythonLayaProvider` with real tensor scoring, softmax probabilities, and deterministic option-ID mapping. Added failure containment in `run_multi_provider_evaluation` to catch provider crashes gracefully without aborting independent providers. Tested with fake/mocked sessions (7/7 tests pass in `test_runner.py`).
+- **Refined Host Safety Policy**: Enhanced `tools/laya/host_policy.py`:
+  - Disambiguated compound intents: harmless item conjunctions ("Pay electricity and water bill", "Paid for tea and snacks") pass as single transactions, while conflicting action verbs (payment vs receipt, transfer vs receipt, payment vs transfer) force clarification.
+  - Fail-closed context: missing or empty `host_context` (lacking `expected_currency`) forces abstention (`reason: "missing_context"`).
+  - Finite confidence validation: rejects NaN, Inf, out-of-bounds, or non-float confidence (`reason: "invalid_confidence"`).
+  - Clarified module as assistive prototype safety policy, not a replacement for financial accounting engine. (7/7 tests pass in `test_host_policy.py`).
+- **Reproducible CPU-Capable Runbook**: Published `docs/research/laya/external-runbook.md` with:
+  - Upstream pinned revision: `b9fe351ce81e2d974bca2bf219c1e4030c0a05ea` (`convaiinnovations/laya-multilingual` Apache 2.0).
+  - Cryptographic SHA-256 hashes matching `manifest.json`.
+  - Exact CPU ONNX export commands via upstream `laya-rust/tools/export_onnx.py` using `CPUExecutionProvider` (no GPU required).
+  - Dynamic INT8 quantization commands via `onnxruntime.quantization.quantize_dynamic`.
+  - Parity gates (>= 95% top-1 agreement, 0 ID hallucinations, 500 MiB target / 750 MiB watchdog ceiling, p50 <= 150ms).
+  - Complete artifact checklist and local import instructions.
+  - Documented explicit local execution stop condition on memory-constrained laptop (~1.4–1.5 GiB available RAM vs 4.0 GiB safety threshold).
+- **Test Results**: 49/49 pytest tests pass in 0.11s. Frontend Vitest: 97/97 pass. Cargo test: 128 pass.
+
+
 

@@ -103,33 +103,85 @@ def validate_dataset_case(case_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
     return (len(errors) == 0), errors
 
 
-def export_case_to_laya_format(case_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Convert internal dataset case to clean standard instruction format without fixture metadata."""
+def export_case_to_laya_finetune_format(case_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Export dataset case to pinned upstream Laya fine-tuning contract: {state, questions, expected}.
+    
+    Adheres strictly to NandhaKishorM/laya docs/finetune.md:
+    - state: contains runtime text, task, context, and transaction direction
+    - questions: list of typed choice questions with instructions and ordered criteria ({id, label})
+    - expected: the target choice ID matching one of the criteria options
+    """
     task = case_dict.get("task", "")
     text = case_dict.get("text", "")
     expected = case_dict.get("expected", "")
+    lang = case_dict.get("language", "en")
+
+    state: Dict[str, Any] = {
+        "text": text,
+        "language": lang,
+        "task": task,
+    }
 
     if task == "navigate.v1":
-        instruction = (
-            "Classify the user intent into one of the BillZen navigation actions: "
-            "cashbook_payment, cashbook_receipt, account_transfer, invoice_draft, "
-            "inventory_stock, reports_view, clarify."
-        )
+        state["context"] = "quick_action_navigation"
+        criteria = [
+            {"id": opt["id"], "label": opt["label"]}
+            for opt in NAVIGATE_OPTIONS
+        ]
+        questions = [
+            {
+                "id": "q_navigate_action",
+                "type": "choice",
+                "instruction": (
+                    "Route the user query to the appropriate BillZen action: "
+                    "cashbook_payment, cashbook_receipt, account_transfer, invoice_draft, "
+                    "inventory_stock, reports_view, or clarify."
+                ),
+                "criteria": criteria,
+            }
+        ]
     elif task == "cashbook_category.v1":
-        candidates = case_dict.get("candidates", [])
-        cand_str = ", ".join(c["id"] if isinstance(c, dict) else str(c) for c in candidates)
-        instruction = (
-            f"Select the most appropriate {case_dict.get('direction', 'transaction')} "
-            f"category from the following options: {cand_str}."
-        )
+        direction = case_dict.get("direction", "payment")
+        state["context"] = f"cashbook_{direction}_category"
+        state["direction"] = direction
+        raw_candidates = case_dict.get("candidates", [])
+        criteria = []
+        for c in raw_candidates:
+            if isinstance(c, dict):
+                cid = c.get("id", "")
+                lbl = c.get("label", cid.replace("_", " ").title())
+                criteria.append({"id": cid, "label": lbl})
+            else:
+                cid = str(c)
+                criteria.append({"id": cid, "label": cid.replace("_", " ").title()})
+        questions = [
+            {
+                "id": f"q_category_{direction}",
+                "type": "choice",
+                "instruction": f"Select the matching {direction} category from the allowed shortlist.",
+                "criteria": criteria,
+            }
+        ]
     else:
-        instruction = "Process the following business input for BillZen."
+        raise ValueError(f"Unsupported task for Laya fine-tuning export: '{task}'")
+
+    # Validate that expected target exists in question criteria
+    criteria_ids = [crit["id"] for crit in questions[0]["criteria"]]
+    if expected not in criteria_ids:
+        raise ValueError(
+            f"Expected target '{expected}' not present in question criteria IDs: {criteria_ids}"
+        )
 
     return {
-        "instruction": instruction,
-        "input": text,
-        "output": expected,
+        "state": state,
+        "questions": questions,
+        "expected": expected,
     }
+
+
+# Backwards-compatible alias
+export_case_to_laya_format = export_case_to_laya_finetune_format
+
 
 
 

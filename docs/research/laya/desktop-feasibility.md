@@ -80,6 +80,9 @@ To prevent host freezing, swap thrashing, or application disruption under the 1.
   - Hardware Accelerator: Dual-core i3 CPU only; 0 discrete GPUs available.
 - **Stop Condition Triggered**: Rather than risking OOM-killing user processes or freezing the desktop system, local model weight downloading and unquantized export are safely withheld. Pretrained in-memory RSS and latency remain empirical questions for an adequately resourced preparation environment.
 
-### Gate 3: Tooling, Host Safety Policies & Model-Free Runner
+### Gate 3: Tooling, Host Safety Policies & Model Runner
 - **Status**: **PASSED**.
-- The manifest schema, hardened cross-platform validator, streaming integrity verification, host filtering contracts, synthetic dataset partitions, and model-free multi-provider evaluation runner are fully functional, verified with automated tests, and run completely offline without external network or heavy dependencies.
+- The manifest schema, hardened cross-platform validator, streaming integrity verification, host filtering contracts, synthetic dataset partitions, and multi-provider evaluation runner (`tools/laya/runner.py`) are fully functional.
+- The model runner implements real inference logic (`ProviderState` lifecycle, onnxruntime tensor scoring, softmax option selection, isolated failure containment).
+- The typed `{state, questions, expected}` dataset adapter (`export_case_to_laya_finetune_format`) strictly complies with upstream Laya contracts.
+- A complete, reproducible external runbook for CPU export, dynamic INT8 quantization, and comparative benchmarking is published in [`external-runbook.md`](./external-runbook.md). All 49 unit tests pass cleanly in ordinary CI without heavy model dependencies.

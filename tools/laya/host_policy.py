@@ -1,16 +1,15 @@
-"""Host-side candidate filtering, context safety, and compound navigation policies for BillZen."""
+"""Host-side candidate filtering, context safety, and compound navigation policies for BillZen.
+
+Note: This module implements host-level safety policies for assistive ML prototypes.
+It is not a substitute for a full production accounting engine or user confirmation.
+"""
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-
-COMPOUND_INTENT_PATTERNS = [
-    re.compile(r"\b(and|also)\b", re.IGNORECASE),
-    re.compile(r"(കൂടാതെ|ഒപ്പം|പിന്നെ)"),
-    re.compile(r"\s+و\s*"),
-]
 
 CONFLICTING_ACTION_PAIRS = [
     # (payment, receipt)
@@ -22,6 +21,11 @@ CONFLICTING_ACTION_PAIRS = [
     (
         re.compile(r"\b(transfer|transferred)\b|നിക്ഷേപിച്ചു|മാറ്റി|حوالة|تحويل", re.IGNORECASE),
         re.compile(r"\b(received?|receipt)\b|വാങ്ങി|തന്നു|استلم|قبض", re.IGNORECASE),
+    ),
+    # (payment, transfer)
+    (
+        re.compile(r"\b(pay|paid|payment)\b|കൊടുത്തു|നൽകി|ادفع|دفع", re.IGNORECASE),
+        re.compile(r"\b(transfer|transferred)\b|നിക്ഷേപിച്ചു|മാറ്റി|حوالة|تحويل", re.IGNORECASE),
     ),
 ]
 
@@ -81,35 +85,54 @@ def validate_assistant_result_against_host(
     """Validate assistant prediction against live host state and candidate constraints.
     
     Guarantees:
-    1. Unknown IDs are never returned as actionable suggestions.
-    2. Stale currency or context forces abstention.
-    3. Compound or conflicting navigation intents force clarification.
-    4. Reserved non-action tokens ('clarify', 'none_of_the_above', 'none') are explicitly tagged.
+    1. Fail-closed: missing, empty, or unconfigured host context forces abstention.
+    2. Finite probabilities: non-finite or out-of-range confidence forces abstention.
+    3. Stale currency or context forces abstention.
+    4. Compound or conflicting navigation intents force clarification, while
+       harmless item conjunctions (e.g. 'electricity and water') are preserved.
+    5. Unknown IDs are never returned as actionable suggestions.
+    6. Reserved non-action tokens ('clarify', 'none_of_the_above', 'none') are explicitly tagged.
     """
     out = dict(result)
     pred = out.get("pred", "clarify")
 
-    # 1. Stale context check
-    if "currency" in out and "expected_currency" in host_context:
-        if out["currency"] != host_context["expected_currency"]:
-            out["is_actionable"] = False
-            out["pred"] = "clarify"
-            out["reason"] = "stale_context"
-            return out
+    # 1. Fail-closed on missing or invalid host context
+    if not isinstance(host_context, dict) or not host_context.get("expected_currency"):
+        out["is_actionable"] = False
+        out["pred"] = "clarify"
+        out["reason"] = "missing_context"
+        return out
 
-    # 2. Compound intent check
+    # 2. Finite confidence validation
+    conf = out.get("confidence")
+    if (
+        conf is None
+        or isinstance(conf, bool)
+        or not isinstance(conf, (int, float))
+        or math.isnan(conf)
+        or math.isinf(conf)
+        or not (0.0 <= float(conf) <= 1.0)
+    ):
+        out["is_actionable"] = False
+        out["pred"] = "clarify"
+        out["reason"] = "invalid_confidence"
+        return out
+
+    # 3. Stale context / currency check
+    if "currency" in out and out["currency"] != host_context["expected_currency"]:
+        out["is_actionable"] = False
+        out["pred"] = "clarify"
+        out["reason"] = "stale_context"
+        return out
+
+    # 4. Compound / conflicting intent check
     text = out.get("text", "")
     if text:
         is_compound = False
-        for pat in COMPOUND_INTENT_PATTERNS:
-            if pat.search(text):
+        for act_a, act_b in CONFLICTING_ACTION_PAIRS:
+            if act_a.search(text) and act_b.search(text):
                 is_compound = True
                 break
-        if not is_compound:
-            for act_a, act_b in CONFLICTING_ACTION_PAIRS:
-                if act_a.search(text) and act_b.search(text):
-                    is_compound = True
-                    break
 
         if is_compound:
             out["is_actionable"] = False
@@ -117,13 +140,13 @@ def validate_assistant_result_against_host(
             out["reason"] = "compound_intent"
             return out
 
-    # 3. Reserved abstention tokens
+    # 5. Reserved abstention tokens
     if pred in ["clarify", "none", "none_of_the_above"]:
         out["is_actionable"] = False
         out["reason"] = "abstention"
         return out
 
-    # 4. Unknown candidate ID
+    # 6. Unknown candidate ID
     if pred not in allowed_candidate_ids:
         out["is_actionable"] = False
         out["pred"] = "clarify"

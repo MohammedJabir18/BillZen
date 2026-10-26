@@ -22,10 +22,11 @@ class FakeTestProvider(EvaluationProvider):
         self._default_pred = default_pred
         self.name = "fake_test_provider"
 
-    def is_available(self) -> Tuple[bool, str]:
+    def check_readiness(self) -> Tuple[Any, str]:
+        from tools.laya.runner import ProviderState
         if self._available:
-            return True, "Fake test provider ready"
-        return False, "Simulated missing dependencies for test"
+            return ProviderState.READY, "Fake test provider ready"
+        return ProviderState.MISSING_DEPENDENCIES, "Simulated missing dependencies for test"
 
     def predict(
         self,
@@ -116,3 +117,97 @@ def test_runner_with_fake_provider_harness():
     report = run_multi_provider_evaluation(cases, [fake])
     assert report["results"]["fake_test_provider"]["status"] == "completed"
     assert report["results"]["fake_test_provider"]["metrics"]["raw_accuracy"] == 1.0
+
+
+def test_provider_states_and_readiness_lifecycle():
+    """Providers must expose structured ProviderState distinguishing dependencies, assets, and memory."""
+    from tools.laya.runner import ProviderState
+
+    assert ProviderState.READY == "ready"
+    assert ProviderState.MISSING_ASSETS == "missing_assets"
+    assert ProviderState.MISSING_DEPENDENCIES == "missing_dependencies"
+    assert ProviderState.INSUFFICIENT_RESOURCES == "insufficient_resources"
+    assert ProviderState.NOT_IMPLEMENTED == "provider_not_implemented"
+
+    py_provider = PythonLayaProvider()
+    state_py, reason_py = py_provider.check_readiness()
+    assert state_py in [ProviderState.INSUFFICIENT_RESOURCES, ProviderState.MISSING_ASSETS, ProviderState.MISSING_DEPENDENCIES]
+
+    onnx_provider = OnnxLayaProvider()
+    state_onnx, reason_onnx = onnx_provider.check_readiness()
+    assert state_onnx in [ProviderState.MISSING_ASSETS, ProviderState.MISSING_DEPENDENCIES]
+
+
+def test_onnx_laya_provider_real_inference_with_mock_session(tmp_path):
+    """OnnxLayaProvider must execute real tensor scoring and softmax without raising NotImplementedError."""
+    from tools.laya.runner import OnnxLayaProvider
+
+    # Create dummy asset files
+    onnx_file = tmp_path / "model.onnx"
+    onnx_file.write_bytes(b"dummy onnx graph fixture")
+    tok_file = tmp_path / "tokenizer.json"
+    tok_file.write_text("{}", encoding="utf-8")
+
+    provider = OnnxLayaProvider(model_dir=tmp_path)
+
+    # Mock onnxruntime session returning logits for 3 classes: [0.1, 2.5, 0.4] -> argmax is index 1
+    class MockOrtSession:
+        def get_inputs(self):
+            class InputMeta:
+                name = "input_ids"
+            return [InputMeta()]
+
+        def run(self, output_names, input_feed):
+            import numpy as np
+            # Logits where index 1 ("rent") has the highest score
+            return [np.array([[0.2, 3.8, 0.5]], dtype=np.float32)]
+
+    provider._session = MockOrtSession()
+    provider._is_session_ready = True
+
+    candidates = ["utilities", "rent", "salary"]
+    res = provider.predict(
+        text="Paid office rent",
+        task="cashbook_category.v1",
+        candidates=candidates,
+        direction="payment",
+    )
+
+    # Must predict "rent" with high softmax probability, NOT raise NotImplementedError!
+    assert res["pred"] == "rent"
+    assert res["confidence"] > 0.90
+
+
+def test_runner_handles_provider_execution_failure_gracefully():
+    """If a provider throws during execution, runner must mark it failed and preserve other providers."""
+    class CrashingProvider(EvaluationProvider):
+        name = "crashing_provider"
+
+        def check_readiness(self) -> Tuple[Any, str]:
+            from tools.laya.runner import ProviderState
+            return ProviderState.READY, "Ready"
+
+        def predict(self, *args, **kwargs) -> Dict[str, Any]:
+            raise RuntimeError("Inference runtime crash (e.g. CUDA OOM or corrupted graph)")
+
+    cases = [
+        {
+            "case_id": "c1",
+            "task": "navigate.v1",
+            "language": "en",
+            "text": "Paid rent 1000",
+            "expected": "cashbook_payment",
+        }
+    ]
+
+    providers = [RulesProvider(), CrashingProvider()]
+    report = run_multi_provider_evaluation(cases, providers)
+
+    results = report["results"]
+    assert results["rules"]["status"] == "completed"
+    assert results["rules"]["metrics"]["raw_accuracy"] == 1.0
+
+    assert results["crashing_provider"]["status"] == "failed"
+    assert results["crashing_provider"]["metrics"] is None
+    assert "Inference runtime crash" in results["crashing_provider"]["error"]
+

@@ -201,11 +201,12 @@ def test_validate_dataset_case_runtime_rejection():
     assert any("duplicate" in e.lower() for e in errs)
 
 
-def test_export_case_to_laya_format():
-    """Laya export format must strip internal fixture bookkeeping and produce clean instruction format."""
-    from tools.laya.prepare_dataset import export_case_to_laya_format
+def test_export_case_to_laya_finetune_state_contract():
+    """Laya export format must strictly adhere to the pinned upstream {state, questions, expected} contract."""
+    from tools.laya.prepare_dataset import export_case_to_laya_finetune_format
 
-    c = {
+    # 1. Navigate task case
+    nav_case = {
         "case_id": "nav_en_01",
         "group_id": "grp_nav_en_01",
         "task": "navigate.v1",
@@ -215,17 +216,56 @@ def test_export_case_to_laya_format():
         "tags": ["standard_payment", "fixture_tag"],
     }
 
-    exported = export_case_to_laya_format(c)
-    assert "instruction" in exported
-    assert "input" in exported
-    assert "output" in exported
-    assert exported["output"] == "cashbook_payment"
-    assert exported["input"] == "Record payment of 1200 for office supplies"
+    nav_exported = export_case_to_laya_finetune_format(nav_case)
+    assert "state" in nav_exported
+    assert "questions" in nav_exported
+    assert "expected" in nav_exported
+    assert nav_exported["expected"] == "cashbook_payment"
+    assert nav_exported["state"]["text"] == "Record payment of 1200 for office supplies"
+    assert nav_exported["state"]["task"] == "navigate.v1"
+
+    # Must contain typed questions with criteria
+    questions = nav_exported["questions"]
+    assert isinstance(questions, list) and len(questions) == 1
+    q = questions[0]
+    assert q["type"] == "choice"
+    assert "instruction" in q
+    assert isinstance(q["criteria"], list)
+    criteria_ids = [crit["id"] for crit in q["criteria"]]
+    assert "cashbook_payment" in criteria_ids
+    assert "cashbook_receipt" in criteria_ids
+    assert all("id" in crit and "label" in crit for crit in q["criteria"])
+
+    # 2. Category task case with candidate shortlist
+    cat_case = {
+        "case_id": "cat_en_01",
+        "group_id": "grp_cat_en_01",
+        "task": "cashbook_category.v1",
+        "direction": "payment",
+        "language": "en",
+        "text": "Paid monthly office rent",
+        "candidates": [
+            {"id": "rent", "label": "Office Rent"},
+            {"id": "utilities", "label": "Electricity & Water"},
+            {"id": "none", "label": "None of the above"},
+        ],
+        "expected": "rent",
+    }
+
+    cat_exported = export_case_to_laya_finetune_format(cat_case)
+    assert cat_exported["state"]["direction"] == "payment"
+    assert cat_exported["expected"] == "rent"
+    cat_criteria = cat_exported["questions"][0]["criteria"]
+    assert len(cat_criteria) == 3
+    assert cat_criteria[0]["id"] == "rent"
+    assert cat_criteria[0]["label"] == "Office Rent"
 
     # Must NOT leak internal fixture bookkeeping
-    assert "case_id" not in exported
-    assert "group_id" not in exported
-    assert "tags" not in exported
+    assert "case_id" not in nav_exported
+    assert "group_id" not in nav_exported
+    assert "tags" not in nav_exported
+    assert "case_id" not in cat_exported
+
 
 
 

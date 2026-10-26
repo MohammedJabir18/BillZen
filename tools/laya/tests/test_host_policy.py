@@ -80,3 +80,57 @@ def test_host_validation_detects_compound_navigation_intents():
         assert out["is_actionable"] is False
         assert out["pred"] == "clarify"
         assert out["reason"] == "compound_intent"
+
+
+def test_host_validation_permits_harmless_item_conjunctions():
+    """A single payment for multiple items (electricity and water) must NOT be rejected as compound intent."""
+    allowed_nav = {
+        "cashbook_payment", "cashbook_receipt", "account_transfer",
+        "invoice_draft", "inventory_stock", "reports_view", "clarify"
+    }
+    context = {"expected_currency": "INR", "active_form": "cashbook"}
+
+    single_action_inputs = [
+        "Pay electricity and water bill",
+        "Paid for tea and snacks for office staff",
+        "വൈദ്യുതിയും വെള്ളക്കരവും അടച്ചു",
+        "سداد فاتورة الكهرباء والماء",
+    ]
+
+    for text in single_action_inputs:
+        raw_result = {"pred": "cashbook_payment", "confidence": 0.92, "text": text, "currency": "INR"}
+        out = validate_assistant_result_against_host(raw_result, allowed_nav, context)
+        assert out["is_actionable"] is True, f"Failed for harmless conjunction: '{text}'"
+        assert out["pred"] == "cashbook_payment"
+
+
+def test_host_validation_fails_closed_on_missing_context():
+    """Missing or empty host context must fail-closed, rather than accepting by bypassing checks."""
+    allowed = {"rent", "utilities"}
+    valid_res = {"pred": "rent", "confidence": 0.95, "currency": "INR"}
+
+    # Missing context dictionary
+    out_empty = validate_assistant_result_against_host(valid_res, allowed, {})
+    assert out_empty["is_actionable"] is False
+    assert out_empty["pred"] == "clarify"
+    assert out_empty["reason"] == "missing_context"
+
+    # Context missing expected_currency
+    out_no_curr = validate_assistant_result_against_host(valid_res, allowed, {"active_form": "cashbook"})
+    assert out_no_curr["is_actionable"] is False
+    assert out_no_curr["reason"] == "missing_context"
+
+
+def test_host_validation_rejects_non_finite_confidence():
+    """Confidence values like NaN, Inf, negative, or > 1.0 must be rejected."""
+    allowed = {"rent", "utilities"}
+    context = {"expected_currency": "INR", "active_form": "cashbook"}
+
+    bad_confs = [float("nan"), float("inf"), -0.2, 1.2, "0.95", None]
+    for bad_conf in bad_confs:
+        res = {"pred": "rent", "confidence": bad_conf, "currency": "INR"}
+        out = validate_assistant_result_against_host(res, allowed, context)
+        assert out["is_actionable"] is False
+        assert out["pred"] == "clarify"
+        assert out["reason"] == "invalid_confidence"
+

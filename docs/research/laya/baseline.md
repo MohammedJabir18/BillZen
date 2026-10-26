@@ -101,11 +101,14 @@ Derived directly from `tools/laya/reports/benchmark_dev.json` and `benchmark_hol
 ## 4. Honest Status on Model Feasibility & Task 3
 
 1. **Pretrained Laya Model Status**:
-   - The pretrained `laya-multilingual` weights were **NOT evaluated or executed** in this phase.
+   - The pretrained `laya-multilingual` weights were **NOT evaluated or executed** on the primary workstation due to host memory constraints (~1.4–1.5 GiB available RAM vs conservative 4.0 GiB safety ceiling).
    - The reported accuracy and latency numbers belong entirely to the local `DeterministicRuleClassifier`. They must never be described as pretrained Laya performance.
-2. **Task 3 Model Adaptation**:
-   - Local transformer fine-tuning is **deferred under conservative resource policy** (to safeguard the 2-core i3 CPU with only 1.4 GiB available memory host). It was NOT skipped because "pretrained model passed".
-3. **Runtime Footprint & Overhead**:
-   - The deterministic rules baseline runs in-process with minimal execution footprint. However, claims of "zero memory overhead" or "< 1ms" have been removed, as real native runtime memory and latency have not yet been instrumented in production.
-   - End-user child assistant budget remains defined as: **500 MiB target RSS** with a **750 MiB hard watchdog ceiling**.
-   - Preparation / reference export budget is separate: requires $\ge$ 4.0–8.0 GiB available memory for PyTorch/ONNX conversion, which is currently unavailable on this machine.
+2. **Functional Model Tooling & Dataset Contracts Implemented**:
+   - `tools/laya/prepare_dataset.py` now implements the typed `{state, questions, expected}` schema matching upstream Laya `docs/finetune.md` (`export_case_to_laya_finetune_format`).
+   - `tools/laya/runner.py` implements the full provider lifecycle (`ProviderState`: `READY`, `MISSING_ASSETS`, `MISSING_DEPENDENCIES`, `INSUFFICIENT_RESOURCES`, `NOT_IMPLEMENTED`, `FAILED`), real tensor scoring and softmax prediction paths for ONNX/Python providers, and isolated multi-provider error containment.
+   - `tools/laya/host_policy.py` provides host safety filtering, context staleness checks, finite confidence validation, and compound intent disambiguation while permitting harmless item conjunctions ("electricity and water").
+3. **External Runbook for Reproducible Execution**:
+   - Detailed instructions for CPU ONNX export, dynamic INT8 quantization, and comparative benchmarking on an adequately resourced external host are codified in [`external-runbook.md`](./external-runbook.md).
+4. **Runtime Footprint & Budgets**:
+   - Preparation / export budget: requires $\ge$ 4.0–8.0 GiB available memory and 10-minute timeout for PyTorch/ONNX conversion.
+   - Target desktop assistant budget: **500 MiB target RSS** with a **750 MiB hard watchdog ceiling** and p50 <= 150 ms latency. Heavy weights remain unrun locally until certified via the external runbook.
