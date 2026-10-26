@@ -36,8 +36,10 @@ def validate_dataset_case(case_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
     for req in required_fields:
         if req not in case_dict:
             errors.append(f"Missing required field '{req}'")
-        elif not str(case_dict[req]).strip():
-            errors.append(f"Field '{req}' cannot be empty")
+        else:
+            val = case_dict[req]
+            if not isinstance(val, str) or not val.strip():
+                errors.append(f"Field '{req}' must be a non-empty string, got {type(val).__name__}: {val}")
 
     if errors:
         return False, errors
@@ -55,7 +57,14 @@ def validate_dataset_case(case_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
         if forb in text:
             errors.append(f"Forbidden sensitive token '{forb}' detected in text")
 
-    if task == "cashbook_category.v1":
+    valid_nav_ids = {opt["id"] for opt in NAVIGATE_OPTIONS}
+    if task == "navigate.v1":
+        if case_dict["expected"] not in valid_nav_ids:
+            errors.append(
+                f"Invalid navigate expected target '{case_dict['expected']}'; must be one of {sorted(valid_nav_ids)}"
+            )
+
+    elif task == "cashbook_category.v1":
         direction = case_dict.get("direction")
         if direction not in ["payment", "receipt"]:
             errors.append(f"Invalid category direction: '{direction}'")
@@ -64,13 +73,64 @@ def validate_dataset_case(case_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
         if not isinstance(candidates, list) or len(candidates) == 0:
             errors.append("candidates must be a non-empty list")
         else:
-            cand_ids = [c["id"] if isinstance(c, dict) else str(c) for c in candidates]
+            cand_ids: List[str] = []
+            seen_cand_ids: Set[str] = set()
+            for c_idx, c in enumerate(candidates):
+                if isinstance(c, dict):
+                    cid = c.get("id")
+                    if not isinstance(cid, str) or not cid.strip():
+                        errors.append(f"Candidate at index {c_idx} missing valid string 'id'")
+                        continue
+                elif isinstance(c, str):
+                    cid = c.strip()
+                    if not cid:
+                        errors.append(f"Candidate at index {c_idx} cannot be an empty string")
+                        continue
+                else:
+                    errors.append(f"Candidate at index {c_idx} has invalid type: {type(c).__name__}")
+                    continue
+
+                if cid in seen_cand_ids:
+                    errors.append(f"Duplicate candidate ID '{cid}' in candidates list")
+                seen_cand_ids.add(cid)
+                cand_ids.append(cid)
+
             if case_dict["expected"] not in cand_ids:
                 errors.append(
                     f"Expected target '{case_dict['expected']}' not in candidate IDs: {cand_ids}"
                 )
 
     return (len(errors) == 0), errors
+
+
+def export_case_to_laya_format(case_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert internal dataset case to clean standard instruction format without fixture metadata."""
+    task = case_dict.get("task", "")
+    text = case_dict.get("text", "")
+    expected = case_dict.get("expected", "")
+
+    if task == "navigate.v1":
+        instruction = (
+            "Classify the user intent into one of the BillZen navigation actions: "
+            "cashbook_payment, cashbook_receipt, account_transfer, invoice_draft, "
+            "inventory_stock, reports_view, clarify."
+        )
+    elif task == "cashbook_category.v1":
+        candidates = case_dict.get("candidates", [])
+        cand_str = ", ".join(c["id"] if isinstance(c, dict) else str(c) for c in candidates)
+        instruction = (
+            f"Select the most appropriate {case_dict.get('direction', 'transaction')} "
+            f"category from the following options: {cand_str}."
+        )
+    else:
+        instruction = "Process the following business input for BillZen."
+
+    return {
+        "instruction": instruction,
+        "input": text,
+        "output": expected,
+    }
+
 
 
 # Development and regression fixture cases (original 59 cases, preserved with explicit group_id)

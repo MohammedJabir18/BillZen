@@ -102,7 +102,7 @@
       "required": ["cpu", "min_ram_mb", "has_accelerator"],
       "additionalProperties": false,
       "properties": {
-        "cpu": { "type": "string" },
+        "cpu": { "type": "string", "minLength": 1 },
         "min_ram_mb": { "type": "integer", "minimum": 512 },
         "has_accelerator": { "type": "boolean" }
       }
@@ -112,9 +112,9 @@
       "required": ["max_rss_mb", "max_warm_latency_ms", "max_load_timeout_ms"],
       "additionalProperties": false,
       "properties": {
-        "max_rss_mb": { "type": "integer", "maximum": 1024 },
-        "max_warm_latency_ms": { "type": "integer", "maximum": 2000 },
-        "max_load_timeout_ms": { "type": "integer", "maximum": 15000 }
+        "max_rss_mb": { "type": "integer", "minimum": 64, "maximum": 1024 },
+        "max_warm_latency_ms": { "type": "integer", "minimum": 1, "maximum": 2000 },
+        "max_load_timeout_ms": { "type": "integer", "minimum": 1, "maximum": 15000 }
       }
     }
   }

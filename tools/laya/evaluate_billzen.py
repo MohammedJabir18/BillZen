@@ -6,7 +6,9 @@ selective coverage, ECE, and binary correctness Brier score across languages (EN
 
 from __future__ import annotations
 
+import json
 import math
+from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -275,11 +277,30 @@ class DeterministicRuleClassifier:
         return top_cand, confidence
 
 
+import math
+
+
+def wilson_score_interval(k: int, n: int, confidence: float = 0.95) -> Tuple[float, float]:
+    """Calculate the Wilson score confidence interval for a proportion k/n."""
+    if n <= 0:
+        return 0.0, 0.0
+    # Standard normal approximation for 95% confidence
+    z = 1.959963984540054
+    p = k / n
+    z2 = z * z
+    denom = 1 + z2 / n
+    center = (p + z2 / (2 * n)) / denom
+    half = (z / denom) * math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))
+    low = max(0.0, center - half)
+    high = min(1.0, center + half)
+    return round(low, 4), round(high, 4)
+
+
 def compute_metrics(
     eval_records: List[Dict[str, Any]],
     abstention_threshold: float = 0.70,
 ) -> Dict[str, Any]:
-    """Calculate accuracy, macro-F1, selective precision, selective coverage, ECE and binary correctness Brier."""
+    """Calculate accuracy, macro-F1, selective precision, selective coverage, ECE, Brier, and Wilson intervals."""
     if not eval_records:
         return {}
 
@@ -316,7 +337,6 @@ def compute_metrics(
     macro_f1 = sum(f1_list) / len(f1_list) if f1_list else 0.0
 
     # Binary correctness Brier score: mean of (confidence - outcome)^2
-    # Note: This measures binary correctness calibration of the top-1 heuristic confidence, not multiclass distribution
     binary_brier_scores = [
         (r["confidence"] - (1.0 if r["pred"] == r["actual"] else 0.0)) ** 2
         for r in eval_records
@@ -342,20 +362,69 @@ def compute_metrics(
     actionable_accepted = [
         r for r in accepted_records if r["pred"] not in ["clarify", "none", "none_of_the_above"]
     ]
-    actionable_coverage = len(actionable_accepted) / total if total > 0 else 0.0
+    actionable_accepted_count = len(actionable_accepted)
+    actionable_correct_count = sum(1 for r in actionable_accepted if r["pred"] == r["actual"])
+    actionable_precision = (
+        actionable_correct_count / actionable_accepted_count if actionable_accepted_count > 0 else 0.0
+    )
+    actionable_coverage = actionable_accepted_count / total if total > 0 else 0.0
+
+    # Decision precision (selective precision)
+    decision_accepted_count = len(accepted_records)
+    decision_correct_count = accepted_correct
+    decision_precision = selective_precision
+
+    # Wilson intervals (95% CI)
+    raw_interval = wilson_score_interval(all_correct, total)
+    decision_interval = wilson_score_interval(decision_correct_count, decision_accepted_count)
+    actionable_interval = wilson_score_interval(actionable_correct_count, actionable_accepted_count)
+
+    # Task x Language Matrix breakdown
+    task_lang_matrix: Dict[str, Dict[str, Any]] = {}
+    task_lang_groups: Dict[str, List[Dict[str, Any]]] = {}
+    for r in eval_records:
+        t = r.get("task", "unknown_task")
+        l = r.get("language", "unknown_lang")
+        cell_key = f"{t}__{l}"
+        task_lang_groups.setdefault(cell_key, []).append(r)
+
+    for cell_key, items in sorted(task_lang_groups.items()):
+        cnt = len(items)
+        cor = sum(1 for it in items if it["pred"] == it["actual"])
+        acc = cor / cnt if cnt > 0 else 0.0
+        insufficient = cnt < 10
+        task_lang_matrix[cell_key] = {
+            "count": cnt,
+            "correct": cor,
+            "accuracy": round(acc, 4),
+            "insufficient_evidence": insufficient,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions" if insufficient else "sufficient sample size",
+        }
 
     return {
         "total_cases": total,
+        "raw_correct_count": all_correct,
         "raw_accuracy": round(raw_accuracy, 4),
+        "raw_accuracy_interval": raw_interval,
         "macro_f1": round(macro_f1, 4),
+        "decision_accepted_count": decision_accepted_count,
+        "decision_correct_count": decision_correct_count,
+        "decision_precision": round(decision_precision, 4),
+        "decision_precision_interval": decision_interval,
         "selective_precision": round(selective_precision, 4),
         "selective_coverage": round(coverage, 4),
+        "actionable_accepted_count": actionable_accepted_count,
+        "actionable_correct_count": actionable_correct_count,
+        "actionable_precision": round(actionable_precision, 4),
+        "actionable_precision_interval": actionable_interval,
         "actionable_coverage": round(actionable_coverage, 4),
         "binary_correctness_brier": round(binary_brier, 4),
         "brier_score": round(binary_brier, 4),
         "expected_calibration_error": round(ece, 4),
+        "task_language_matrix": task_lang_matrix,
         "confusion_matrix": confusion,
     }
+
 
 
 def run_benchmark(
@@ -412,3 +481,36 @@ def run_benchmark(
         "by_language": by_lang,
         "records": records,
     }
+
+
+def main() -> None:
+    """Generate machine-readable benchmark reports for development fixtures and held-out cases."""
+    import sys
+    project_root = Path(__file__).resolve().parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    from tools.laya.prepare_dataset import RAW_CASES, FRESH_HOLDOUT_CASES
+
+    reports_dir = Path(__file__).resolve().parent / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    dev_results = run_benchmark(RAW_CASES)
+    holdout_results = run_benchmark(FRESH_HOLDOUT_CASES)
+
+    dev_path = reports_dir / "benchmark_dev.json"
+    holdout_path = reports_dir / "benchmark_holdout.json"
+
+    with dev_path.open("w", encoding="utf-8") as f:
+        json.dump(dev_results, f, indent=2, ensure_ascii=False)
+
+    with holdout_path.open("w", encoding="utf-8") as f:
+        json.dump(holdout_results, f, indent=2, ensure_ascii=False)
+
+    print(f"Generated {dev_path} (59 cases)")
+    print(f"Generated {holdout_path} (23 cases)")
+
+
+if __name__ == "__main__":
+    main()
+

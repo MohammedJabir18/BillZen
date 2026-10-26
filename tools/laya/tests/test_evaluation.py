@@ -30,14 +30,51 @@ def test_compute_metrics_perfect_predictions():
 def test_compute_metrics_abstention_and_coverage():
     """Records with confidence below threshold must be excluded from selective precision."""
     records = [
-        {"actual": "a", "pred": "a", "confidence": 0.90},  # Accepted, correct
-        {"actual": "b", "pred": "c", "confidence": 0.40},  # Abstained, incorrect
-        {"actual": "b", "pred": "b", "confidence": 0.50},  # Abstained, correct
+        {"actual": "a", "pred": "a", "confidence": 0.90, "task": "navigate.v1", "language": "en"},  # Accepted, correct
+        {"actual": "b", "pred": "c", "confidence": 0.40, "task": "navigate.v1", "language": "en"},  # Abstained, incorrect
+        {"actual": "b", "pred": "b", "confidence": 0.50, "task": "navigate.v1", "language": "en"},  # Abstained, correct
     ]
     m = compute_metrics(records, abstention_threshold=0.70)
     assert m["total_cases"] == 3
     assert m["selective_coverage"] == round(1 / 3, 4)
     assert m["selective_precision"] == 1.0  # The 1 accepted record was correct!
+    assert "actionable_precision" in m
+    assert "actionable_precision_interval" in m
+    assert "decision_precision_interval" in m
+    assert "task_language_matrix" in m
+
+
+def test_wilson_score_interval_bounds():
+    """Wilson score interval must return correct 95% confidence intervals and handle edge cases."""
+    from tools.laya.evaluate_billzen import wilson_score_interval
+
+    # 16/16 successes: matches review note ~80.6% to 100%
+    low, high = wilson_score_interval(16, 16)
+    assert 0.80 <= low <= 0.82
+    assert high == 1.0
+
+    # 17/18 successes: matches review note ~74.2% to 99.0%
+    low, high = wilson_score_interval(17, 18)
+    assert 0.73 <= low <= 0.75
+    assert 0.98 <= high <= 1.0
+
+    # 0/0 edge case
+    assert wilson_score_interval(0, 0) == (0.0, 0.0)
+
+
+def test_task_language_matrix_sparse_sample_flag():
+    """Cells with fewer than 10 cases must be flagged with insufficient_evidence."""
+    records = [
+        {"actual": "a", "pred": "a", "confidence": 0.9, "task": "navigate.v1", "language": "ar"},
+        {"actual": "a", "pred": "a", "confidence": 0.9, "task": "navigate.v1", "language": "ar"},
+    ]
+    m = compute_metrics(records)
+    matrix = m.get("task_language_matrix", {})
+    cell_key = "navigate.v1__ar"
+    assert cell_key in matrix
+    assert matrix[cell_key]["count"] == 2
+    assert matrix[cell_key]["insufficient_evidence"] is True
+
 
 
 def test_review_focus_negations_and_hypotheticals():

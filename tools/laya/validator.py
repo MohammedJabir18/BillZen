@@ -30,6 +30,11 @@ class ManifestValidationError(ValueError):
     """Raised when an asset manifest fails verification."""
 
 
+def _is_strict_int(val: Any) -> bool:
+    """Check that value is a finite integer, disallowing booleans, floats, and strings."""
+    return isinstance(val, int) and not isinstance(val, bool)
+
+
 def validate_asset_manifest(manifest_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
     """Validate asset manifest structure, types, security invariants and provenance."""
     errors: List[str] = []
@@ -147,16 +152,35 @@ def validate_asset_manifest(manifest_dict: Dict[str, Any]) -> Tuple[bool, List[s
             if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
                 errors.append(f"Asset at index {idx} size_bytes must be a positive integer (not boolean), got: {size}")
 
-    # Hardware target & Resource ceiling
+    # Hardware target & Resource ceiling strict finite validation
     hw = manifest_dict.get("hardware_target")
     if not isinstance(hw, dict) or "min_ram_mb" not in hw:
         errors.append("hardware_target must contain min_ram_mb")
+    else:
+        min_ram = hw.get("min_ram_mb")
+        if not _is_strict_int(min_ram) or min_ram < 512:
+            errors.append(f"hardware_target.min_ram_mb must be a finite integer >= 512, got: {min_ram}")
+        cpu = hw.get("cpu")
+        if not isinstance(cpu, str) or not cpu.strip():
+            errors.append("hardware_target.cpu must be a non-empty string")
+        if not isinstance(hw.get("has_accelerator"), bool):
+            errors.append("hardware_target.has_accelerator must be a boolean")
 
     rc = manifest_dict.get("resource_ceiling")
-    if not isinstance(rc, dict) or "max_rss_mb" not in rc or "max_warm_latency_ms" not in rc:
-        errors.append("resource_ceiling must contain max_rss_mb and max_warm_latency_ms")
-    elif rc.get("max_rss_mb", 0) > 1024:
-        errors.append("resource_ceiling.max_rss_mb exceeds safe limit of 1024 MB")
+    if not isinstance(rc, dict) or "max_rss_mb" not in rc or "max_warm_latency_ms" not in rc or "max_load_timeout_ms" not in rc:
+        errors.append("resource_ceiling must contain max_rss_mb, max_warm_latency_ms, and max_load_timeout_ms")
+    else:
+        max_rss = rc.get("max_rss_mb")
+        if not _is_strict_int(max_rss) or max_rss < 64 or max_rss > 1024:
+            errors.append(f"resource_ceiling.max_rss_mb must be a finite integer between 64 and 1024 MB, got: {max_rss}")
+
+        max_lat = rc.get("max_warm_latency_ms")
+        if not _is_strict_int(max_lat) or max_lat < 1 or max_lat > 2000:
+            errors.append(f"resource_ceiling.max_warm_latency_ms must be a finite integer between 1 and 2000 ms, got: {max_lat}")
+
+        max_timeout = rc.get("max_load_timeout_ms")
+        if not _is_strict_int(max_timeout) or max_timeout < 1 or max_timeout > 15000:
+            errors.append(f"resource_ceiling.max_load_timeout_ms must be a finite integer between 1 and 15000 ms, got: {max_timeout}")
 
     return (len(errors) == 0), errors
 
@@ -164,12 +188,31 @@ def validate_asset_manifest(manifest_dict: Dict[str, Any]) -> Tuple[bool, List[s
 def verify_asset_file_integrity(
     manifest_dict: Dict[str, Any], root_dir: Path
 ) -> Tuple[bool, List[str]]:
-    """Verify that physical asset files match their declared sha256 and size_bytes."""
+    """Verify that physical asset files match their declared sha256 and size_bytes.
+    
+    Streams file bytes in 64 KiB chunks to avoid large memory allocations during verification.
+    Rejects invalid, missing, or empty asset manifests.
+    """
     errors: List[str] = []
+    if not isinstance(manifest_dict, dict):
+        return False, ["Manifest must be a dictionary"]
+
+    assets = manifest_dict.get("assets")
+    if not isinstance(assets, list) or len(assets) == 0:
+        return False, ["Manifest assets list must be non-empty"]
+
     root = root_dir.resolve()
 
-    for idx, asset in enumerate(manifest_dict.get("assets", [])):
+    for idx, asset in enumerate(assets):
+        if not isinstance(asset, dict):
+            errors.append(f"Asset at index {idx} must be a dictionary")
+            continue
+
         fname = asset.get("filename", "")
+        if not isinstance(fname, str) or not fname.strip():
+            errors.append(f"Asset at index {idx} missing valid filename")
+            continue
+
         file_path = (root / fname).resolve()
 
         # Security check: must remain within root_dir
@@ -183,16 +226,29 @@ def verify_asset_file_integrity(
             errors.append(f"Asset file not found on disk: '{fname}'")
             continue
 
-        content = file_path.read_bytes()
-        actual_size = len(content)
         expected_size = asset.get("size_bytes")
+        if not _is_strict_int(expected_size) or expected_size <= 0:
+            errors.append(f"Asset '{fname}' has invalid expected size_bytes: {expected_size}")
+            continue
+
+        # Stream file in 64 KiB chunks
+        sha256 = hashlib.sha256()
+        actual_size = 0
+        with file_path.open("rb") as f:
+            while True:
+                chunk = f.read(65536)
+                if not chunk:
+                    break
+                sha256.update(chunk)
+                actual_size += len(chunk)
+
         if actual_size != expected_size:
             errors.append(
                 f"Asset '{fname}' size mismatch: expected {expected_size}, got {actual_size}"
             )
 
-        actual_sha = hashlib.sha256(content).hexdigest()
-        expected_sha = asset.get("sha256", "").lower()
+        actual_sha = sha256.hexdigest().lower()
+        expected_sha = str(asset.get("sha256", "")).lower()
         if actual_sha != expected_sha:
             errors.append(
                 f"Asset '{fname}' sha256 mismatch: expected {expected_sha}, got {actual_sha}"

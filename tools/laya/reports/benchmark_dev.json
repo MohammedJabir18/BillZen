@@ -1,0 +1,2077 @@
+{
+  "overall": {
+    "total_cases": 59,
+    "raw_correct_count": 58,
+    "raw_accuracy": 0.9831,
+    "raw_accuracy_interval": [
+      0.91,
+      0.997
+    ],
+    "macro_f1": 0.9866,
+    "decision_accepted_count": 58,
+    "decision_correct_count": 58,
+    "decision_precision": 1.0,
+    "decision_precision_interval": [
+      0.9379,
+      1.0
+    ],
+    "selective_precision": 1.0,
+    "selective_coverage": 0.9831,
+    "actionable_accepted_count": 48,
+    "actionable_correct_count": 48,
+    "actionable_precision": 1.0,
+    "actionable_precision_interval": [
+      0.9259,
+      1.0
+    ],
+    "actionable_coverage": 0.8136,
+    "binary_correctness_brier": 0.0089,
+    "brier_score": 0.0089,
+    "expected_calibration_error": 0.0708,
+    "task_language_matrix": {
+      "cashbook_category.v1__ar": {
+        "count": 4,
+        "correct": 4,
+        "accuracy": 1.0,
+        "insufficient_evidence": true,
+        "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+      },
+      "cashbook_category.v1__en": {
+        "count": 8,
+        "correct": 8,
+        "accuracy": 1.0,
+        "insufficient_evidence": true,
+        "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+      },
+      "cashbook_category.v1__manglish": {
+        "count": 4,
+        "correct": 4,
+        "accuracy": 1.0,
+        "insufficient_evidence": true,
+        "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+      },
+      "cashbook_category.v1__ml": {
+        "count": 7,
+        "correct": 7,
+        "accuracy": 1.0,
+        "insufficient_evidence": true,
+        "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+      },
+      "navigate.v1__ar": {
+        "count": 8,
+        "correct": 7,
+        "accuracy": 0.875,
+        "insufficient_evidence": true,
+        "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+      },
+      "navigate.v1__en": {
+        "count": 10,
+        "correct": 10,
+        "accuracy": 1.0,
+        "insufficient_evidence": false,
+        "note": "sufficient sample size"
+      },
+      "navigate.v1__manglish": {
+        "count": 8,
+        "correct": 8,
+        "accuracy": 1.0,
+        "insufficient_evidence": true,
+        "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+      },
+      "navigate.v1__ml": {
+        "count": 10,
+        "correct": 10,
+        "accuracy": 1.0,
+        "insufficient_evidence": false,
+        "note": "sufficient sample size"
+      }
+    },
+    "confusion_matrix": {
+      "salary": {
+        "salary": 4,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "account_transfer": {
+        "salary": 0,
+        "account_transfer": 8,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "utilities": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 4,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "none": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 2,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "sales_cash": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 4,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "reports_view": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 4,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "maintenance": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 1,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "cashbook_payment": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 4,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "rent": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 2,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "invoice_draft": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 4,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "clarify": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 8,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "scrap_sale": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 2,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "service_income": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 4,
+        "cashbook_receipt": 0,
+        "inventory_stock": 0
+      },
+      "cashbook_receipt": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 1,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 3,
+        "inventory_stock": 0
+      },
+      "inventory_stock": {
+        "salary": 0,
+        "account_transfer": 0,
+        "utilities": 0,
+        "none": 0,
+        "sales_cash": 0,
+        "reports_view": 0,
+        "maintenance": 0,
+        "cashbook_payment": 0,
+        "rent": 0,
+        "invoice_draft": 0,
+        "clarify": 0,
+        "scrap_sale": 0,
+        "service_income": 0,
+        "cashbook_receipt": 0,
+        "inventory_stock": 4
+      }
+    }
+  },
+  "by_task": {
+    "navigate.v1": {
+      "total_cases": 36,
+      "raw_correct_count": 35,
+      "raw_accuracy": 0.9722,
+      "raw_accuracy_interval": [
+        0.8583,
+        0.9951
+      ],
+      "macro_f1": 0.9712,
+      "decision_accepted_count": 35,
+      "decision_correct_count": 35,
+      "decision_precision": 1.0,
+      "decision_precision_interval": [
+        0.9011,
+        1.0
+      ],
+      "selective_precision": 1.0,
+      "selective_coverage": 0.9722,
+      "actionable_accepted_count": 27,
+      "actionable_correct_count": 27,
+      "actionable_precision": 1.0,
+      "actionable_precision_interval": [
+        0.8754,
+        1.0
+      ],
+      "actionable_coverage": 0.75,
+      "binary_correctness_brier": 0.0117,
+      "brier_score": 0.0117,
+      "expected_calibration_error": 0.08,
+      "task_language_matrix": {
+        "navigate.v1__ar": {
+          "count": 8,
+          "correct": 7,
+          "accuracy": 0.875,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "navigate.v1__en": {
+          "count": 10,
+          "correct": 10,
+          "accuracy": 1.0,
+          "insufficient_evidence": false,
+          "note": "sufficient sample size"
+        },
+        "navigate.v1__manglish": {
+          "count": 8,
+          "correct": 8,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "navigate.v1__ml": {
+          "count": 10,
+          "correct": 10,
+          "accuracy": 1.0,
+          "insufficient_evidence": false,
+          "note": "sufficient sample size"
+        }
+      },
+      "confusion_matrix": {
+        "account_transfer": {
+          "account_transfer": 8,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "reports_view": {
+          "account_transfer": 0,
+          "reports_view": 4,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_payment": {
+          "account_transfer": 0,
+          "reports_view": 0,
+          "cashbook_payment": 4,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "invoice_draft": {
+          "account_transfer": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 4,
+          "clarify": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "clarify": {
+          "account_transfer": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 8,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_receipt": {
+          "account_transfer": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 1,
+          "cashbook_receipt": 3,
+          "inventory_stock": 0
+        },
+        "inventory_stock": {
+          "account_transfer": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 4
+        }
+      }
+    },
+    "cashbook_category.v1": {
+      "total_cases": 23,
+      "raw_correct_count": 23,
+      "raw_accuracy": 1.0,
+      "raw_accuracy_interval": [
+        0.8569,
+        1.0
+      ],
+      "macro_f1": 1.0,
+      "decision_accepted_count": 23,
+      "decision_correct_count": 23,
+      "decision_precision": 1.0,
+      "decision_precision_interval": [
+        0.8569,
+        1.0
+      ],
+      "selective_precision": 1.0,
+      "selective_coverage": 1.0,
+      "actionable_accepted_count": 21,
+      "actionable_correct_count": 21,
+      "actionable_precision": 1.0,
+      "actionable_precision_interval": [
+        0.8454,
+        1.0
+      ],
+      "actionable_coverage": 0.913,
+      "binary_correctness_brier": 0.0045,
+      "brier_score": 0.0045,
+      "expected_calibration_error": 0.0565,
+      "task_language_matrix": {
+        "cashbook_category.v1__ar": {
+          "count": 4,
+          "correct": 4,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "cashbook_category.v1__en": {
+          "count": 8,
+          "correct": 8,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "cashbook_category.v1__manglish": {
+          "count": 4,
+          "correct": 4,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "cashbook_category.v1__ml": {
+          "count": 7,
+          "correct": 7,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        }
+      },
+      "confusion_matrix": {
+        "utilities": {
+          "utilities": 4,
+          "none": 0,
+          "sales_cash": 0,
+          "maintenance": 0,
+          "salary": 0,
+          "rent": 0,
+          "scrap_sale": 0,
+          "service_income": 0
+        },
+        "none": {
+          "utilities": 0,
+          "none": 2,
+          "sales_cash": 0,
+          "maintenance": 0,
+          "salary": 0,
+          "rent": 0,
+          "scrap_sale": 0,
+          "service_income": 0
+        },
+        "sales_cash": {
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 4,
+          "maintenance": 0,
+          "salary": 0,
+          "rent": 0,
+          "scrap_sale": 0,
+          "service_income": 0
+        },
+        "maintenance": {
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "maintenance": 1,
+          "salary": 0,
+          "rent": 0,
+          "scrap_sale": 0,
+          "service_income": 0
+        },
+        "salary": {
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "maintenance": 0,
+          "salary": 4,
+          "rent": 0,
+          "scrap_sale": 0,
+          "service_income": 0
+        },
+        "rent": {
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "maintenance": 0,
+          "salary": 0,
+          "rent": 2,
+          "scrap_sale": 0,
+          "service_income": 0
+        },
+        "scrap_sale": {
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "maintenance": 0,
+          "salary": 0,
+          "rent": 0,
+          "scrap_sale": 2,
+          "service_income": 0
+        },
+        "service_income": {
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "maintenance": 0,
+          "salary": 0,
+          "rent": 0,
+          "scrap_sale": 0,
+          "service_income": 4
+        }
+      }
+    }
+  },
+  "by_language": {
+    "en": {
+      "total_cases": 18,
+      "raw_correct_count": 18,
+      "raw_accuracy": 1.0,
+      "raw_accuracy_interval": [
+        0.8241,
+        1.0
+      ],
+      "macro_f1": 1.0,
+      "decision_accepted_count": 18,
+      "decision_correct_count": 18,
+      "decision_precision": 1.0,
+      "decision_precision_interval": [
+        0.8241,
+        1.0
+      ],
+      "selective_precision": 1.0,
+      "selective_coverage": 1.0,
+      "actionable_accepted_count": 13,
+      "actionable_correct_count": 13,
+      "actionable_precision": 1.0,
+      "actionable_precision_interval": [
+        0.7719,
+        1.0
+      ],
+      "actionable_coverage": 0.7222,
+      "binary_correctness_brier": 0.0039,
+      "brier_score": 0.0039,
+      "expected_calibration_error": 0.055,
+      "task_language_matrix": {
+        "cashbook_category.v1__en": {
+          "count": 8,
+          "correct": 8,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "navigate.v1__en": {
+          "count": 10,
+          "correct": 10,
+          "accuracy": 1.0,
+          "insufficient_evidence": false,
+          "note": "sufficient sample size"
+        }
+      },
+      "confusion_matrix": {
+        "salary": {
+          "salary": 1,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "account_transfer": {
+          "salary": 0,
+          "account_transfer": 2,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "utilities": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 1,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "none": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 2,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "sales_cash": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 1,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "reports_view": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 1,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_payment": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 1,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "rent": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 1,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "invoice_draft": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 1,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "clarify": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 3,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "scrap_sale": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 1,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "service_income": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 1,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_receipt": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 1,
+          "inventory_stock": 0
+        },
+        "inventory_stock": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "none": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 1
+        }
+      }
+    },
+    "ml": {
+      "total_cases": 17,
+      "raw_correct_count": 17,
+      "raw_accuracy": 1.0,
+      "raw_accuracy_interval": [
+        0.8157,
+        1.0
+      ],
+      "macro_f1": 1.0,
+      "decision_accepted_count": 17,
+      "decision_correct_count": 17,
+      "decision_precision": 1.0,
+      "decision_precision_interval": [
+        0.8157,
+        1.0
+      ],
+      "selective_precision": 1.0,
+      "selective_coverage": 1.0,
+      "actionable_accepted_count": 14,
+      "actionable_correct_count": 14,
+      "actionable_precision": 1.0,
+      "actionable_precision_interval": [
+        0.7847,
+        1.0
+      ],
+      "actionable_coverage": 0.8235,
+      "binary_correctness_brier": 0.0061,
+      "brier_score": 0.0061,
+      "expected_calibration_error": 0.0747,
+      "task_language_matrix": {
+        "cashbook_category.v1__ml": {
+          "count": 7,
+          "correct": 7,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "navigate.v1__ml": {
+          "count": 10,
+          "correct": 10,
+          "accuracy": 1.0,
+          "insufficient_evidence": false,
+          "note": "sufficient sample size"
+        }
+      },
+      "confusion_matrix": {
+        "salary": {
+          "salary": 1,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "account_transfer": {
+          "salary": 0,
+          "account_transfer": 2,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "utilities": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 1,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "sales_cash": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 1,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "reports_view": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 1,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "maintenance": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 1,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_payment": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 1,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "rent": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 1,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "invoice_draft": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 1,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "clarify": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 3,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "scrap_sale": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 1,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "service_income": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 1,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_receipt": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 1,
+          "inventory_stock": 0
+        },
+        "inventory_stock": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "rent": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "scrap_sale": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 1
+        }
+      }
+    },
+    "manglish": {
+      "total_cases": 12,
+      "raw_correct_count": 12,
+      "raw_accuracy": 1.0,
+      "raw_accuracy_interval": [
+        0.7575,
+        1.0
+      ],
+      "macro_f1": 1.0,
+      "decision_accepted_count": 12,
+      "decision_correct_count": 12,
+      "decision_precision": 1.0,
+      "decision_precision_interval": [
+        0.7575,
+        1.0
+      ],
+      "selective_precision": 1.0,
+      "selective_coverage": 1.0,
+      "actionable_accepted_count": 11,
+      "actionable_correct_count": 11,
+      "actionable_precision": 1.0,
+      "actionable_precision_interval": [
+        0.7412,
+        1.0
+      ],
+      "actionable_coverage": 0.9167,
+      "binary_correctness_brier": 0.0036,
+      "brier_score": 0.0036,
+      "expected_calibration_error": 0.055,
+      "task_language_matrix": {
+        "cashbook_category.v1__manglish": {
+          "count": 4,
+          "correct": 4,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "navigate.v1__manglish": {
+          "count": 8,
+          "correct": 8,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        }
+      },
+      "confusion_matrix": {
+        "salary": {
+          "salary": 1,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "account_transfer": {
+          "salary": 0,
+          "account_transfer": 2,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "utilities": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 1,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "sales_cash": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 1,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "reports_view": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 1,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_payment": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 1,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "invoice_draft": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 1,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "clarify": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 1,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "service_income": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 1,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_receipt": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 1,
+          "inventory_stock": 0
+        },
+        "inventory_stock": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 1
+        }
+      }
+    },
+    "ar": {
+      "total_cases": 12,
+      "raw_correct_count": 11,
+      "raw_accuracy": 0.9167,
+      "raw_accuracy_interval": [
+        0.6461,
+        0.9851
+      ],
+      "macro_f1": 0.8788,
+      "decision_accepted_count": 11,
+      "decision_correct_count": 11,
+      "decision_precision": 1.0,
+      "decision_precision_interval": [
+        0.7412,
+        1.0
+      ],
+      "selective_precision": 1.0,
+      "selective_coverage": 0.9167,
+      "actionable_accepted_count": 10,
+      "actionable_correct_count": 10,
+      "actionable_precision": 1.0,
+      "actionable_precision_interval": [
+        0.7225,
+        1.0
+      ],
+      "actionable_coverage": 0.8333,
+      "binary_correctness_brier": 0.0258,
+      "brier_score": 0.0258,
+      "expected_calibration_error": 0.105,
+      "task_language_matrix": {
+        "cashbook_category.v1__ar": {
+          "count": 4,
+          "correct": 4,
+          "accuracy": 1.0,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        },
+        "navigate.v1__ar": {
+          "count": 8,
+          "correct": 7,
+          "accuracy": 0.875,
+          "insufficient_evidence": true,
+          "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+        }
+      },
+      "confusion_matrix": {
+        "salary": {
+          "salary": 1,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "account_transfer": {
+          "salary": 0,
+          "account_transfer": 2,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "utilities": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 1,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "sales_cash": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 1,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "reports_view": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 1,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_payment": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 1,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "invoice_draft": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 1,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "clarify": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 1,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "service_income": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 1,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "cashbook_receipt": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 1,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 0
+        },
+        "inventory_stock": {
+          "salary": 0,
+          "account_transfer": 0,
+          "utilities": 0,
+          "sales_cash": 0,
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "invoice_draft": 0,
+          "clarify": 0,
+          "service_income": 0,
+          "cashbook_receipt": 0,
+          "inventory_stock": 1
+        }
+      }
+    }
+  },
+  "records": [
+    {
+      "case_id": "nav_en_01",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Record payment of 1200 for office supplies",
+      "actual": "cashbook_payment",
+      "pred": "cashbook_payment",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_en_02",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Received 5000 cash from customer for repair work",
+      "actual": "cashbook_receipt",
+      "pred": "cashbook_receipt",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_en_03",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Transferred 10000 from cash register to bank account",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_en_04",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Create a new quotation / bill draft for customer John",
+      "actual": "invoice_draft",
+      "pred": "invoice_draft",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_en_05",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Counted physical inventory and need to reduce damaged stock",
+      "actual": "inventory_stock",
+      "pred": "inventory_stock",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_en_06",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Show me monthly sales summary and cash statement",
+      "actual": "reports_view",
+      "pred": "reports_view",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "nav_en_07",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Do not pay the rent this month, owner said wait",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_en_08",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "What if the customer wants a 50% discount next week?",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_en_09",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Automatically submit e-invoice to government tax portal",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_en_10",
+      "task": "navigate.v1",
+      "language": "en",
+      "text": "Withdrew 2000 from ATM to petty cash box",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ml_01",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "കടവാടക 15000 രൂപ കൊടുത്തു",
+      "actual": "cashbook_payment",
+      "pred": "cashbook_payment",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_ml_02",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "കസ്റ്റമർ തന്ന 3500 രൂപ ക്യാഷ് വാങ്ങി",
+      "actual": "cashbook_receipt",
+      "pred": "cashbook_receipt",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_ml_03",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "ക്യാഷിൽ നിന്നും 25000 ബാങ്കിൽ നിക്ഷേപിച്ചു",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ml_04",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "പുതിയൊരു ഇൻവോയ്സ് ഡ്രാഫ്റ്റ് ഉണ്ടാക്കണം",
+      "actual": "invoice_draft",
+      "pred": "invoice_draft",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_ml_05",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "സ്റ്റോക്കിൽ പുതിയ 50 പീസ് ആഡ് ചെയ്യണം",
+      "actual": "inventory_stock",
+      "pred": "inventory_stock",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_ml_06",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "ഈ മാസത്തെ സ്റ്റേറ്റ്മെന്റും റിപ്പോർട്ടും കാണണം",
+      "actual": "reports_view",
+      "pred": "reports_view",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "nav_ml_07",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "ഇന്ന് കടവാടക കൊടുക്കേണ്ടതില്ലെന്ന് മുതലാളി പറഞ്ഞു",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ml_08",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "അടുത്ത മാസം പണം തന്നാൽ ബില്ല് മാറ്റാമോ?",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ml_09",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "ബാങ്കിൽ നിന്നും 5000 രൂപ ക്യാഷ് ഡ്രോയറിലേക്ക് പിൻവലിച്ചു",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ml_10",
+      "task": "navigate.v1",
+      "language": "ml",
+      "text": "എല്ലാ ഇടപാടുകളും ഓട്ടോമാറ്റിക് ആയി റിവേഴ്സ് ചെയ്യുക",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_mgl_01",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Kada vadaka 12000 koduthu",
+      "actual": "cashbook_payment",
+      "pred": "cashbook_payment",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_mgl_02",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Kollam customer cash 4000 thannu",
+      "actual": "cashbook_receipt",
+      "pred": "cashbook_receipt",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_mgl_03",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Cashil ninn bankilekku 5000 ittu",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_mgl_04",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Puthiya bill draft undakkanam",
+      "actual": "invoice_draft",
+      "pred": "invoice_draft",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_mgl_05",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Damaged aaya 5 item stock kurakkanam",
+      "actual": "inventory_stock",
+      "pred": "inventory_stock",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_mgl_06",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Ee masathe full reports edukkanam",
+      "actual": "reports_view",
+      "pred": "reports_view",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_mgl_07",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Innu vadaka kodukkanda, pinne kodukkam",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_mgl_08",
+      "task": "navigate.v1",
+      "language": "manglish",
+      "text": "Bankil ninn 3000 cash withdraw cheythu",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ar_01",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "دفع إيجار المحل 3000 ريال",
+      "actual": "cashbook_payment",
+      "pred": "cashbook_payment",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_ar_02",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "استلام دفعة نقدية من العميل 1500 درهم",
+      "actual": "cashbook_receipt",
+      "pred": "clarify",
+      "confidence": 0.5
+    },
+    {
+      "case_id": "nav_ar_03",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "تحويل 5000 من الصندوق إلى الحساب البنكي",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ar_04",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "إنشاء مسودة فاتورة مبيعات جديدة",
+      "actual": "invoice_draft",
+      "pred": "invoice_draft",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_ar_05",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "تعديل رصيد المخزون للبضاعة التالفة",
+      "actual": "inventory_stock",
+      "pred": "inventory_stock",
+      "confidence": 0.92
+    },
+    {
+      "case_id": "nav_ar_06",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "عرض كشف الحساب والتقارير المالية الشهرية",
+      "actual": "reports_view",
+      "pred": "reports_view",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "nav_ar_07",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "لا تدفع الإيجار اليوم بناء على طلب المالك",
+      "actual": "clarify",
+      "pred": "clarify",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "nav_ar_08",
+      "task": "navigate.v1",
+      "language": "ar",
+      "text": "سحب 2000 من البنك إلى الخزينة",
+      "actual": "account_transfer",
+      "pred": "account_transfer",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "cat_pay_01",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Paid monthly shop rent for October",
+      "actual": "rent",
+      "pred": "rent",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_pay_02",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Electricity bill and water supply charges",
+      "actual": "utilities",
+      "pred": "utilities",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_pay_03",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Staff monthly advance salary payment",
+      "actual": "salary",
+      "pred": "salary",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_pay_04",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Purchased specialized medical equipment",
+      "actual": "none",
+      "pred": "none",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_pay_05",
+      "task": "cashbook_category.v1",
+      "language": "ml",
+      "text": "ഈ മാസത്തെ കടവാടക കൊടുത്തു",
+      "actual": "rent",
+      "pred": "rent",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "cat_pay_06",
+      "task": "cashbook_category.v1",
+      "language": "ml",
+      "text": "കെ.എസ്.ഇ.ബി കറന്റ് ബില്ല് അടച്ചത്",
+      "actual": "utilities",
+      "pred": "utilities",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_pay_07",
+      "task": "cashbook_category.v1",
+      "language": "ml",
+      "text": "ഹെൽപ്പർമാർക്ക് ആഴ്ച ശമ്പളം നൽകി",
+      "actual": "salary",
+      "pred": "salary",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_pay_08",
+      "task": "cashbook_category.v1",
+      "language": "ml",
+      "text": "ഷട്ടർ റിപ്പയറിംഗും പെയിന്റിംഗും",
+      "actual": "maintenance",
+      "pred": "maintenance",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_pay_09",
+      "task": "cashbook_category.v1",
+      "language": "manglish",
+      "text": "Staffinu weekly salary koduthu",
+      "actual": "salary",
+      "pred": "salary",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_pay_10",
+      "task": "cashbook_category.v1",
+      "language": "manglish",
+      "text": "Current bill electricity charge",
+      "actual": "utilities",
+      "pred": "utilities",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_pay_11",
+      "task": "cashbook_category.v1",
+      "language": "ar",
+      "text": "دفع فاتورة الكهرباء والماء الشهرية",
+      "actual": "utilities",
+      "pred": "utilities",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_pay_12",
+      "task": "cashbook_category.v1",
+      "language": "ar",
+      "text": "رواتب العمال عن شهر أكتوبر",
+      "actual": "salary",
+      "pred": "salary",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_rec_01",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Daily retail counter sales cash collection",
+      "actual": "sales_cash",
+      "pred": "sales_cash",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_rec_02",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Customer paid for mobile repair service charges",
+      "actual": "service_income",
+      "pred": "service_income",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_rec_03",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Sold waste cardboard boxes and scrap iron",
+      "actual": "scrap_sale",
+      "pred": "scrap_sale",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_rec_04",
+      "task": "cashbook_category.v1",
+      "language": "en",
+      "text": "Received unexpected grant from foreign charity",
+      "actual": "none",
+      "pred": "none",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_rec_05",
+      "task": "cashbook_category.v1",
+      "language": "ml",
+      "text": "ഇന്നത്തെ കൗണ്ടർ സെയിൽസ് കളക്ഷൻ",
+      "actual": "sales_cash",
+      "pred": "sales_cash",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_rec_06",
+      "task": "cashbook_category.v1",
+      "language": "ml",
+      "text": "കമ്പ്യൂട്ടർ സർവീസിംഗ് ചാർജ്ജ് കിട്ടിയത്",
+      "actual": "service_income",
+      "pred": "service_income",
+      "confidence": 0.9
+    },
+    {
+      "case_id": "cat_rec_07",
+      "task": "cashbook_category.v1",
+      "language": "ml",
+      "text": "പഴയ കാർഡ്ബോർഡ് പെട്ടികൾ വിറ്റ കാശ്",
+      "actual": "scrap_sale",
+      "pred": "scrap_sale",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "cat_rec_08",
+      "task": "cashbook_category.v1",
+      "language": "manglish",
+      "text": "Innathe counter sales collection",
+      "actual": "sales_cash",
+      "pred": "sales_cash",
+      "confidence": 0.98
+    },
+    {
+      "case_id": "cat_rec_09",
+      "task": "cashbook_category.v1",
+      "language": "manglish",
+      "text": "Laptop service charge labhichathu",
+      "actual": "service_income",
+      "pred": "service_income",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "cat_rec_10",
+      "task": "cashbook_category.v1",
+      "language": "ar",
+      "text": "إيرادات المبيعات النقدية اليومية من الصندوق",
+      "actual": "sales_cash",
+      "pred": "sales_cash",
+      "confidence": 0.95
+    },
+    {
+      "case_id": "cat_rec_11",
+      "task": "cashbook_category.v1",
+      "language": "ar",
+      "text": "أتعاب صيانة وخدمات فنية مدفوعة",
+      "actual": "service_income",
+      "pred": "service_income",
+      "confidence": 0.9
+    }
+  ]
+}

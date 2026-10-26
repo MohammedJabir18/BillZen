@@ -164,6 +164,70 @@ def test_validate_dataset_case_runtime_rejection():
     assert ok is False
     assert any("forbidden" in e.lower() or "sensitive" in e.lower() for e in errs)
 
+    # Boolean group_id
+    bad_c4 = copy.deepcopy(valid_c)
+    bad_c4["group_id"] = True
+    ok, errs = validate_dataset_case(bad_c4)
+    assert ok is False
+    assert any("group_id" in e for e in errs)
+
+    # Null text (must not raise AttributeError)
+    bad_c5 = copy.deepcopy(valid_c)
+    bad_c5["text"] = None
+    ok, errs = validate_dataset_case(bad_c5)
+    assert ok is False
+    assert any("text" in e for e in errs)
+
+    # Invalid navigate expected label
+    bad_c6 = copy.deepcopy(valid_c)
+    bad_c6["expected"] = "unsupported_navigation_action"
+    ok, errs = validate_dataset_case(bad_c6)
+    assert ok is False
+    assert any("expected" in e for e in errs)
+
+    # Duplicate candidates in category task
+    bad_c7 = {
+        "case_id": "cat_test_dup",
+        "group_id": "grp_cat_dup",
+        "task": "cashbook_category.v1",
+        "direction": "payment",
+        "language": "en",
+        "text": "Paid office rent",
+        "candidates": ["rent", "rent", "utilities"],
+        "expected": "rent",
+    }
+    ok, errs = validate_dataset_case(bad_c7)
+    assert ok is False
+    assert any("duplicate" in e.lower() for e in errs)
+
+
+def test_export_case_to_laya_format():
+    """Laya export format must strip internal fixture bookkeeping and produce clean instruction format."""
+    from tools.laya.prepare_dataset import export_case_to_laya_format
+
+    c = {
+        "case_id": "nav_en_01",
+        "group_id": "grp_nav_en_01",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Record payment of 1200 for office supplies",
+        "expected": "cashbook_payment",
+        "tags": ["standard_payment", "fixture_tag"],
+    }
+
+    exported = export_case_to_laya_format(c)
+    assert "instruction" in exported
+    assert "input" in exported
+    assert "output" in exported
+    assert exported["output"] == "cashbook_payment"
+    assert exported["input"] == "Record payment of 1200 for office supplies"
+
+    # Must NOT leak internal fixture bookkeeping
+    assert "case_id" not in exported
+    assert "group_id" not in exported
+    assert "tags" not in exported
+
+
 
 def test_fresh_holdout_cases_coverage_and_isolation():
     """Review Finding R2: An independent fresh blind holdout must exist, with coverage of Arabic and Malayalam, and zero case_id overlap with RAW_CASES."""

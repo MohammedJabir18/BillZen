@@ -1,0 +1,445 @@
+{
+  "timestamp": "2026-10-26T16:39:20.449484+00:00",
+  "total_cases": 23,
+  "abstention_threshold": 0.7,
+  "results": {
+    "rules": {
+      "provider": "rules",
+      "status": "completed",
+      "reason": "Deterministic rules baseline ready",
+      "metrics": {
+        "total_cases": 23,
+        "raw_correct_count": 17,
+        "raw_accuracy": 0.7391,
+        "raw_accuracy_interval": [
+          0.5353,
+          0.8745
+        ],
+        "macro_f1": 0.64,
+        "decision_accepted_count": 18,
+        "decision_correct_count": 17,
+        "decision_precision": 0.9444,
+        "decision_precision_interval": [
+          0.7424,
+          0.9901
+        ],
+        "selective_precision": 0.9444,
+        "selective_coverage": 0.7826,
+        "actionable_accepted_count": 16,
+        "actionable_correct_count": 16,
+        "actionable_precision": 1.0,
+        "actionable_precision_interval": [
+          0.8064,
+          1.0
+        ],
+        "actionable_coverage": 0.6957,
+        "binary_correctness_brier": 0.0946,
+        "brier_score": 0.0946,
+        "expected_calibration_error": 0.1283,
+        "task_language_matrix": {
+          "cashbook_category.v1__ar": {
+            "count": 2,
+            "correct": 2,
+            "accuracy": 1.0,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          },
+          "cashbook_category.v1__en": {
+            "count": 2,
+            "correct": 2,
+            "accuracy": 1.0,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          },
+          "cashbook_category.v1__manglish": {
+            "count": 1,
+            "correct": 1,
+            "accuracy": 1.0,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          },
+          "cashbook_category.v1__ml": {
+            "count": 2,
+            "correct": 1,
+            "accuracy": 0.5,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          },
+          "navigate.v1__ar": {
+            "count": 4,
+            "correct": 2,
+            "accuracy": 0.5,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          },
+          "navigate.v1__en": {
+            "count": 5,
+            "correct": 4,
+            "accuracy": 0.8,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          },
+          "navigate.v1__manglish": {
+            "count": 3,
+            "correct": 1,
+            "accuracy": 0.3333,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          },
+          "navigate.v1__ml": {
+            "count": 4,
+            "correct": 4,
+            "accuracy": 1.0,
+            "insufficient_evidence": true,
+            "note": "sample size too small (<10) to draw statistically sound performance conclusions"
+          }
+        },
+        "confusion_matrix": {
+          "office_supplies": {
+            "office_supplies": 1,
+            "cashbook_payment": 0,
+            "clarify": 0,
+            "none": 0,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "cashbook_payment": {
+            "office_supplies": 0,
+            "cashbook_payment": 3,
+            "clarify": 1,
+            "none": 0,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "clarify": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 1,
+            "none": 0,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "none": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 0,
+            "none": 0,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "transport": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 0,
+            "none": 0,
+            "transport": 2,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "refund": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 0,
+            "none": 0,
+            "transport": 0,
+            "refund": 3,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "maintenance": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 0,
+            "none": 1,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "cashbook_receipt": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 1,
+            "none": 0,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 3,
+            "account_transfer": 0,
+            "reports_view": 0
+          },
+          "account_transfer": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 3,
+            "none": 0,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 1,
+            "reports_view": 0
+          },
+          "reports_view": {
+            "office_supplies": 0,
+            "cashbook_payment": 0,
+            "clarify": 0,
+            "none": 0,
+            "transport": 0,
+            "refund": 0,
+            "maintenance": 0,
+            "cashbook_receipt": 0,
+            "account_transfer": 0,
+            "reports_view": 3
+          }
+        }
+      },
+      "records": [
+        {
+          "case_id": "hld_nav_en_01",
+          "task": "navigate.v1",
+          "language": "en",
+          "text": "Pay office electricity bill",
+          "actual": "cashbook_payment",
+          "pred": "cashbook_payment",
+          "confidence": 0.92
+        },
+        {
+          "case_id": "hld_nav_en_02",
+          "task": "navigate.v1",
+          "language": "en",
+          "text": "Customer paid invoice via bank transfer",
+          "actual": "cashbook_receipt",
+          "pred": "cashbook_receipt",
+          "confidence": 0.92
+        },
+        {
+          "case_id": "hld_nav_en_03",
+          "task": "navigate.v1",
+          "language": "en",
+          "text": "Deposited shop cash into SBI bank account",
+          "actual": "account_transfer",
+          "pred": "clarify",
+          "confidence": 0.5
+        },
+        {
+          "case_id": "hld_nav_en_04",
+          "task": "navigate.v1",
+          "language": "en",
+          "text": "Print annual profit and loss report",
+          "actual": "reports_view",
+          "pred": "reports_view",
+          "confidence": 0.9
+        },
+        {
+          "case_id": "hld_nav_en_05",
+          "task": "navigate.v1",
+          "language": "en",
+          "text": "Received unexpected gift from regular client",
+          "actual": "cashbook_receipt",
+          "pred": "cashbook_receipt",
+          "confidence": 0.92
+        },
+        {
+          "case_id": "hld_nav_ml_01",
+          "task": "navigate.v1",
+          "language": "ml",
+          "text": "സ്റ്റാഫ് അഡ്വാൻസ് ശമ്പളം 5000 നൽകി",
+          "actual": "cashbook_payment",
+          "pred": "cashbook_payment",
+          "confidence": 0.92
+        },
+        {
+          "case_id": "hld_nav_ml_02",
+          "task": "navigate.v1",
+          "language": "ml",
+          "text": "ക്യാഷ് ഡ്രോയറിൽ നിന്നും 10000 ബാങ്കിൽ നിക്ഷേപിച്ചു",
+          "actual": "account_transfer",
+          "pred": "account_transfer",
+          "confidence": 0.95
+        },
+        {
+          "case_id": "hld_nav_ml_03",
+          "task": "navigate.v1",
+          "language": "ml",
+          "text": "പഴയ ഇൻവോയ്സുകളുടെ ലിസ്റ്റ് കാണണം",
+          "actual": "reports_view",
+          "pred": "reports_view",
+          "confidence": 0.9
+        },
+        {
+          "case_id": "hld_nav_ml_04",
+          "task": "navigate.v1",
+          "language": "ml",
+          "text": "ഇന്ന് ആർക്കും പണം കൊടുക്കേണ്ടതില്ല",
+          "actual": "clarify",
+          "pred": "clarify",
+          "confidence": 0.95
+        },
+        {
+          "case_id": "hld_nav_mgl_01",
+          "task": "navigate.v1",
+          "language": "manglish",
+          "text": "Current bill online aayi adachu",
+          "actual": "cashbook_payment",
+          "pred": "clarify",
+          "confidence": 0.5
+        },
+        {
+          "case_id": "hld_nav_mgl_02",
+          "task": "navigate.v1",
+          "language": "manglish",
+          "text": "Customer cash direct aayi thannu",
+          "actual": "cashbook_receipt",
+          "pred": "cashbook_receipt",
+          "confidence": 0.92
+        },
+        {
+          "case_id": "hld_nav_mgl_03",
+          "task": "navigate.v1",
+          "language": "manglish",
+          "text": "Bank accountil ninn petty cashilekku eduthu",
+          "actual": "account_transfer",
+          "pred": "clarify",
+          "confidence": 0.5
+        },
+        {
+          "case_id": "hld_nav_ar_01",
+          "task": "navigate.v1",
+          "language": "ar",
+          "text": "سداد فاتورة الإنترنت للمكتب",
+          "actual": "cashbook_payment",
+          "pred": "cashbook_payment",
+          "confidence": 0.92
+        },
+        {
+          "case_id": "hld_nav_ar_02",
+          "task": "navigate.v1",
+          "language": "ar",
+          "text": "استلام دفعة نقدية جديدة من الزبون",
+          "actual": "cashbook_receipt",
+          "pred": "clarify",
+          "confidence": 0.5
+        },
+        {
+          "case_id": "hld_nav_ar_03",
+          "task": "navigate.v1",
+          "language": "ar",
+          "text": "إيداع مالي من الخزينة إلى البنك الأهلي",
+          "actual": "account_transfer",
+          "pred": "clarify",
+          "confidence": 0.5
+        },
+        {
+          "case_id": "hld_nav_ar_04",
+          "task": "navigate.v1",
+          "language": "ar",
+          "text": "كشف المصروفات النقدية لهذا الأسبوع",
+          "actual": "reports_view",
+          "pred": "reports_view",
+          "confidence": 0.9
+        },
+        {
+          "case_id": "hld_cat_pay_01",
+          "task": "cashbook_category.v1",
+          "language": "en",
+          "text": "Freight charges for goods delivery",
+          "actual": "transport",
+          "pred": "transport",
+          "confidence": 0.95
+        },
+        {
+          "case_id": "hld_cat_pay_02",
+          "task": "cashbook_category.v1",
+          "language": "ml",
+          "text": "കടയിലെ ലൈറ്റ് മാറ്റിവെച്ച ചെലവ്",
+          "actual": "maintenance",
+          "pred": "none",
+          "confidence": 0.9
+        },
+        {
+          "case_id": "hld_cat_pay_03",
+          "task": "cashbook_category.v1",
+          "language": "manglish",
+          "text": "Delivery vehicle diesel charge",
+          "actual": "transport",
+          "pred": "transport",
+          "confidence": 0.9
+        },
+        {
+          "case_id": "hld_cat_pay_04",
+          "task": "cashbook_category.v1",
+          "language": "ar",
+          "text": "شراء أدوات قرطاسية وأوراق طباعة",
+          "actual": "office_supplies",
+          "pred": "office_supplies",
+          "confidence": 0.9
+        },
+        {
+          "case_id": "hld_cat_rec_01",
+          "task": "cashbook_category.v1",
+          "language": "en",
+          "text": "Vendor refund for returned damaged stock",
+          "actual": "refund",
+          "pred": "refund",
+          "confidence": 0.98
+        },
+        {
+          "case_id": "hld_cat_rec_02",
+          "task": "cashbook_category.v1",
+          "language": "ml",
+          "text": "സപ്ലയറിൽ നിന്നും റീഫണ്ട് ലഭിച്ചു",
+          "actual": "refund",
+          "pred": "refund",
+          "confidence": 0.9
+        },
+        {
+          "case_id": "hld_cat_rec_03",
+          "task": "cashbook_category.v1",
+          "language": "ar",
+          "text": "استرداد نقدي من المورد للبضاعة المرتجعة",
+          "actual": "refund",
+          "pred": "refund",
+          "confidence": 0.9
+        }
+      ]
+    },
+    "python_laya": {
+      "provider": "python_laya",
+      "status": "not_run",
+      "reason": "Insufficient available host RAM for safe unquantized PyTorch loading (MemAvailable: 1414 MiB < 4096 MiB required; risk of swap thrashing and desktop OOM-freeze)",
+      "metrics": null,
+      "records": []
+    },
+    "onnx_laya": {
+      "provider": "onnx_laya",
+      "status": "not_run",
+      "reason": "Missing exported ONNX model artifact (model.onnx not found in /home/jabir/Coding/My Projects/BillZen/tools/laya/assets)",
+      "metrics": null,
+      "records": []
+    }
+  }
+}

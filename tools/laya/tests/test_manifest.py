@@ -154,7 +154,7 @@ def test_reject_duplicate_asset_paths(valid_manifest_data):
     assert any("duplicate" in err.lower() for err in errors)
 
 
-def test_verify_asset_file_integrity_with_synthetic_fixture(tmp_path):
+def test_verify_asset_file_integrity_with_synthetic_fixture(valid_manifest_data, tmp_path):
     """Synthetic local asset files must match declared sha256 and size_bytes."""
     from tools.laya.validator import verify_asset_file_integrity
 
@@ -166,18 +166,16 @@ def test_verify_asset_file_integrity_with_synthetic_fixture(tmp_path):
     test_file = tmp_path / "tiny_model.bin"
     test_file.write_bytes(content)
 
-    manifest = {
-        "schema_version": "1.0.0",
-        "assets": [
-            {
-                "filename": "tiny_model.bin",
-                "sha256": sha256_hash,
-                "size_bytes": size,
-                "role": "model_config",
-                "provenance": "synthetic_calibration",
-            }
-        ],
-    }
+    manifest = copy.deepcopy(valid_manifest_data)
+    manifest["assets"] = [
+        {
+            "filename": "tiny_model.bin",
+            "sha256": sha256_hash,
+            "size_bytes": size,
+            "role": "model_config",
+            "provenance": "synthetic_calibration",
+        }
+    ]
 
     ok, errors = verify_asset_file_integrity(manifest, tmp_path)
     assert ok is True
@@ -188,4 +186,53 @@ def test_verify_asset_file_integrity_with_synthetic_fixture(tmp_path):
     ok, errors = verify_asset_file_integrity(manifest, tmp_path)
     assert ok is False
     assert any("sha256 mismatch" in err.lower() or "size mismatch" in err.lower() for err in errors)
+
+
+def test_reject_non_finite_and_invalid_resource_values(valid_manifest_data):
+    """Resource values like NaN, Inf, bool, negative, strings must be strictly rejected."""
+    bad_rss = [-1, 0, True, False, float("nan"), float("inf"), "500", None]
+    for bad in bad_rss:
+        data = copy.deepcopy(valid_manifest_data)
+        data["resource_ceiling"]["max_rss_mb"] = bad
+        is_valid, errors = validate_asset_manifest(data)
+        assert is_valid is False, f"Expected rejection for max_rss_mb={bad}"
+        assert any("max_rss_mb" in err for err in errors)
+
+    bad_ram = [-1, 0, 256, True, "512", float("nan"), None]
+    for bad in bad_ram:
+        data = copy.deepcopy(valid_manifest_data)
+        data["hardware_target"]["min_ram_mb"] = bad
+        is_valid, errors = validate_asset_manifest(data)
+        assert is_valid is False, f"Expected rejection for min_ram_mb={bad}"
+        assert any("min_ram_mb" in err for err in errors)
+
+    bad_lat = [0, -10, True, "200", float("nan"), None]
+    for bad in bad_lat:
+        data = copy.deepcopy(valid_manifest_data)
+        data["resource_ceiling"]["max_warm_latency_ms"] = bad
+        is_valid, errors = validate_asset_manifest(data)
+        assert is_valid is False, f"Expected rejection for max_warm_latency_ms={bad}"
+        assert any("max_warm_latency_ms" in err for err in errors)
+
+    bad_timeout = [0, -1, True, "5000", float("nan"), None]
+    for bad in bad_timeout:
+        data = copy.deepcopy(valid_manifest_data)
+        data["resource_ceiling"]["max_load_timeout_ms"] = bad
+        is_valid, errors = validate_asset_manifest(data)
+        assert is_valid is False, f"Expected rejection for max_load_timeout_ms={bad}"
+        assert any("max_load_timeout_ms" in err for err in errors)
+
+
+def test_verify_asset_file_integrity_rejects_empty_or_invalid_manifest(tmp_path):
+    """verify_asset_file_integrity must not report success for empty or invalid manifests."""
+    from tools.laya.validator import verify_asset_file_integrity
+
+    ok, errors = verify_asset_file_integrity({}, tmp_path)
+    assert ok is False
+    assert any("empty" in err.lower() or "invalid" in err.lower() or "missing" in err.lower() for err in errors)
+
+    ok, errors = verify_asset_file_integrity({"assets": []}, tmp_path)
+    assert ok is False
+    assert any("empty" in err.lower() or "invalid" in err.lower() or "missing" in err.lower() for err in errors)
+
 
