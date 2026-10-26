@@ -1,5 +1,7 @@
 # BillZen Desktop Feasibility & Model Provenance Report
 
+> **Review correction2026-10-26:** Inventory/provenance preparation is useful; model/runtime RSS, latency and native parity were not measured. Disk-derived RAM estimates, guaranteed OOM/physical-impossibility language and assumed INT8 sufficiency below are not promotion evidence. Keep the conservative heavy-training no-go; read the [foundation review](../../reviews/2026-10-26-antigravity-laya-foundation-review.md) for the actual remaining gates and validator issues.
+
 **Date:** 2026-10-26, Asia/Kolkata  
 **Target Milestone:** Release A (Desktop Quick Action Navigation & Cashbook Category Chips)  
 **Status:** Task 1 Empirical Inventory & Provenance Verification Complete  

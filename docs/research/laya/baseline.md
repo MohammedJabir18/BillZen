@@ -1,5 +1,7 @@
 # BillZen Assistant: Grouped Synthetic Dataset & Baseline Evaluation Report
 
+> **Review correction2026-10-26:** The report below preserves the initial409dceb claims. Its59-case rules result is reproducible but does not establish untouched-test/pretrained accuracy, calibration or permission to skip the model gate. Read the [foundation review](../../reviews/2026-10-26-antigravity-laya-foundation-review.md) before relying on completion/Task4 recommendations. Split, candidate-order, routing and evidence issues remain unfixed in code at review time.
+
 **Date:** 2026-10-26, Asia/Kolkata  
 **Scope:** Task 2 (Grouped Synthetic Labels & Rules-Versus-Model Baseline Evaluation)  
 **Status:** Complete; 17/17 automated tests passing in 0.04s  

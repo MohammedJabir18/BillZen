@@ -20,7 +20,8 @@ Updated2026-10-26. This is the bounded entry index for continuing in a fresh cha
 - [Invoice-draft implementation plan](../docs/superpowers/plans/2026-10-23-invoice-drafts.md).
 - [Laya assessment/design](../docs/research/2026-10-25-laya-billzen-assessment.md) and [proposed integration plan](../docs/superpowers/plans/2026-10-25-laya-billzen-integration.md) — desktop first, hardware undecided; no AI implementation/training performed.
 - [Gemini-plan reconciliation](../docs/research/2026-10-26-laya-gemini-reconciliation.md), [revised Release A plan](../docs/superpowers/plans/2026-10-26-laya-reconciled-desktop.md) and [Antigravity execution prompt](../docs/prompts/2026-10-26-antigravity-laya.md) — current planning handoff; newer Rust gate status corrected.
-- [Laya feasibility & provenance report](../docs/research/laya/desktop-feasibility.md) and [baseline evaluation report](../docs/research/laya/baseline.md) — Task 1 & 2 completed evidence.
+- [Laya feasibility & provenance report](../docs/research/laya/desktop-feasibility.md) and [baseline evaluation report](../docs/research/laya/baseline.md) — initial Task1/2 tooling; model feasibility/quality unmeasured and foundation corrections required.
+- [Antigravity foundation review](../docs/reviews/2026-10-26-antigravity-laya-foundation-review.md) and [corrective prompt](../docs/prompts/2026-10-26-antigravity-laya-foundation-corrections.md) — current next step before runtime/UI; rules-only59-case success does not pass the Laya model gate.
 - [Published desktop delivery](../docs/distribution-v0.1.6.md) and [current project README](../README.md).
 
 ## Memory rules
