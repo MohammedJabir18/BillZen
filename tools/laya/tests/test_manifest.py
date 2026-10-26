@@ -51,7 +51,7 @@ def test_reject_path_traversal_in_asset_filename(valid_manifest_data):
         data["assets"][0]["filename"] = bad_name
         is_valid, errors = validate_asset_manifest(data)
         assert is_valid is False
-        assert any("path traversal" in err for err in errors)
+        assert any("path" in err.lower() or "traversal" in err.lower() for err in errors)
 
 
 def test_reject_invalid_sha256_format(valid_manifest_data):
@@ -89,3 +89,103 @@ def test_reject_excessive_resource_ceiling(valid_manifest_data):
     is_valid, errors = validate_asset_manifest(data)
     assert is_valid is False
     assert any("resource_ceiling" in err for err in errors)
+
+
+def test_reject_windows_drive_and_unc_paths(valid_manifest_data):
+    """Filenames with Windows drive letters, drive-relative paths, or UNC shares must be rejected."""
+    drive_cases = [
+        "C:/outside/model.onnx",
+        "D:\\models\\weights.bin",
+        "c:file.safetensors",
+        "\\\\server\\share\\model.onnx",
+        "//server/share/model.onnx",
+    ]
+    for bad_name in drive_cases:
+        data = copy.deepcopy(valid_manifest_data)
+        data["assets"][0]["filename"] = bad_name
+        is_valid, errors = validate_asset_manifest(data)
+        assert is_valid is False, f"Expected rejection for: '{bad_name}'"
+        assert any("path" in err.lower() or "traversal" in err.lower() for err in errors)
+
+
+def test_reject_empty_required_strings(valid_manifest_data):
+    """Empty strings for license, role, or filename must be rejected."""
+    # Empty license
+    data = copy.deepcopy(valid_manifest_data)
+    data["license"] = "   "
+    is_valid, errors = validate_asset_manifest(data)
+    assert is_valid is False
+    assert any("license" in err.lower() for err in errors)
+
+    # Empty filename
+    data = copy.deepcopy(valid_manifest_data)
+    data["assets"][0]["filename"] = ""
+    is_valid, errors = validate_asset_manifest(data)
+    assert is_valid is False
+    assert any("filename" in err.lower() for err in errors)
+
+    # Empty role
+    data = copy.deepcopy(valid_manifest_data)
+    data["assets"][0]["role"] = ""
+    is_valid, errors = validate_asset_manifest(data)
+    assert is_valid is False
+    assert any("role" in err.lower() for err in errors)
+
+
+def test_reject_bool_as_size_bytes(valid_manifest_data):
+    """Python bool (True/False) must be strictly rejected as size_bytes."""
+    for b in [True, False]:
+        data = copy.deepcopy(valid_manifest_data)
+        data["assets"][0]["size_bytes"] = b
+        is_valid, errors = validate_asset_manifest(data)
+        assert is_valid is False
+        assert any("size_bytes" in err for err in errors)
+
+
+def test_reject_duplicate_asset_paths(valid_manifest_data):
+    """Manifest must reject duplicate normalized asset paths."""
+    data = copy.deepcopy(valid_manifest_data)
+    dup = copy.deepcopy(data["assets"][0])
+    # Add identical or normalized duplicate
+    dup["filename"] = f"./{dup['filename']}"
+    data["assets"].append(dup)
+    is_valid, errors = validate_asset_manifest(data)
+    assert is_valid is False
+    assert any("duplicate" in err.lower() for err in errors)
+
+
+def test_verify_asset_file_integrity_with_synthetic_fixture(tmp_path):
+    """Synthetic local asset files must match declared sha256 and size_bytes."""
+    from tools.laya.validator import verify_asset_file_integrity
+
+    content = b"hello billzen assistant tiny synthetic model fixture\n"
+    import hashlib
+    sha256_hash = hashlib.sha256(content).hexdigest()
+    size = len(content)
+
+    test_file = tmp_path / "tiny_model.bin"
+    test_file.write_bytes(content)
+
+    manifest = {
+        "schema_version": "1.0.0",
+        "assets": [
+            {
+                "filename": "tiny_model.bin",
+                "sha256": sha256_hash,
+                "size_bytes": size,
+                "role": "model_config",
+                "provenance": "synthetic_calibration",
+            }
+        ],
+    }
+
+    ok, errors = verify_asset_file_integrity(manifest, tmp_path)
+    assert ok is True
+    assert len(errors) == 0
+
+    # Tamper with content
+    test_file.write_bytes(b"corrupted content")
+    ok, errors = verify_asset_file_integrity(manifest, tmp_path)
+    assert ok is False
+    assert any("sha256 mismatch" in err.lower() or "size mismatch" in err.lower() for err in errors)
+

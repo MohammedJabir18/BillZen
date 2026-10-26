@@ -103,3 +103,89 @@ def test_deterministic_baseline_benchmark_performance():
     # Verify each language slice
     for lang, metrics in results["by_language"].items():
         assert metrics["raw_accuracy"] >= 0.85, f"Language {lang} accuracy below 0.85: {metrics['raw_accuracy']}"
+
+
+def test_review_route_errors_regression():
+    """Failing regression test for Review Finding R3:
+    - 'Pay electricity bill' -> cashbook_payment (not invoice_draft)
+    - 'Paid supplier invoice' -> cashbook_payment (not invoice_draft)
+    - 'Customer paid by bank transfer' -> cashbook_receipt (not account_transfer)
+    - 'Salary was paid by bank transfer' -> cashbook_payment (not account_transfer)
+    - 'Received gift from customer' -> cashbook_receipt (not clarify because of 'if' in 'gift')
+    - 'Shift stock to shelf' -> not clarify because of 'if' in 'shift'
+    - 'Show salary payments' -> reports_view (read-only query must not become payment posting)
+    """
+    clf = DeterministicRuleClassifier()
+
+    cases = [
+        ("Pay electricity bill", "cashbook_payment"),
+        ("Paid supplier invoice", "cashbook_payment"),
+        ("Customer paid by bank transfer", "cashbook_receipt"),
+        ("Salary was paid by bank transfer", "cashbook_payment"),
+        ("Received gift from customer", "cashbook_receipt"),
+        ("Show salary payments", "reports_view"),
+    ]
+
+    for text, expected in cases:
+        pred, conf = clf.predict_navigate(text)
+        assert pred == expected, f"Failed for '{text}': expected '{expected}', got '{pred}'"
+
+    # 'Shift stock to shelf': must not be clarify due to 'if' in 'shift'
+    pred, _ = clf.predict_navigate("Shift stock to shelf")
+    assert pred == "inventory_stock", f"Shift stock should map to inventory_stock, got '{pred}'"
+
+
+def test_review_candidate_ties_and_permutation_regression():
+    """Failing regression test for Review Finding R4:
+    - Candidate ties (e.g. 'rent and salary') must consistently clarify or select none, NEVER picking whichever was first.
+    - Candidate permutations must produce invariant prediction results.
+    """
+    clf = DeterministicRuleClassifier()
+
+    # Tied input: text mentions both rent and salary equally
+    pred1, _ = clf.predict_category("rent and salary", ["rent", "salary", "none"])
+    pred2, _ = clf.predict_category("rent and salary", ["salary", "rent", "none"])
+
+    # Both must match and neither should arbitrarily favor one over the other
+    assert pred1 == pred2, f"Candidate order changed tie prediction: '{pred1}' vs '{pred2}'"
+    assert pred1 in ["clarify", "none"], f"Tied candidates should clarify/none, got: '{pred1}'"
+
+    # Permutation test on unambiguous case
+    unambiguous_text = "Paid office rent"
+    cand_order1 = ["rent", "utilities", "salary", "none"]
+    cand_order2 = ["none", "salary", "utilities", "rent"]
+    p1, _ = clf.predict_category(unambiguous_text, cand_order1)
+    p2, _ = clf.predict_category(unambiguous_text, cand_order2)
+    assert p1 == p2 == "rent"
+
+
+def test_review_structured_candidates_with_uuid_and_direction():
+    """Failing regression test for Review Finding R4:
+    - Real-style candidate objects with UUIDs, human labels, and direction compatibility.
+    """
+    clf = DeterministicRuleClassifier()
+
+    candidates = [
+        {"id": "cat-uuid-001", "label": "Office Rent", "direction": "payment"},
+        {"id": "cat-uuid-002", "label": "Electricity & Water", "direction": "payment"},
+        {"id": "cat-uuid-003", "label": "Staff Salaries", "direction": "payment"},
+        {"id": "cat-uuid-999", "label": "None of the above", "direction": "payment"},
+    ]
+
+    # Matching with direction = payment
+    pred, conf = clf.predict_category(
+        "Paid office rent for October",
+        candidates,
+        direction="payment",
+    )
+    assert pred == "cat-uuid-001", f"Expected matching UUID 'cat-uuid-001', got: '{pred}'"
+    assert conf >= 0.85
+
+    # If direction is receipt, payment categories must NOT match
+    pred_wrong_dir, _ = clf.predict_category(
+        "Paid office rent for October",
+        candidates,
+        direction="receipt",
+    )
+    assert pred_wrong_dir in ["none", "clarify", "cat-uuid-999"], f"Expected rejection on mismatched direction, got '{pred_wrong_dir}'"
+

@@ -1,17 +1,20 @@
 {
-  "dataset_version": "1.0.0",
-  "total_cases": 59,
+  "dataset_version": "1.1.0",
+  "total_dev_cases": 59,
+  "total_holdout_cases": 23,
   "split_counts": {
     "train": 38,
     "dev": 9,
     "calibration": 6,
     "test": 6
   },
+  "holdout_count": 23,
   "split_hashes": {
-    "train": "456fa6e389c3d205aaa2ae9e63d5a207c1870288016f284f3b67e9502caeace5",
-    "dev": "c571859c1803b0b14073d485a527e925d05c05ff699cff30c8da9ef2789e36a0",
-    "calibration": "99a9a02da574327281d9ffcc623f460b7b3922f5ac0e215721964f19963d411c",
-    "test": "8faae8524a7377fa5f96e236580820ead7a62d007d91f2bf16952d7ecbc87329"
+    "train": "0a74de428c8857968b5ec8cac90ea7a57f54dc683d812ffe6da320077ef013ce",
+    "dev": "9acd22aa60c395a6799cfef8906dbf03d5469678cc5557e2c6c9a9ed9e7a4e02",
+    "calibration": "e00dd4d5c2f7c5a6cc1326b80a72337b610679b4b2545204aea0cbb534d2b4ad",
+    "test": "703e6fc0b90840b74e96dd394520b5f26d312fd3e54d362c7442294f13abd093",
+    "holdout": "4c690a64fa0c85b4f2f72adbfcdd45b3e58ca4537ad4c46518488db2f2c5564e"
   },
   "tasks": [
     "navigate.v1",

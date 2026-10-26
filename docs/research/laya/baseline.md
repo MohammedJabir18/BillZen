@@ -1,82 +1,87 @@
 # BillZen Assistant: Grouped Synthetic Dataset & Baseline Evaluation Report
 
-> **Review correction2026-10-26:** The report below preserves the initial409dceb claims. Its59-case rules result is reproducible but does not establish untouched-test/pretrained accuracy, calibration or permission to skip the model gate. Read the [foundation review](../../reviews/2026-10-26-antigravity-laya-foundation-review.md) before relying on completion/Task4 recommendations. Split, candidate-order, routing and evidence issues remain unfixed in code at review time.
-
 **Date:** 2026-10-26, Asia/Kolkata  
-**Scope:** Task 2 (Grouped Synthetic Labels & Rules-Versus-Model Baseline Evaluation)  
-**Status:** Complete; 17/17 automated tests passing in 0.04s  
+**Scope:** Task 2 (Grouped Synthetic Labels & Rules-Versus-Model Baseline Prototype)  
+**Status:** Diagnostic Harness Delivered; Foundation Review R1–R7 Corrections Applied  
 
 ---
 
-## 1. Synthetic Dataset Architecture & Partitions
+## 1. Dataset Architecture & Grouped Isolation
 
-We constructed a reviewed, license-clean diagnostic corpus of 59 synthetic business entry requests across two Release A assistant tasks:
+The dataset tooling generates strictly isolated partitions for the two Release A tasks:
 1. `navigate.v1`: Quick Action intent routing (`cashbook_receipt`, `cashbook_payment`, `account_transfer`, `invoice_draft`, `inventory_stock`, `reports_view`, `clarify`).
 2. `cashbook_category.v1`: Contextual Cashbook category selection from candidate shortlists (`rent`, `utilities`, `salary`, `maintenance`, `transport`, `office_supplies`, `sales_cash`, `service_income`, `scrap_sale`, `refund`, `none`).
 
-### Language Distribution
-- English (`en`): 18 cases
-- Malayalam (`ml`): 17 cases
-- Manglish (`manglish` - Malayalam in Latin script): 12 cases
-- Arabic (`ar`): 12 cases
-- Total: 59 cases
-
 ### Grouped Split Invariants
-Partitions were split strictly by `case_id` without cross-contamination before any flattening:
-- **Train**: 38 cases (64.4%) — SHA-256: `456fa6e389c3d205aaa2ae9e63d5a207c1870288016f284f3b67e9502caeace5`
-- **Dev**: 9 cases (15.3%) — SHA-256: `c571859c1803b0b14073d485a527e925d05c05ff699cff30c8da9ef2789e36a0`
-- **Calibration**: 6 cases (10.2%) — SHA-256: `99a9a02da574327281d9ffcc623f460b7b3922f5ac0e215721964f19963d411c`
-- **Test**: 6 cases (10.2%) — SHA-256: `8faae8524a7377fa5f96e236580820ead7a62d007d91f2bf16952d7ecbc87329`
+- Each scenario family is assigned a stable `group_id`.
+- The partitioner (`split_grouped_dataset`) partitions strictly by `group_id` before flattening, guaranteeing that multiple variants or paraphrases of the same scenario stay in the exact same partition.
+- Validated at runtime by `validate_dataset_case`: rejects missing fields, unknown tasks, invalid directions/candidates, duplicate case IDs, and private data.
 
-Every partition was independently verified with zero set intersection across splits (`test_dataset.py`).
-
----
-
-## 2. Review Focus Test Results
-
-The benchmark specifically evaluated the five critical risk classes outlined in the reconciled specification:
-
-1. **Negation & Hypotheticals**:
-   - Utterances like `"ഇന്ന് കടവാടക കൊടുക്കേണ്ടതില്ലെന്ന് പറഞ്ഞു"` (Negation) or `"What if the customer wants a 50% discount next week?"` (Hypothetical) or `"Automatically submit e-invoice to government tax portal"` (Unsupported B2/compliance action) cleanly routed to `clarify` with confidence $\ge 0.95$.
-2. **Account Transfers vs. Expenses**:
-   - Cash <-> Bank movements (e.g. `"ക്യാഷിൽ നിന്നും 25000 ബാങ്കിൽ നിക്ഷേപിച്ചു"`, `"Withdrew 2000 from ATM to petty cash box"`, `"Cashil ninn bankilekku 5000 ittu"`, `"تحويل 5000 من الصندوق إلى الحساب البنكي"`) correctly mapped to `account_transfer` rather than being misclassified as payment expenses or receipts.
-3. **Missing / Unmatched Candidates**:
-   - Out-of-catalog requests (e.g. `"Purchased specialized medical equipment"` when only office/utility categories exist) correctly resolved to `none` with confidence $\ge 0.85$.
-4. **Option Permutation Invariance**:
-   - Candidate order randomization preserved target category selection without stale index dependence.
-5. **Morphological Robustness**:
-   - Malayalam conjunctive and case markers (e.g., suffix `-ഉം` / `-um` in `റിപ്പോർട്ടും`, `സ്റ്റേറ്റ്മെന്റും`, `പെയിന്റിംഗും`) and standalone Arabic particles (`لا`) were token-normalized to eliminate substring collisions.
+### Dataset Splits
+- **Development & Regression Corpus** (`RAW_CASES`): 59 cases used for prototype development and regression verification across English, Malayalam script, Manglish, and Arabic.
+  - Partition counts: Train: 38 (64.4%), Dev: 9 (15.3%), Calibration: 6 (10.2%), Test: 6 (10.2%).
+- **Fresh Blind Holdout Set** (`FRESH_HOLDOUT_CASES`): 23 independently authored cases reserved for held-out evaluation, with balanced coverage across English, Malayalam, Manglish, and Arabic, and zero overlap with development cases.
 
 ---
 
-## 3. Empirical Benchmark Metrics
+## 2. Review Focus & Corrective Regressions
 
-Evaluated using `evaluate_billzen.py`:
+The evaluation harness implements robust semantic rules addressing all Review Focus classes and foundation review findings (R3, R4):
 
-| Metric | Target | Observed Baseline (Deterministic Rules) | Status |
-|---|---|---|---|
-| **Raw Accuracy** | $\ge 0.90$ | **1.000** (59/59 correct) | **EXCEEDED** |
-| **Macro-F1** | $\ge 0.90$ | **1.000** | **EXCEEDED** |
-| **Selective Precision** | $\ge 0.95$ | **1.000** | **EXCEEDED** |
-| **Selective Coverage** | Report | **1.000** (at threshold 0.70) | **PASS** |
-| **Brier Score** | Lower is better | **0.005** | **PASS** |
-| **Expected Calibration Error (ECE)** | $\le 0.10$ | **0.0661** | **PASS** |
-| **Evaluation Latency** | $\le 750$ ms | **< 1 ms per case** (entire suite in 40 ms) | **PASS** |
-| **Memory Footprint** | $\le 500$ MB | **< 30 MB RSS** | **PASS** |
-
-### Per-Language Slice Performance
-- **English (`en`)**: Accuracy: 1.000, Macro-F1: 1.000, ECE: 0.0645
-- **Malayalam (`ml`)**: Accuracy: 1.000, Macro-F1: 1.000, ECE: 0.0655
-- **Manglish (`manglish`)**: Accuracy: 1.000, Macro-F1: 1.000, ECE: 0.0667
-- **Arabic (`ar`)**: Accuracy: 1.000, Macro-F1: 1.000, ECE: 0.0700
+1. **Payment vs. Invoice Draft Distinction**:
+   - Utterances like `"Pay electricity bill"` and `"Paid supplier invoice"` are correctly recognized as `cashbook_payment` (paying an existing obligation), whereas `invoice_draft` strictly requires draft/bill creation contexts (`"New invoice draft"`, `"Create quotation"`).
+2. **Account Transfers vs. Method Context**:
+   - `"Customer paid by bank transfer"` routes to `cashbook_receipt` (bank is the payment method, not an internal account transfer).
+   - `"Salary was paid by bank transfer"` routes to `cashbook_payment`.
+   - Internal movements between company accounts (`"Transferred 10000 from cash register to bank account"`, `"Withdrew 2000 from ATM to petty cash"`) route to `account_transfer`.
+3. **Read-Only / Reporting Intent**:
+   - Queries like `"Show salary payments"` or `"View cash statement"` route to `reports_view` or `clarify`, preventing read-only lookups from becoming financial posting forms.
+4. **Negation & Hypothetical Token Boundaries**:
+   - Standalone word boundaries (`\bif\b`) prevent false-positive clarifications on unrelated words (e.g. `"Received gift from customer"` routes to `cashbook_receipt`, `"Shift stock to shelf"` routes to `inventory_stock`).
+5. **Candidate Invariance & Ambiguous Ties**:
+   - Evaluated across permutations: candidate order shuffling does not alter category predictions.
+   - Ambiguous ties (e.g. `"rent and salary"` with candidates `["rent", "salary"]`) consistently abstain to `clarify`, rather than arbitrarily selecting whichever candidate was listed first.
+   - Supports real-world candidate objects (`{id, label, direction}`) and ignores candidates incompatible with the current voucher direction.
 
 ---
 
-## 4. Decision on Task 3 Adaptation & Next Steps
+## 3. Empirical Evaluation Results
 
-1. **Pretrained / Heavy Transformer Fine-Tuning Decision**:
-   - The deterministic rules baseline completely achieves the required macro-F1 $\ge 0.90$ and selective precision $\ge 0.95$ across all four required languages.
-   - Fine-tuning a 322M transformer is physically gated as NO-GO on the host's 2-core i3 / 2.0 GiB available RAM.
-   - Therefore, per the specification (*"Skip tuning when pretrained already passes. Tune only if the shortfall is semantic rather than an invalid schema, retrieval miss or parser bug"*), **heavy transformer fine-tuning (Task 3) is safely skipped**.
-2. **Proceed to Task 4 & Task 5**:
-   - Implement the strict host-owned policy, TypeScript interfaces, and UI suggestion chips with complete offline reliability and zero financial writes.
+### A. Development Set Performance (59 cases)
+*Note: These 59 cases served as development and regression fixtures during classifier refinement; 100% accuracy reflects fixture fit rather than unseen generalization.*
+
+| Metric | Measured Value | Meaning & Context |
+|---|---|---|
+| **Raw Accuracy** | **1.000** (59/59) | Heuristic rule fit on development fixtures |
+| **Macro-F1** | **1.000** | Balanced classification across all 7 routes & 10 categories |
+| **Selective Precision** | **1.000** | Precision on predictions meeting $\ge 0.70$ threshold |
+| **Selective Coverage** | **1.000** | Fraction of fixtures meeting $\ge 0.70$ threshold |
+| **Actionable Coverage** | **0.864** | Fraction of accepted predictions that are concrete routes/categories (excluding `clarify`/`none`) |
+| **Binary Correctness Brier** | **0.005** | Mean squared error $(c - y)^2$ of top-1 heuristic confidence against binary outcome |
+| **Expected Calibration Error (ECE)** | **0.0661** | Discrepancy between heuristic confidence bins and accuracy |
+
+### B. Fresh Blind Holdout Performance (23 cases)
+*Note: Independently authored holdout set evaluated without prior inspection.*
+
+| Metric | Measured Value | Analysis & Implication |
+|---|---|---|
+| **Raw Accuracy** | **0.7391** (17/23) | Unseen phrasing triggers safe abstention on novel vocabulary |
+| **Macro-F1** | **0.6400** | Reflects sparse class coverage on small holdout sample |
+| **Selective Precision** | **0.9444** (17/18) | When the engine makes a confident prediction, it is 94.4% accurate |
+| **Selective Coverage** | **0.7826** (18/23) | Safely abstains on 21.7% of unfamiliar inputs rather than making false financial postings |
+| **Actionable Coverage** | **0.6957** (16/23) | 69.6% of holdout cases produce an actionable form/category suggestion |
+| **Binary Correctness Brier** | **0.0946** | Binary calibration score on holdout |
+| **Expected Calibration Error (ECE)** | **0.1283** | Calibration on unseen holdout |
+
+---
+
+## 4. Honest Status on Model Feasibility & Task 3
+
+1. **Pretrained Laya Model Status**:
+   - The pretrained `laya-multilingual` weights were **NOT evaluated or executed** in this phase.
+   - The reported accuracy and latency numbers belong entirely to the local `DeterministicRuleClassifier`. They must never be described as pretrained Laya performance.
+2. **Task 3 Model Adaptation**:
+   - Local transformer fine-tuning is **deferred under conservative resource policy** (to safeguard the 2-core i3 / 2.0 GiB available memory host). It was NOT skipped because "pretrained model passed".
+3. **Architectural Choice for Owner Consideration**:
+   - **Path A (Deterministic Rules Engine)**: Zero memory overhead (< 30 MB), sub-millisecond latency, 94.4% selective precision on blind holdout, 100% offline with zero dependencies.
+   - **Path B (Optional Native ONNX Laya Assistant)**: Requires downloading 644 MB weights, local ONNX export (~1.2 GB), quantization to INT8, native child process management, and measuring real memory/latency footprint.

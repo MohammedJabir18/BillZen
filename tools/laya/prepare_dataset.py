@@ -1,7 +1,7 @@
 """Synthetic dataset preparation and validation for BillZen assistant tasks.
 
 Produces strictly grouped partitions (train/dev/calibration/test: 65/15/10/10)
-for navigate.v1 and cashbook_category.v1 without leaking case groups across splits.
+for navigate.v1 and cashbook_category.v1 with zero leakage of case families across splits.
 """
 
 from __future__ import annotations
@@ -10,10 +10,12 @@ import hashlib
 import json
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 SUPPORTED_TASKS = ["navigate.v1", "cashbook_category.v1"]
+SUPPORTED_LANGUAGES = ["en", "ml", "manglish", "ar"]
+FORBIDDEN_TOKENS = ["password", "secret", "bearer", "ghp_", "sk-", "private_key", "aadhaar", "pan:"]
 
 NAVIGATE_OPTIONS = [
     {"id": "cashbook_receipt", "label": "Cashbook Receipt (Money In)"},
@@ -25,10 +27,58 @@ NAVIGATE_OPTIONS = [
     {"id": "clarify", "label": "Clarification / Ambiguous"},
 ]
 
+
+def validate_dataset_case(case_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    """Validate runtime schema, tasks, directions, candidates, and privacy invariants."""
+    errors: List[str] = []
+
+    required_fields = ["case_id", "group_id", "task", "language", "text", "expected"]
+    for req in required_fields:
+        if req not in case_dict:
+            errors.append(f"Missing required field '{req}'")
+        elif not str(case_dict[req]).strip():
+            errors.append(f"Field '{req}' cannot be empty")
+
+    if errors:
+        return False, errors
+
+    task = case_dict["task"]
+    if task not in SUPPORTED_TASKS:
+        errors.append(f"Unsupported task: '{task}'")
+
+    lang = case_dict["language"]
+    if lang not in SUPPORTED_LANGUAGES:
+        errors.append(f"Unsupported language: '{lang}'")
+
+    text = case_dict["text"].lower()
+    for forb in FORBIDDEN_TOKENS:
+        if forb in text:
+            errors.append(f"Forbidden sensitive token '{forb}' detected in text")
+
+    if task == "cashbook_category.v1":
+        direction = case_dict.get("direction")
+        if direction not in ["payment", "receipt"]:
+            errors.append(f"Invalid category direction: '{direction}'")
+
+        candidates = case_dict.get("candidates")
+        if not isinstance(candidates, list) or len(candidates) == 0:
+            errors.append("candidates must be a non-empty list")
+        else:
+            cand_ids = [c["id"] if isinstance(c, dict) else str(c) for c in candidates]
+            if case_dict["expected"] not in cand_ids:
+                errors.append(
+                    f"Expected target '{case_dict['expected']}' not in candidate IDs: {cand_ids}"
+                )
+
+    return (len(errors) == 0), errors
+
+
+# Development and regression fixture cases (original 59 cases, preserved with explicit group_id)
 RAW_CASES: List[Dict[str, Any]] = [
     # --- NAVIGATE.V1: English ---
     {
         "case_id": "nav_en_01",
+        "group_id": "grp_nav_en_01",
         "task": "navigate.v1",
         "language": "en",
         "text": "Record payment of 1200 for office supplies",
@@ -37,6 +87,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_02",
+        "group_id": "grp_nav_en_02",
         "task": "navigate.v1",
         "language": "en",
         "text": "Received 5000 cash from customer for repair work",
@@ -45,6 +96,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_03",
+        "group_id": "grp_nav_en_03",
         "task": "navigate.v1",
         "language": "en",
         "text": "Transferred 10000 from cash register to bank account",
@@ -53,6 +105,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_04",
+        "group_id": "grp_nav_en_04",
         "task": "navigate.v1",
         "language": "en",
         "text": "Create a new quotation / bill draft for customer John",
@@ -61,6 +114,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_05",
+        "group_id": "grp_nav_en_05",
         "task": "navigate.v1",
         "language": "en",
         "text": "Counted physical inventory and need to reduce damaged stock",
@@ -69,6 +123,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_06",
+        "group_id": "grp_nav_en_06",
         "task": "navigate.v1",
         "language": "en",
         "text": "Show me monthly sales summary and cash statement",
@@ -77,6 +132,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_07",
+        "group_id": "grp_nav_en_07",
         "task": "navigate.v1",
         "language": "en",
         "text": "Do not pay the rent this month, owner said wait",
@@ -85,6 +141,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_08",
+        "group_id": "grp_nav_en_08",
         "task": "navigate.v1",
         "language": "en",
         "text": "What if the customer wants a 50% discount next week?",
@@ -93,6 +150,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_09",
+        "group_id": "grp_nav_en_09",
         "task": "navigate.v1",
         "language": "en",
         "text": "Automatically submit e-invoice to government tax portal",
@@ -101,6 +159,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_en_10",
+        "group_id": "grp_nav_en_10",
         "task": "navigate.v1",
         "language": "en",
         "text": "Withdrew 2000 from ATM to petty cash box",
@@ -111,6 +170,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     # --- NAVIGATE.V1: Malayalam Script ---
     {
         "case_id": "nav_ml_01",
+        "group_id": "grp_nav_ml_01",
         "task": "navigate.v1",
         "language": "ml",
         "text": "കടവാടക 15000 രൂപ കൊടുത്തു",
@@ -119,6 +179,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_02",
+        "group_id": "grp_nav_ml_02",
         "task": "navigate.v1",
         "language": "ml",
         "text": "കസ്റ്റമർ തന്ന 3500 രൂപ ക്യാഷ് വാങ്ങി",
@@ -127,6 +188,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_03",
+        "group_id": "grp_nav_ml_03",
         "task": "navigate.v1",
         "language": "ml",
         "text": "ക്യാഷിൽ നിന്നും 25000 ബാങ്കിൽ നിക്ഷേപിച്ചു",
@@ -135,6 +197,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_04",
+        "group_id": "grp_nav_ml_04",
         "task": "navigate.v1",
         "language": "ml",
         "text": "പുതിയൊരു ഇൻവോയ്സ് ഡ്രാഫ്റ്റ് ഉണ്ടാക്കണം",
@@ -143,6 +206,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_05",
+        "group_id": "grp_nav_ml_05",
         "task": "navigate.v1",
         "language": "ml",
         "text": "സ്റ്റോക്കിൽ പുതിയ 50 പീസ് ആഡ് ചെയ്യണം",
@@ -151,6 +215,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_06",
+        "group_id": "grp_nav_ml_06",
         "task": "navigate.v1",
         "language": "ml",
         "text": "ഈ മാസത്തെ സ്റ്റേറ്റ്മെന്റും റിപ്പോർട്ടും കാണണം",
@@ -159,6 +224,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_07",
+        "group_id": "grp_nav_ml_07",
         "task": "navigate.v1",
         "language": "ml",
         "text": "ഇന്ന് കടവാടക കൊടുക്കേണ്ടതില്ലെന്ന് മുതലാളി പറഞ്ഞു",
@@ -167,6 +233,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_08",
+        "group_id": "grp_nav_ml_08",
         "task": "navigate.v1",
         "language": "ml",
         "text": "അടുത്ത മാസം പണം തന്നാൽ ബില്ല് മാറ്റാമോ?",
@@ -175,6 +242,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_09",
+        "group_id": "grp_nav_ml_09",
         "task": "navigate.v1",
         "language": "ml",
         "text": "ബാങ്കിൽ നിന്നും 5000 രൂപ ക്യാഷ് ഡ്രോയറിലേക്ക് പിൻവലിച്ചു",
@@ -183,6 +251,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ml_10",
+        "group_id": "grp_nav_ml_10",
         "task": "navigate.v1",
         "language": "ml",
         "text": "എല്ലാ ഇടപാടുകളും ഓട്ടോമാറ്റിക് ആയി റിവേഴ്സ് ചെയ്യുക",
@@ -193,6 +262,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     # --- NAVIGATE.V1: Manglish (Malayalam in Latin script) ---
     {
         "case_id": "nav_mgl_01",
+        "group_id": "grp_nav_mgl_01",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Kada vadaka 12000 koduthu",
@@ -201,6 +271,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_mgl_02",
+        "group_id": "grp_nav_mgl_02",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Kollam customer cash 4000 thannu",
@@ -209,6 +280,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_mgl_03",
+        "group_id": "grp_nav_mgl_03",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Cashil ninn bankilekku 5000 ittu",
@@ -217,6 +289,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_mgl_04",
+        "group_id": "grp_nav_mgl_04",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Puthiya bill draft undakkanam",
@@ -225,6 +298,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_mgl_05",
+        "group_id": "grp_nav_mgl_05",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Damaged aaya 5 item stock kurakkanam",
@@ -233,6 +307,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_mgl_06",
+        "group_id": "grp_nav_mgl_06",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Ee masathe full reports edukkanam",
@@ -241,6 +316,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_mgl_07",
+        "group_id": "grp_nav_mgl_07",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Innu vadaka kodukkanda, pinne kodukkam",
@@ -249,6 +325,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_mgl_08",
+        "group_id": "grp_nav_mgl_08",
         "task": "navigate.v1",
         "language": "manglish",
         "text": "Bankil ninn 3000 cash withdraw cheythu",
@@ -259,6 +336,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     # --- NAVIGATE.V1: Arabic ---
     {
         "case_id": "nav_ar_01",
+        "group_id": "grp_nav_ar_01",
         "task": "navigate.v1",
         "language": "ar",
         "text": "دفع إيجار المحل 3000 ريال",
@@ -267,6 +345,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ar_02",
+        "group_id": "grp_nav_ar_02",
         "task": "navigate.v1",
         "language": "ar",
         "text": "استلام دفعة نقدية من العميل 1500 درهم",
@@ -275,6 +354,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ar_03",
+        "group_id": "grp_nav_ar_03",
         "task": "navigate.v1",
         "language": "ar",
         "text": "تحويل 5000 من الصندوق إلى الحساب البنكي",
@@ -283,6 +363,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ar_04",
+        "group_id": "grp_nav_ar_04",
         "task": "navigate.v1",
         "language": "ar",
         "text": "إنشاء مسودة فاتورة مبيعات جديدة",
@@ -291,6 +372,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ar_05",
+        "group_id": "grp_nav_ar_05",
         "task": "navigate.v1",
         "language": "ar",
         "text": "تعديل رصيد المخزون للبضاعة التالفة",
@@ -299,6 +381,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ar_06",
+        "group_id": "grp_nav_ar_06",
         "task": "navigate.v1",
         "language": "ar",
         "text": "عرض كشف الحساب والتقارير المالية الشهرية",
@@ -307,6 +390,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ar_07",
+        "group_id": "grp_nav_ar_07",
         "task": "navigate.v1",
         "language": "ar",
         "text": "لا تدفع الإيجار اليوم بناء على طلب المالك",
@@ -315,6 +399,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "nav_ar_08",
+        "group_id": "grp_nav_ar_08",
         "task": "navigate.v1",
         "language": "ar",
         "text": "سحب 2000 من البنك إلى الخزينة",
@@ -325,6 +410,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     # --- CASHBOOK_CATEGORY.V1: Payment Direction ---
     {
         "case_id": "cat_pay_01",
+        "group_id": "grp_cat_pay_01",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "en",
@@ -335,6 +421,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_02",
+        "group_id": "grp_cat_pay_02",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "en",
@@ -345,6 +432,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_03",
+        "group_id": "grp_cat_pay_03",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "en",
@@ -355,6 +443,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_04",
+        "group_id": "grp_cat_pay_04",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "en",
@@ -365,6 +454,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_05",
+        "group_id": "grp_cat_pay_05",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "ml",
@@ -375,6 +465,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_06",
+        "group_id": "grp_cat_pay_06",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "ml",
@@ -385,6 +476,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_07",
+        "group_id": "grp_cat_pay_07",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "ml",
@@ -395,6 +487,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_08",
+        "group_id": "grp_cat_pay_08",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "ml",
@@ -405,6 +498,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_09",
+        "group_id": "grp_cat_pay_09",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "manglish",
@@ -415,6 +509,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_10",
+        "group_id": "grp_cat_pay_10",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "manglish",
@@ -425,6 +520,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_11",
+        "group_id": "grp_cat_pay_11",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "ar",
@@ -435,6 +531,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_pay_12",
+        "group_id": "grp_cat_pay_12",
         "task": "cashbook_category.v1",
         "direction": "payment",
         "language": "ar",
@@ -447,6 +544,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     # --- CASHBOOK_CATEGORY.V1: Receipt Direction ---
     {
         "case_id": "cat_rec_01",
+        "group_id": "grp_cat_rec_01",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "en",
@@ -457,6 +555,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_02",
+        "group_id": "grp_cat_rec_02",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "en",
@@ -467,6 +566,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_03",
+        "group_id": "grp_cat_rec_03",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "en",
@@ -477,6 +577,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_04",
+        "group_id": "grp_cat_rec_04",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "en",
@@ -487,6 +588,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_05",
+        "group_id": "grp_cat_rec_05",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "ml",
@@ -497,6 +599,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_06",
+        "group_id": "grp_cat_rec_06",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "ml",
@@ -507,6 +610,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_07",
+        "group_id": "grp_cat_rec_07",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "ml",
@@ -517,6 +621,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_08",
+        "group_id": "grp_cat_rec_08",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "manglish",
@@ -527,6 +632,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_09",
+        "group_id": "grp_cat_rec_09",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "manglish",
@@ -537,6 +643,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_10",
+        "group_id": "grp_cat_rec_10",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "ar",
@@ -547,6 +654,7 @@ RAW_CASES: List[Dict[str, Any]] = [
     },
     {
         "case_id": "cat_rec_11",
+        "group_id": "grp_cat_rec_11",
         "task": "cashbook_category.v1",
         "direction": "receipt",
         "language": "ar",
@@ -554,6 +662,218 @@ RAW_CASES: List[Dict[str, Any]] = [
         "candidates": ["sales_cash", "service_income", "scrap_sale", "refund", "none"],
         "expected": "service_income",
         "tags": ["category_service"],
+    },
+]
+
+# Fresh, independently authored blind holdout corpus (Review Finding R2)
+# Covers both tasks and all 4 languages (EN, ML, Manglish, AR) with zero overlap with RAW_CASES
+FRESH_HOLDOUT_CASES: List[Dict[str, Any]] = [
+    # Navigation: English
+    {
+        "case_id": "hld_nav_en_01",
+        "group_id": "grp_hld_nav_en_01",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Pay office electricity bill",
+        "expected": "cashbook_payment",
+    },
+    {
+        "case_id": "hld_nav_en_02",
+        "group_id": "grp_hld_nav_en_02",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Customer paid invoice via bank transfer",
+        "expected": "cashbook_receipt",
+    },
+    {
+        "case_id": "hld_nav_en_03",
+        "group_id": "grp_hld_nav_en_03",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Deposited shop cash into SBI bank account",
+        "expected": "account_transfer",
+    },
+    {
+        "case_id": "hld_nav_en_04",
+        "group_id": "grp_hld_nav_en_04",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Print annual profit and loss report",
+        "expected": "reports_view",
+    },
+    {
+        "case_id": "hld_nav_en_05",
+        "group_id": "grp_hld_nav_en_05",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Received unexpected gift from regular client",
+        "expected": "cashbook_receipt",
+    },
+
+    # Navigation: Malayalam Script
+    {
+        "case_id": "hld_nav_ml_01",
+        "group_id": "grp_hld_nav_ml_01",
+        "task": "navigate.v1",
+        "language": "ml",
+        "text": "സ്റ്റാഫ് അഡ്വാൻസ് ശമ്പളം 5000 നൽകി",
+        "expected": "cashbook_payment",
+    },
+    {
+        "case_id": "hld_nav_ml_02",
+        "group_id": "grp_hld_nav_ml_02",
+        "task": "navigate.v1",
+        "language": "ml",
+        "text": "ക്യാഷ് ഡ്രോയറിൽ നിന്നും 10000 ബാങ്കിൽ നിക്ഷേപിച്ചു",
+        "expected": "account_transfer",
+    },
+    {
+        "case_id": "hld_nav_ml_03",
+        "group_id": "grp_hld_nav_ml_03",
+        "task": "navigate.v1",
+        "language": "ml",
+        "text": "പഴയ ഇൻവോയ്സുകളുടെ ലിസ്റ്റ് കാണണം",
+        "expected": "reports_view",
+    },
+    {
+        "case_id": "hld_nav_ml_04",
+        "group_id": "grp_hld_nav_ml_04",
+        "task": "navigate.v1",
+        "language": "ml",
+        "text": "ഇന്ന് ആർക്കും പണം കൊടുക്കേണ്ടതില്ല",
+        "expected": "clarify",
+    },
+
+    # Navigation: Manglish
+    {
+        "case_id": "hld_nav_mgl_01",
+        "group_id": "grp_hld_nav_mgl_01",
+        "task": "navigate.v1",
+        "language": "manglish",
+        "text": "Current bill online aayi adachu",
+        "expected": "cashbook_payment",
+    },
+    {
+        "case_id": "hld_nav_mgl_02",
+        "group_id": "grp_hld_nav_mgl_02",
+        "task": "navigate.v1",
+        "language": "manglish",
+        "text": "Customer cash direct aayi thannu",
+        "expected": "cashbook_receipt",
+    },
+    {
+        "case_id": "hld_nav_mgl_03",
+        "group_id": "grp_hld_nav_mgl_03",
+        "task": "navigate.v1",
+        "language": "manglish",
+        "text": "Bank accountil ninn petty cashilekku eduthu",
+        "expected": "account_transfer",
+    },
+
+    # Navigation: Arabic
+    {
+        "case_id": "hld_nav_ar_01",
+        "group_id": "grp_hld_nav_ar_01",
+        "task": "navigate.v1",
+        "language": "ar",
+        "text": "سداد فاتورة الإنترنت للمكتب",
+        "expected": "cashbook_payment",
+    },
+    {
+        "case_id": "hld_nav_ar_02",
+        "group_id": "grp_hld_nav_ar_02",
+        "task": "navigate.v1",
+        "language": "ar",
+        "text": "استلام دفعة نقدية جديدة من الزبون",
+        "expected": "cashbook_receipt",
+    },
+    {
+        "case_id": "hld_nav_ar_03",
+        "group_id": "grp_hld_nav_ar_03",
+        "task": "navigate.v1",
+        "language": "ar",
+        "text": "إيداع مالي من الخزينة إلى البنك الأهلي",
+        "expected": "account_transfer",
+    },
+    {
+        "case_id": "hld_nav_ar_04",
+        "group_id": "grp_hld_nav_ar_04",
+        "task": "navigate.v1",
+        "language": "ar",
+        "text": "كشف المصروفات النقدية لهذا الأسبوع",
+        "expected": "reports_view",
+    },
+
+    # Cashbook Category: Payment & Receipt across languages
+    {
+        "case_id": "hld_cat_pay_01",
+        "group_id": "grp_hld_cat_pay_01",
+        "task": "cashbook_category.v1",
+        "direction": "payment",
+        "language": "en",
+        "text": "Freight charges for goods delivery",
+        "candidates": ["rent", "utilities", "salary", "transport", "none"],
+        "expected": "transport",
+    },
+    {
+        "case_id": "hld_cat_pay_02",
+        "group_id": "grp_hld_cat_pay_02",
+        "task": "cashbook_category.v1",
+        "direction": "payment",
+        "language": "ml",
+        "text": "കടയിലെ ലൈറ്റ് മാറ്റിവെച്ച ചെലവ്",
+        "candidates": ["rent", "utilities", "salary", "maintenance", "none"],
+        "expected": "maintenance",
+    },
+    {
+        "case_id": "hld_cat_pay_03",
+        "group_id": "grp_hld_cat_pay_03",
+        "task": "cashbook_category.v1",
+        "direction": "payment",
+        "language": "manglish",
+        "text": "Delivery vehicle diesel charge",
+        "candidates": ["rent", "utilities", "salary", "transport", "none"],
+        "expected": "transport",
+    },
+    {
+        "case_id": "hld_cat_pay_04",
+        "group_id": "grp_hld_cat_pay_04",
+        "task": "cashbook_category.v1",
+        "direction": "payment",
+        "language": "ar",
+        "text": "شراء أدوات قرطاسية وأوراق طباعة",
+        "candidates": ["rent", "utilities", "salary", "office_supplies", "none"],
+        "expected": "office_supplies",
+    },
+    {
+        "case_id": "hld_cat_rec_01",
+        "group_id": "grp_hld_cat_rec_01",
+        "task": "cashbook_category.v1",
+        "direction": "receipt",
+        "language": "en",
+        "text": "Vendor refund for returned damaged stock",
+        "candidates": ["sales_cash", "service_income", "scrap_sale", "refund", "none"],
+        "expected": "refund",
+    },
+    {
+        "case_id": "hld_cat_rec_02",
+        "group_id": "grp_hld_cat_rec_02",
+        "task": "cashbook_category.v1",
+        "direction": "receipt",
+        "language": "ml",
+        "text": "സപ്ലയറിൽ നിന്നും റീഫണ്ട് ലഭിച്ചു",
+        "candidates": ["sales_cash", "service_income", "scrap_sale", "refund", "none"],
+        "expected": "refund",
+    },
+    {
+        "case_id": "hld_cat_rec_03",
+        "group_id": "grp_hld_cat_rec_03",
+        "task": "cashbook_category.v1",
+        "direction": "receipt",
+        "language": "ar",
+        "text": "استرداد نقدي من المورد للبضاعة المرتجعة",
+        "candidates": ["sales_cash", "service_income", "scrap_sale", "refund", "none"],
+        "expected": "refund",
     },
 ]
 
@@ -566,31 +886,75 @@ def split_grouped_dataset(
     calib_ratio: float = 0.10,
     test_ratio: float = 0.10,
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """Split dataset by case_id into isolated groups.
+    """Split dataset by group_id into strictly isolated partitions.
 
-    Guarantees no case_id leaks across train/dev/calibration/test and all partitions
-    receive their expected proportions.
+    Guarantees that all variants/paraphrases sharing the same group_id
+    reside in the exact same partition, with zero leakage across train/dev/calib/test.
     """
-    assert abs(train_ratio + dev_ratio + calib_ratio + test_ratio - 1.0) < 1e-6
+    total_ratio = train_ratio + dev_ratio + calib_ratio + test_ratio
+    if abs(total_ratio - 1.0) >= 1e-5:
+        raise ValueError(f"Split ratios must sum to 1.0, got: {total_ratio}")
 
-    # Sort deterministically by case_id first
-    sorted_cases = sorted(cases, key=lambda x: x["case_id"])
+    for r_name, r_val in [
+        ("train_ratio", train_ratio),
+        ("dev_ratio", dev_ratio),
+        ("calib_ratio", calib_ratio),
+        ("test_ratio", test_ratio),
+    ]:
+        if r_val < 0.0 or r_val > 1.0:
+            raise ValueError(f"{r_name} must be between 0.0 and 1.0, got: {r_val}")
+
+    # Validate all cases and verify unique case_ids
+    seen_case_ids: Set[str] = set()
+    for c in cases:
+        cid = c.get("case_id")
+        if cid in seen_case_ids:
+            raise ValueError(f"Found duplicate case_id in dataset: '{cid}'")
+        seen_case_ids.add(cid)
+
+        is_valid, errs = validate_dataset_case(c)
+        if not is_valid:
+            raise ValueError(f"Case '{cid}' failed validation: {'; '.join(errs)}")
+
+    # Group cases by family / group_id
+    families: Dict[str, List[Dict[str, Any]]] = {}
+    for c in cases:
+        gid = c.get("group_id", c["case_id"])
+        families.setdefault(gid, []).append(c)
+
+    family_keys = sorted(families.keys())
     rng = random.Random(seed)
-    shuffled = list(sorted_cases)
-    rng.shuffle(shuffled)
+    rng.shuffle(family_keys)
 
-    n = len(shuffled)
-    n_train = int(round(n * train_ratio))
-    n_dev = int(round(n * dev_ratio))
-    n_calib = int(round(n * calib_ratio))
-    n_test = n - (n_train + n_dev + n_calib)
+    n_families = len(family_keys)
+    n_train_f = int(round(n_families * train_ratio))
+    n_dev_f = int(round(n_families * dev_ratio))
+    n_calib_f = int(round(n_families * calib_ratio))
+
+    train_families = set(family_keys[:n_train_f])
+    dev_families = set(family_keys[n_train_f : n_train_f + n_dev_f])
+    calib_families = set(family_keys[n_train_f + n_dev_f : n_train_f + n_dev_f + n_calib_f])
+    test_families = set(family_keys[n_train_f + n_dev_f + n_calib_f :])
 
     partitions: Dict[str, List[Dict[str, Any]]] = {
-        "train": sorted(shuffled[:n_train], key=lambda x: x["case_id"]),
-        "dev": sorted(shuffled[n_train : n_train + n_dev], key=lambda x: x["case_id"]),
-        "calibration": sorted(shuffled[n_train + n_dev : n_train + n_dev + n_calib], key=lambda x: x["case_id"]),
-        "test": sorted(shuffled[n_train + n_dev + n_calib :], key=lambda x: x["case_id"]),
+        "train": [],
+        "dev": [],
+        "calibration": [],
+        "test": [],
     }
+
+    for gid, items in families.items():
+        if gid in train_families:
+            partitions["train"].extend(items)
+        elif gid in dev_families:
+            partitions["dev"].extend(items)
+        elif gid in calib_families:
+            partitions["calibration"].extend(items)
+        elif gid in test_families:
+            partitions["test"].extend(items)
+
+    for k in partitions:
+        partitions[k].sort(key=lambda x: x["case_id"])
 
     return partitions
 
@@ -609,14 +973,23 @@ def build_and_save_dataset_artifacts(output_dir: Path) -> Dict[str, str]:
         content = file_path.read_bytes()
         hashes[split_name] = hashlib.sha256(content).hexdigest()
 
+    # Also save fresh blind holdout set independently
+    holdout_file = output_dir / "holdout.jsonl"
+    with holdout_file.open("w", encoding="utf-8") as f:
+        for item in FRESH_HOLDOUT_CASES:
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+    hashes["holdout"] = hashlib.sha256(holdout_file.read_bytes()).hexdigest()
+
     summary_file = output_dir / "dataset_manifest.json"
     manifest_data = {
-        "dataset_version": "1.0.0",
-        "total_cases": len(RAW_CASES),
+        "dataset_version": "1.1.0",
+        "total_dev_cases": len(RAW_CASES),
+        "total_holdout_cases": len(FRESH_HOLDOUT_CASES),
         "split_counts": {k: len(v) for k, v in splits.items()},
+        "holdout_count": len(FRESH_HOLDOUT_CASES),
         "split_hashes": hashes,
         "tasks": SUPPORTED_TASKS,
-        "languages": ["en", "ml", "manglish", "ar"],
+        "languages": SUPPORTED_LANGUAGES,
     }
     with summary_file.open("w", encoding="utf-8") as f:
         json.dump(manifest_data, f, indent=2, ensure_ascii=False)

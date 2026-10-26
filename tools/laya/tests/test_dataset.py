@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import pytest
 import random
 from tools.laya.prepare_dataset import (
     NAVIGATE_OPTIONS,
@@ -76,3 +77,115 @@ def test_option_permutation_invariance():
             # Target label must remain present and match
             assert c["expected"] in shuffled_candidates
             assert set(original_candidates) == set(shuffled_candidates)
+
+
+def test_family_group_isolation_with_multiple_variants():
+    """Review Finding R2: When multiple cases share the same group_id, all variants MUST remain in the same partition."""
+    multi_variant_cases = [
+        {"case_id": "c1_v1", "group_id": "grp_alpha", "task": "navigate.v1", "language": "en", "text": "Pay rent", "expected": "cashbook_payment"},
+        {"case_id": "c1_v2", "group_id": "grp_alpha", "task": "navigate.v1", "language": "en", "text": "Paying rent", "expected": "cashbook_payment"},
+        {"case_id": "c1_v3", "group_id": "grp_alpha", "task": "navigate.v1", "language": "en", "text": "Rent payment", "expected": "cashbook_payment"},
+        {"case_id": "c2_v1", "group_id": "grp_beta", "task": "navigate.v1", "language": "en", "text": "Received cash", "expected": "cashbook_receipt"},
+        {"case_id": "c2_v2", "group_id": "grp_beta", "task": "navigate.v1", "language": "en", "text": "Cash received", "expected": "cashbook_receipt"},
+        {"case_id": "c3_v1", "group_id": "grp_gamma", "task": "navigate.v1", "language": "en", "text": "Bank to cash", "expected": "account_transfer"},
+        {"case_id": "c4_v1", "group_id": "grp_delta", "task": "navigate.v1", "language": "en", "text": "New invoice", "expected": "invoice_draft"},
+    ]
+
+    splits = split_grouped_dataset(multi_variant_cases, seed=42)
+
+    # Check for grp_alpha: c1_v1, c1_v2, c1_v3 must be in the exact same partition
+    alpha_partitions = []
+    for split_name, items in splits.items():
+        found = [item["case_id"] for item in items if item.get("group_id") == "grp_alpha"]
+        if found:
+            alpha_partitions.append((split_name, found))
+
+    assert len(alpha_partitions) == 1, (
+        f"Family 'grp_alpha' leaked across multiple splits: {alpha_partitions}"
+    )
+    assert len(alpha_partitions[0][1]) == 3, "All 3 variants of grp_alpha must be together"
+
+
+def test_split_grouped_dataset_rejects_duplicate_case_ids():
+    """Dataset splitting must reject duplicate case_id at runtime."""
+    dup_cases = [
+        {"case_id": "c1", "group_id": "g1", "task": "navigate.v1", "language": "en", "text": "Text 1", "expected": "cashbook_payment"},
+        {"case_id": "c1", "group_id": "g2", "task": "navigate.v1", "language": "en", "text": "Text 2", "expected": "cashbook_receipt"},
+    ]
+    with pytest.raises(ValueError, match="duplicate case_id"):
+        split_grouped_dataset(dup_cases)
+
+
+def test_split_grouped_dataset_rejects_invalid_split_ratios():
+    """Dataset splitting must reject invalid split ratios."""
+    cases = [
+        {"case_id": f"c_{i}", "group_id": f"g_{i}", "task": "navigate.v1", "language": "en", "text": f"T {i}", "expected": "cashbook_payment"}
+        for i in range(5)
+    ]
+    with pytest.raises(ValueError, match="ratio"):
+        split_grouped_dataset(cases, train_ratio=0.80, dev_ratio=0.30, calib_ratio=0.10, test_ratio=0.10)
+
+
+def test_validate_dataset_case_runtime_rejection():
+    """validate_dataset_case must catch malformed cases, missing group_id, unknown tasks, and private data."""
+    from tools.laya.prepare_dataset import validate_dataset_case
+
+    # Valid case
+    valid_c = {
+        "case_id": "valid_01",
+        "group_id": "grp_01",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Record payment of office rent",
+        "expected": "cashbook_payment",
+    }
+    ok, errs = validate_dataset_case(valid_c)
+    assert ok is True
+    assert len(errs) == 0
+
+    # Missing group_id
+    bad_c1 = copy.deepcopy(valid_c)
+    del bad_c1["group_id"]
+    ok, errs = validate_dataset_case(bad_c1)
+    assert ok is False
+    assert any("group_id" in e for e in errs)
+
+    # Unknown task
+    bad_c2 = copy.deepcopy(valid_c)
+    bad_c2["task"] = "unknown.task.v99"
+    ok, errs = validate_dataset_case(bad_c2)
+    assert ok is False
+    assert any("task" in e for e in errs)
+
+    # Private token in text
+    bad_c3 = copy.deepcopy(valid_c)
+    bad_c3["text"] = "Customer provided bearer token ghp_secretkey"
+    ok, errs = validate_dataset_case(bad_c3)
+    assert ok is False
+    assert any("forbidden" in e.lower() or "sensitive" in e.lower() for e in errs)
+
+
+def test_fresh_holdout_cases_coverage_and_isolation():
+    """Review Finding R2: An independent fresh blind holdout must exist, with coverage of Arabic and Malayalam, and zero case_id overlap with RAW_CASES."""
+    from tools.laya.prepare_dataset import FRESH_HOLDOUT_CASES, RAW_CASES
+
+    assert len(FRESH_HOLDOUT_CASES) >= 20, "Holdout must contain at least 20 independent cases"
+
+    # Zero ID overlap with RAW_CASES
+    raw_ids = {c["case_id"] for c in RAW_CASES}
+    holdout_ids = {c["case_id"] for c in FRESH_HOLDOUT_CASES}
+    assert len(raw_ids & holdout_ids) == 0, f"Holdout shares case IDs with raw cases: {raw_ids & holdout_ids}"
+
+    # Zero group_id overlap with RAW_CASES
+    raw_groups = {c.get("group_id") for c in RAW_CASES}
+    holdout_groups = {c.get("group_id") for c in FRESH_HOLDOUT_CASES}
+    assert len(raw_groups & holdout_groups) == 0, f"Holdout shares group IDs with raw cases: {raw_groups & holdout_groups}"
+
+    # Verify language coverage in holdout
+    holdout_langs = {c["language"] for c in FRESH_HOLDOUT_CASES}
+    assert {"en", "ml", "manglish", "ar"} <= holdout_langs, f"Missing languages in holdout: {holdout_langs}"
+
+    # Verify task coverage
+    holdout_tasks = {c["task"] for c in FRESH_HOLDOUT_CASES}
+    assert {"navigate.v1", "cashbook_category.v1"} <= holdout_tasks
+
