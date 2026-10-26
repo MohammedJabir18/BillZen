@@ -1,5 +1,7 @@
 # Reproducible Laya Export and Evaluation Runbook (CPU-Capable)
 
+> **8beff7e review gate:** Dataset/CLI/hash corrections are improvements, but [remaining SDK/artifact contract issues](../../reviews/2026-10-27-laya-8beff7e-review.md) still block external execution. Correct the ONNXAgent constructor/remove the homemade fallback, smoke-test Path APIs and separate original-checkpoint from derived-bundle manifests first. No real-model compatibility has been demonstrated.
+
 **Target Upstream Revision**: `b9fe351ce81e2d974bca2bf219c1e4030c0a05ea`  
 **Base Model**: `convaiinnovations/laya-multilingual` (Apache 2.0)  
 **Host Context**: Research tooling & portable execution handoff for BillZen assistive assistant.  

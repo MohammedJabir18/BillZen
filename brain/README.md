@@ -1,6 +1,6 @@
 # BillZen Second Brain
 
-Updated2026-10-26. This is the bounded entry index for continuing in a fresh chat.
+Updated2026-10-27. This is the bounded entry index for continuing in a fresh chat.
 
 ## Read first
 
@@ -25,6 +25,7 @@ Updated2026-10-26. This is the bounded entry index for continuing in a fresh cha
 - [c021767 re-review](../docs/reviews/2026-10-26-antigravity-laya-c021767-rereview.md) and [next feasibility-pilot prompt](../docs/prompts/2026-10-26-antigravity-laya-feasibility-next.md) — latest review:30 tests/CI pass, corrections improved; remaining validator/report gaps and unmeasured model still gate runtime/UI.
 - [8858613 model-handoff review](../docs/reviews/2026-10-26-laya-model-handoff-review.md) and [functional external-handoff prompt](../docs/prompts/2026-10-26-antigravity-laya-external-handoff.md) — latest:43 tests/CI pass, but typed dataset export wrong and model predictors still placeholders; complete functional tools before external execution.
 - [d8dd86b contract review](../docs/reviews/2026-10-26-laya-d8dd86b-contract-review.md) and [contract-first correction prompt](../docs/prompts/2026-10-26-antigravity-laya-contract-first.md) — latest:49 tests/CI pass, but providers/schema/runbook disagree with pinned upstream; do not execute external handoff until C1–C3 pass.
+- [8beff7e review](../docs/reviews/2026-10-27-laya-8beff7e-review.md) and [thin-SDK prompt](../docs/prompts/2026-10-27-antigravity-laya-thin-sdk.md) — latest:52 tests pass, dataset/CLI improved; delete handmade ONNX fallback, correct SDK constructor and verify artifact/runbook contracts before external execution.
 - [Published desktop delivery](../docs/distribution-v0.1.6.md) and [current project README](../README.md).
 
 ## Memory rules
