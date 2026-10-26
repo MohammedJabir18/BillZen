@@ -243,13 +243,21 @@ class OnnxLayaProvider(EvaluationProvider):
         if "input_ids" in input_names:
             # Tokenize or fallback to deterministic ascii tokens
             tokens = [min(ord(ch), 255) for ch in text[:128]] or [1]
-            import numpy as np
-            input_feed["input_ids"] = np.array([tokens], dtype=np.int64)
-            if "attention_mask" in input_names:
-                input_feed["attention_mask"] = np.ones((1, len(tokens)), dtype=np.int64)
+            try:
+                import numpy as np  # type: ignore
+                input_feed["input_ids"] = np.array([tokens], dtype=np.int64)
+                if "attention_mask" in input_names:
+                    input_feed["attention_mask"] = np.ones((1, len(tokens)), dtype=np.int64)
+            except ImportError:
+                input_feed["input_ids"] = [tokens]
+                if "attention_mask" in input_names:
+                    input_feed["attention_mask"] = [[1] * len(tokens)]
         elif "text" in input_names:
-            import numpy as np
-            input_feed["text"] = np.array([text], dtype=object)
+            try:
+                import numpy as np  # type: ignore
+                input_feed["text"] = np.array([text], dtype=object)
+            except ImportError:
+                input_feed["text"] = [text]
 
         outputs = self._session.run(None, input_feed)
         raw_logits = outputs[0]
