@@ -40,6 +40,7 @@ Captured 2026-10-24 from available conversation; later explicit owner decisions 
 - Owner requested detailed study of Laya and BillZen and a structured integration/fine-tuning plan. Current task is research/design, not permission to train on private business data, install models or publish releases.
 - Owner explicitly selected desktop first, Android later; training hardware is unknown and will be decided after feasibility evidence. Responses in this chat should be Malayalam with important technical terms in English.
 - Proposed design is an optional local typed-decision assistant with nonbinding suggestions and ordinary explicit financial confirmation. This is a recommendation awaiting implementation approval, not an already delivered feature or an owner-approved runtime architecture.
+- 2026-10-26: Owner supplied a Gemini-generated plan and requested deep comparison/replanning plus a detailed prompt to execute in Antigravity. This chat remains research/planning only. Proposed Release A is Quick Action routing/category chips; extended matching/reports/duplicate review are later releases. The generated execution prompt is future owner authorization when deliberately pasted into Antigravity, not permission for this chat to install/train/implement now.
 
 ## Public author links
 

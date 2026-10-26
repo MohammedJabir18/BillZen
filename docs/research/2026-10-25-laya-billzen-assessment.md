@@ -1,5 +1,7 @@
 # Laya for BillZen: evidence, design and adoption decision
 
+> **2026-10-26 update:** This is the historical0.4.15 assessment. Read the [reconciled audit/design](2026-10-26-laya-gemini-reconciliation.md) and [revised execution plan](../superpowers/plans/2026-10-26-laya-reconciled-desktop.md) first. In newer reviewed upstream0.4.16 source, Rust `min_confidence` is ported; its remaining calibration/default-bucket limitations are documented there. Historical availability/feature claims below are pinned to their original source revision.
+
 Date: 2026-10-25, Asia/Kolkata. **Status: proposed research/design; no AI implementation, weights download, training or inference benchmark performed.** Owner preference: desktop first; Android later; training hardware undecided. This assessment supersedes neither B1's completed source status nor the separate B2/B3 product gates.
 
 ## 1. Recommendation

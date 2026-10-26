@@ -1,6 +1,6 @@
 # BillZen — resume here
 
-Snapshot: 2026-10-25, Asia/Kolkata. B1 is complete in source at9158c40; current work is Laya research/design. Source commits f5a9317/49279a0/9158c40 are separate from published desktop0.1.6/Android0.1.5. Re-check live Git/CI before acting.
+Snapshot: 2026-10-26, Asia/Kolkata. B1 is complete in source at9158c40; current work is Laya/Gemini plan reconciliation and Antigravity handoff. Source commits f5a9317/49279a0/9158c40 are separate from published desktop0.1.6/Android0.1.5. Re-check live Git/CI before acting.
 
 ## Startup / authority
 
@@ -68,6 +68,8 @@ Next approved product gates after B1: before B2 finalization, settle regional in
 Owner requested detailed study of https://github.com/nandhakishorm/laya and BillZen, useful application scenarios and a structured fine-tuning/integration plan. Owner chose desktop first, Android later; hardware undecided. See ../docs/research/2026-10-25-laya-billzen-assessment.md and ../docs/superpowers/plans/2026-10-25-laya-billzen-integration.md . Only one external repository URL was identifiable; no unidentified second upload was claimed reviewed.
 
 Research pins Laya code7a77439b0923d6efe00052d50a7f787840bfce98 (Python0.4.15). It is an encoder/typed-decision engine, not a general generative chatbot. Proposed initial features: action routing and Cashbook category suggestions using a single multilingual checkpoint, no financial writes. Rust ONNX runtime export/abstention/calibration parity and desktop memory/latency are explicit gates; weights revision/hashes still need resolving. No weights downloaded, training/inference benchmarks run, runtime installed or product code changed by this research. Do not describe proposed metrics as achieved. Later implementation requires owner review/approval; preserve inline execution and independent final review.
+
+2026-10-26 successor: owner supplied a Gemini-generated plan for audit/merging and wants a detailed Antigravity execution prompt, not implementation in this chat. Read ../docs/research/2026-10-26-laya-gemini-reconciliation.md, ../docs/superpowers/plans/2026-10-26-laya-reconciled-desktop.md and ../docs/prompts/2026-10-26-antigravity-laya.md first. Latest reviewed upstream b9fe351ce81e2d974bca2bf219c1e4030c0a05ea has Python0.4.16 and Rust min_confidence now ported; histogram/per-language gaps and permissive missing-bucket0.0 remain. Do not repeat the earlier blanket missing-abstention claim as current. Proposed Release A: explicit Quick Action routes/category chips; B matching/parsing/reports, C review aids, D portability/feedback remain separate backlog. Exclude cash-history creditworthiness, model-decided tax/compliance, auto-post/link/create and v10_ai_feedback (migration10 already exists). Current backup is checksummed, not encrypted. No AI product/model execution performed. Prior research67de7b1 CI40163170427 rechecked completed/success.
 
 ## Memory maintenance / safety
 

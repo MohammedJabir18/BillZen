@@ -12,6 +12,8 @@
 
 **Status:** Proposed, not approved for implementation. Research/documents only have been completed. Owner chose desktop first, Android later; hardware undecided. All checkboxes below are future work. Preserve existing inline execution and independent final review if subsequently approved.
 
+> **2026-10-26 successor:** Use the [reconciled desktop plan](2026-10-26-laya-reconciled-desktop.md) for new execution and this plan as a detailed reference only where consistent. In particular, newer reviewed Rust source ports `min_confidence`; blanket claims of missing abstention below describe the older snapshot. The [reconciliation](../../research/2026-10-26-laya-gemini-reconciliation.md) defines Release A and keeps expanded features in separately gated backlog.
+
 ## Global Constraints
 
 - Model-triggered stock/cash/debt/final-number writes: zero. Suggestions never execute a business command; ordinary user Save/Confirm remains separate.
