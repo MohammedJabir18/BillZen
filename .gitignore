@@ -84,6 +84,7 @@ dist-desktop/
 # Python & AI tooling (isolated from repo)
 .venv/
 tools/laya/.venv/
+tools/laya/assets/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -92,5 +93,8 @@ models/
 tools/laya/models/
 *.safetensors
 *.onnx
+*.onnx.data
+*.onnx.data*
 *.onnx_data
+*.onnx_data*
 

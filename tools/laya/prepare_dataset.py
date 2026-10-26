@@ -106,10 +106,10 @@ def validate_dataset_case(case_dict: Dict[str, Any]) -> Tuple[bool, List[str]]:
 def export_case_to_laya_finetune_format(case_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Export dataset case to pinned upstream Laya fine-tuning contract: {state, questions, expected}.
     
-    Adheres strictly to NandhaKishorM/laya docs/finetune.md:
-    - state: contains runtime text, task, context, and transaction direction
-    - questions: list of typed choice questions with instructions and ordered criteria ({id, label})
-    - expected: the target choice ID matching one of the criteria options
+    Adheres strictly to NandhaKishorM/laya docs/finetune.md and train.py items_from_rows:
+    - state: Dict containing runtime text, task, context, and optional transaction direction
+    - questions: Dict mapping qid -> {type: "choice", instructions: str, criteria: {cid: desc}}
+    - expected: Dict mapping qid -> expected_target_id
     """
     task = case_dict.get("task", "")
     text = case_dict.get("text", "")
@@ -124,58 +124,61 @@ def export_case_to_laya_finetune_format(case_dict: Dict[str, Any]) -> Dict[str, 
 
     if task == "navigate.v1":
         state["context"] = "quick_action_navigation"
-        criteria = [
-            {"id": opt["id"], "label": opt["label"]}
+        criteria = {
+            opt["id"]: opt["label"]
             for opt in NAVIGATE_OPTIONS
-        ]
-        questions = [
-            {
-                "id": "q_navigate_action",
+        }
+        questions = {
+            "navigate": {
                 "type": "choice",
-                "instruction": (
+                "instructions": (
                     "Route the user query to the appropriate BillZen action: "
                     "cashbook_payment, cashbook_receipt, account_transfer, invoice_draft, "
                     "inventory_stock, reports_view, or clarify."
                 ),
                 "criteria": criteria,
             }
-        ]
+        }
+        expected_map = {"navigate": expected}
     elif task == "cashbook_category.v1":
         direction = case_dict.get("direction", "payment")
         state["context"] = f"cashbook_{direction}_category"
         state["direction"] = direction
         raw_candidates = case_dict.get("candidates", [])
-        criteria = []
+        criteria = {}
         for c in raw_candidates:
             if isinstance(c, dict):
                 cid = c.get("id", "")
                 lbl = c.get("label", cid.replace("_", " ").title())
-                criteria.append({"id": cid, "label": lbl})
+                criteria[cid] = lbl
             else:
                 cid = str(c)
-                criteria.append({"id": cid, "label": cid.replace("_", " ").title()})
-        questions = [
-            {
-                "id": f"q_category_{direction}",
+                criteria[cid] = cid.replace("_", " ").title()
+        questions = {
+            "category": {
                 "type": "choice",
-                "instruction": f"Select the matching {direction} category from the allowed shortlist.",
+                "instructions": f"Select the matching {direction} category from the allowed shortlist, or none.",
                 "criteria": criteria,
             }
-        ]
+        }
+        expected_map = {"category": expected}
     else:
         raise ValueError(f"Unsupported task for Laya fine-tuning export: '{task}'")
 
     # Validate that expected target exists in question criteria
-    criteria_ids = [crit["id"] for crit in questions[0]["criteria"]]
-    if expected not in criteria_ids:
-        raise ValueError(
-            f"Expected target '{expected}' not present in question criteria IDs: {criteria_ids}"
-        )
+    for qid, q in questions.items():
+        exp_target = expected_map.get(qid)
+        if exp_target is None:
+            raise ValueError(f"Missing expected target for question '{qid}'")
+        if exp_target not in q["criteria"]:
+            raise ValueError(
+                f"Expected target '{exp_target}' not present in criteria for question '{qid}': {list(q['criteria'].keys())}"
+            )
 
     return {
         "state": state,
         "questions": questions,
-        "expected": expected,
+        "expected": expected_map,
     }
 
 

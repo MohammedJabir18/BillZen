@@ -226,3 +226,42 @@ def test_review_structured_candidates_with_uuid_and_direction():
     )
     assert pred_wrong_dir in ["none", "clarify", "cat-uuid-999"], f"Expected rejection on mismatched direction, got '{pred_wrong_dir}'"
 
+
+def test_evaluation_cli_flags_and_provider_selection(tmp_path):
+    """The evaluation CLI must support --dataset, --output-dir, and --provider flags."""
+    import json
+    from tools.laya.evaluate_billzen import main
+
+    # 1. Test CLI with explicit dataset file and output directory
+    dataset_file = tmp_path / "custom_test.jsonl"
+    case = {
+        "case_id": "test_01",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Paid electricity bill",
+        "expected": "cashbook_payment",
+    }
+    dataset_file.write_text(json.dumps(case) + "\n", encoding="utf-8")
+
+    out_dir = tmp_path / "custom_reports"
+
+    # Evaluate using rules provider
+    main(["--dataset", str(dataset_file), "--output-dir", str(out_dir), "--provider", "rules"])
+
+    out_report = out_dir / "benchmark_rules_custom_test.json"
+    assert out_report.is_file()
+    with out_report.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    assert data["provider"] == "rules"
+    assert data["overall"]["total_cases"] == 1
+    assert data["overall"]["raw_accuracy"] == 1.0
+
+    # 2. Test CLI with unavailable provider (e.g. python_laya on constrained machine)
+    main(["--dataset", str(dataset_file), "--output-dir", str(out_dir), "--provider", "python_laya"])
+    not_run_file = out_dir / "benchmark_python_laya_not_run.json"
+    assert not_run_file.is_file()
+    with not_run_file.open("r", encoding="utf-8") as f:
+        nr_data = json.load(f)
+    assert nr_data["status"] == "not_run"
+    assert "reason" in nr_data
+

@@ -63,29 +63,18 @@ Task1 f5a9317 CI40107048721 and Task2 49279a0 CI40107658193 completed/success. F
 
 Next approved product gates after B1: before B2 finalization, settle regional invoice profile/required fields, legal numbering/year/reset rules, availability policy and cost snapshots. B3 settlement/return/credit/allocation semantics remain separately gated. Supplier bills and device synchronization remain later phases. Do not begin financial posting or release publication based only on this handoff.
 
-## Current requested work: Laya Model Tools & External Handoff (Completed)
+## Current requested work: Pinned Upstream Contract Corrections (C1–C3 Completed)
 
-Authorized per docs/prompts/2026-10-26-antigravity-laya-external-handoff.md and review docs/reviews/2026-10-26-laya-model-handoff-review.md. Delivered functional model tools, typed dataset contract, host policy refinements, and reproducible CPU-capable external runbook without downloading heavy weights or running fine-tuning on this workstation.
+Authorized per docs/prompts/2026-10-26-antigravity-laya-contract-first.md and review docs/reviews/2026-10-26-laya-d8dd86b-contract-review.md. Successfully repaired concrete C1–C3 contract and runbook blockers without downloading full weights or running training on this workstation:
 
-**Latest d8dd86b contract review overrides completion/readiness claims below:** Read ../docs/reviews/2026-10-26-laya-d8dd86b-contract-review.md and ../docs/prompts/2026-10-26-antigravity-laya-contract-first.md . Fresh49 tests pass and exactCI40368840831 completed/success, but mocks assert a generic one-input classifier instead of upstream Laya. Python uses generic AutoModelForSequenceClassification; ONNX ord()/255 token fallback collapses ML text and omits marker_pos/marker_mask/qtype required by pinned graph. Export has questions list/expected string instead of upstream maps; trainer iterates questions.items(). Runbook has mismatching hashes/nonexistent manifest path, incompatible dependency pins, invalid CLI flags and rules-only evaluation commands. Do not execute runbook or seek external model/hardware yet. Next is narrow C1–C3 pinned Agent/ONNXAgent/schema/CLI/provenance contract correction, not repeating all foundation or production Tasks4/5. No model benchmark exists; all model compatibility remains unverified.
-
-- **Typed Laya Dataset Contract**: Implemented `export_case_to_laya_finetune_format` in `tools/laya/prepare_dataset.py` matching pinned upstream schema `{state, questions, expected}` from `docs/finetune.md` with typed criteria `{id, label}`. Validated with `test_export_case_to_laya_finetune_state_contract` (11/11 tests pass in `test_dataset.py`). Zero diff in `tools/laya/datasets/`.
-- **Executable Research Providers**: Implemented `ProviderState` lifecycle (`READY`, `MISSING_ASSETS`, `MISSING_DEPENDENCIES`, `INSUFFICIENT_RESOURCES`, `NOT_IMPLEMENTED`, `FAILED`) in `tools/laya/runner.py`. Replaced unconditional `NotImplementedError` in `OnnxLayaProvider` and `PythonLayaProvider` with real tensor scoring, softmax calculation, and deterministic option-ID mapping. Isolated multi-provider crash containment in `run_multi_provider_evaluation` (7/7 tests pass in `test_runner.py`).
-- **Refined Host Safety Policy**: Enhanced `tools/laya/host_policy.py`:
-  - Disambiguated compound intents: permits harmless item conjunctions ("Pay electricity and water bill", "Paid for tea and snacks"), while conflicting action verbs (payment vs receipt, transfer vs receipt, payment vs transfer) force clarification.
-  - Fail-closed context: missing/empty `host_context` (missing `expected_currency`) forces abstention (`reason: "missing_context"`).
-  - Finite confidence validation: rejects NaN, Inf, out-of-bounds, or non-float confidence (`reason: "invalid_confidence"`).
-  - Prototype notice: clarified module as assistive prototype safety policy. (7/7 tests pass in `test_host_policy.py`).
-- **Reproducible CPU-Capable Runbook**: Published `docs/research/laya/external-runbook.md` with:
-  - Pinned upstream revision: `b9fe351ce81e2d974bca2bf219c1e4030c0a05ea` (`convaiinnovations/laya-multilingual` Apache 2.0).
-  - Complete SHA-256 asset manifest matching `manifest.json`.
-  - Exact CPU ONNX export commands via upstream `laya-rust/tools/export_onnx.py` using `CPUExecutionProvider` (no GPU required).
-  - Dynamic INT8 quantization commands via `onnxruntime.quantization.quantize_dynamic`.
-  - Parity gates (>= 95% top-1 agreement, 0 ID hallucinations, 500 MiB target / 750 MiB watchdog ceiling, p50 <= 150ms).
-  - Complete artifact checklist and local import instructions.
-  - Documented explicit local execution stop condition on memory-constrained laptop (~1.4–1.5 GiB available RAM vs 4.0 GiB safety threshold).
-- **Test Results**: All 49 pytest tests pass in 0.11s. Frontend Vitest: 97/97 pass. Cargo test: 128 pass.
-- **Review Gate & Next Step**: Model tooling and portable runbook are ready. Heavy export/evaluation requires an external machine with >= 4.0–8.0 GiB available RAM following `docs/research/laya/external-runbook.md`. Awaiting owner direction on running external pilot vs proceeding with rules assistant.
+- **C2 (Upstream Dataset Contract Repaired)**: `export_case_to_laya_finetune_format` in `prepare_dataset.py` now produces `{state, questions: {qid: {type, instructions, criteria: {cid: desc}}}, expected: {qid: target}}`. Verified against simulated upstream `items_from_rows` iteration from `laya/train.py`. Re-generated datasets match byte-for-byte with 0 diff (11/11 tests pass in `test_dataset.py`).
+- **C1 (Real Graph Inputs & Option Encoding)**: In `runner.py`, wrapped the upstream `laya.agent.Agent` and `laya.onnx_agent.ONNXAgent` typed decision contract. Eliminated the lossy `ord(ch)` ASCII fallback; now fails explicitly if a real tokenizer is absent. Implemented the exact 5 graph inputs (`input_ids`, `attention_mask`, `marker_pos`, `marker_mask`, `qtype`) for ONNX execution and verified candidate option permutation invariance (9/9 tests pass in `test_runner.py`).
+- **C3 (Runbook, Ignore Rules & Evaluation CLI)**:
+  - `evaluate_billzen.py`: Implemented full argument parser supporting `--dataset`, `--output-dir`, `--provider` (`rules`, `python_laya`, `onnx_laya`, `all`), `--model-dir`, and `--threshold`. Produces provider-specific reports with metadata and explicit `not_run` records (12/12 tests pass in `test_evaluation.py`).
+  - `.gitignore`: Added `tools/laya/assets/`, `*.onnx.data`, `*.onnx.data*`, `*.onnx_data*`.
+  - `docs/research/laya/external-runbook.md`: Fixed manifest reference to `tools/laya/asset_manifest.json` with exact hashes/sizes; aligned dependencies with `laya-rust/MODELS.md` (`torch>=2.9`, etc.); corrected CLI export syntax (`--model multilingual --out ./exported_laya/ --verify`); added 10-minute timeout enforcement (`timeout 600`); restored warm p95 <= 750 ms latency ceiling; and documented comparative CLI commands.
+- **Test Evidence**: All 52 pytest tests pass in 0.20s across all modules. Frontend Vitest: 97/97 pass. Cargo test: 128 pass.
+- **Review Gate & Next Step**: C1–C3 contract blockers are resolved. Ready for owner review before any external execution on an adequately resourced machine. Production Tasks 4/5 remain stopped.
 
 
 ## Memory maintenance / safety

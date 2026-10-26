@@ -6,6 +6,7 @@ selective coverage, ECE, and binary correctness Brier score across languages (EN
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
@@ -430,9 +431,10 @@ def compute_metrics(
 def run_benchmark(
     cases: List[Dict[str, Any]],
     abstention_threshold: float = 0.70,
+    provider: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """Run deterministic benchmark across task and language slices."""
-    clf = DeterministicRuleClassifier()
+    """Run benchmark across task and language slices using rules or an EvaluationProvider."""
+    clf = DeterministicRuleClassifier() if provider is None else None
     records: List[Dict[str, Any]] = []
 
     for c in cases:
@@ -441,11 +443,15 @@ def run_benchmark(
         actual = c["expected"]
         lang = c.get("language", "en")
         direction = c.get("direction")
+        candidates = c.get("candidates", [])
 
-        if task == "navigate.v1":
+        if provider is not None:
+            res = provider.predict(text, task=task, candidates=candidates, direction=direction)
+            pred = res.get("pred", "clarify")
+            conf = res.get("confidence", 0.0)
+        elif task == "navigate.v1":
             pred, conf = clf.predict_navigate(text)
         elif task == "cashbook_category.v1":
-            candidates = c.get("candidates", [])
             pred, conf = clf.predict_category(text, candidates, direction=direction)
         else:
             continue
@@ -475,7 +481,11 @@ def run_benchmark(
         lang_recs = [r for r in records if r["language"] == lang_code]
         by_lang[lang_code] = compute_metrics(lang_recs, abstention_threshold)
 
+    provider_name = getattr(provider, "name", "rules") if provider else "rules"
+
     return {
+        "provider": provider_name,
+        "abstention_threshold": abstention_threshold,
         "overall": overall,
         "by_task": by_task,
         "by_language": by_lang,
@@ -483,7 +493,72 @@ def run_benchmark(
     }
 
 
-def main() -> None:
+def parse_args(args: Optional[List[str]] = None) -> Any:
+    """Parse command line arguments for evaluation CLI."""
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Evaluate BillZen assistive intent and category routing across providers.",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default=None,
+        help="Path to dataset file (.jsonl or .json), or keyword 'dev'/'holdout'. Defaults to evaluating both.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Directory where evaluation report JSON files will be written.",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["rules", "python_laya", "onnx_laya", "all"],
+        default="rules",
+        help="Provider to evaluate: rules (default), python_laya, onnx_laya, or all.",
+    )
+    parser.add_argument(
+        "--model-dir",
+        type=str,
+        default=None,
+        help="Path to directory containing model weights/ONNX graphs.",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.70,
+        help="Abstention confidence threshold (default: 0.70).",
+    )
+    return parser.parse_args(args)
+
+
+def load_dataset_file(path_or_keyword: str) -> List[Dict[str, Any]]:
+    """Load cases from a JSON/JSONL file or keyword ('dev' / 'holdout')."""
+    from tools.laya.prepare_dataset import RAW_CASES, FRESH_HOLDOUT_CASES
+    if path_or_keyword == "dev":
+        return RAW_CASES
+    if path_or_keyword == "holdout":
+        return FRESH_HOLDOUT_CASES
+
+    p = Path(path_or_keyword)
+    if not p.is_file():
+        raise FileNotFoundError(f"Dataset file not found: {p}")
+
+    cases = []
+    if p.suffix == ".jsonl":
+        with p.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    cases.append(json.loads(line))
+    else:
+        with p.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            cases = data if isinstance(data, list) else data.get("cases", [])
+    return cases
+
+
+def main(cli_args: Optional[List[str]] = None) -> None:
     """Generate machine-readable benchmark reports for development fixtures and held-out cases."""
     import sys
     project_root = Path(__file__).resolve().parent.parent.parent
@@ -491,15 +566,74 @@ def main() -> None:
         sys.path.insert(0, str(project_root))
 
     from tools.laya.prepare_dataset import RAW_CASES, FRESH_HOLDOUT_CASES
+    from tools.laya.runner import RulesProvider, PythonLayaProvider, OnnxLayaProvider, run_multi_provider_evaluation
 
-    reports_dir = Path(__file__).resolve().parent / "reports"
+    args = parse_args(cli_args)
+
+    reports_dir = Path(args.output_dir) if args.output_dir else (Path(__file__).resolve().parent / "reports")
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    dev_results = run_benchmark(RAW_CASES)
-    holdout_results = run_benchmark(FRESH_HOLDOUT_CASES)
+    model_dir = Path(args.model_dir) if args.model_dir else None
 
-    dev_path = reports_dir / "benchmark_dev.json"
-    holdout_path = reports_dir / "benchmark_holdout.json"
+    # Multi-provider evaluation mode
+    if args.provider == "all":
+        providers = [
+            RulesProvider(),
+            PythonLayaProvider(model_dir=model_dir),
+            OnnxLayaProvider(model_dir=model_dir),
+        ]
+        cases = load_dataset_file(args.dataset) if args.dataset else RAW_CASES
+        report = run_multi_provider_evaluation(cases, providers, abstention_threshold=args.threshold)
+        out_path = reports_dir / "multi_provider_report.json"
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+        print(f"Generated multi-provider report: {out_path}")
+        return
+
+    # Single provider selection
+    selected_provider = None
+    if args.provider == "rules":
+        selected_provider = RulesProvider()
+    elif args.provider == "python_laya":
+        selected_provider = PythonLayaProvider(model_dir=model_dir)
+    elif args.provider == "onnx_laya":
+        selected_provider = OnnxLayaProvider(model_dir=model_dir)
+
+    # Check provider availability
+    if selected_provider is not None and args.provider != "rules":
+        ok, msg = selected_provider.is_available()
+        if not ok:
+            print(f"WARNING: Provider '{args.provider}' is not available: {msg}")
+            not_run_report = {
+                "provider": args.provider,
+                "status": "not_run",
+                "reason": msg,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "dataset": args.dataset or "default",
+            }
+            out_file = reports_dir / f"benchmark_{args.provider}_not_run.json"
+            with out_file.open("w", encoding="utf-8") as f:
+                json.dump(not_run_report, f, indent=2, ensure_ascii=False)
+            print(f"Wrote not_run report: {out_file}")
+            return
+
+    # If dataset is explicitly provided, evaluate only that dataset
+    if args.dataset:
+        cases = load_dataset_file(args.dataset)
+        res = run_benchmark(cases, abstention_threshold=args.threshold, provider=selected_provider)
+        dataset_stem = Path(args.dataset).stem if args.dataset not in ["dev", "holdout"] else args.dataset
+        out_path = reports_dir / f"benchmark_{args.provider}_{dataset_stem}.json"
+        with out_path.open("w", encoding="utf-8") as f:
+            json.dump(res, f, indent=2, ensure_ascii=False)
+        print(f"Generated {out_path} ({len(cases)} cases, provider={args.provider})")
+        return
+
+    # Default legacy behavior: evaluate dev (59 cases) and holdout (23 cases) with selected provider
+    dev_results = run_benchmark(RAW_CASES, abstention_threshold=args.threshold, provider=selected_provider)
+    holdout_results = run_benchmark(FRESH_HOLDOUT_CASES, abstention_threshold=args.threshold, provider=selected_provider)
+
+    dev_path = reports_dir / f"benchmark_{args.provider}_dev.json" if args.provider != "rules" else reports_dir / "benchmark_dev.json"
+    holdout_path = reports_dir / f"benchmark_{args.provider}_holdout.json" if args.provider != "rules" else reports_dir / "benchmark_holdout.json"
 
     with dev_path.open("w", encoding="utf-8") as f:
         json.dump(dev_results, f, indent=2, ensure_ascii=False)
@@ -507,8 +641,8 @@ def main() -> None:
     with holdout_path.open("w", encoding="utf-8") as f:
         json.dump(holdout_results, f, indent=2, ensure_ascii=False)
 
-    print(f"Generated {dev_path} (59 cases)")
-    print(f"Generated {holdout_path} (23 cases)")
+    print(f"Generated {dev_path} (59 cases, provider={args.provider})")
+    print(f"Generated {holdout_path} (23 cases, provider={args.provider})")
 
 
 if __name__ == "__main__":

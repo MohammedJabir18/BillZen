@@ -108,14 +108,45 @@ class RulesProvider(EvaluationProvider):
         return {"pred": pred, "confidence": conf}
 
 
+def _build_typed_laya_request(
+    text: str,
+    task: str,
+    candidates: Optional[List[Any]] = None,
+    direction: Optional[str] = None,
+) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]], str]:
+    """Construct upstream {state, questions} schema matching export_case_to_laya_finetune_format."""
+    from tools.laya.prepare_dataset import export_case_to_laya_finetune_format
+    raw_case = {
+        "text": text,
+        "task": task,
+        "language": "en",
+    }
+    if task == "navigate.v1":
+        raw_case["expected"] = "cashbook_payment"  # placeholder for exporter validation
+    elif task == "cashbook_category.v1":
+        raw_case["direction"] = direction or "payment"
+        raw_case["candidates"] = candidates or []
+        if candidates:
+            first = candidates[0]
+            raw_case["expected"] = first.get("id") if isinstance(first, dict) else str(first)
+        else:
+            raw_case["expected"] = "none"
+            raw_case["candidates"] = ["none"]
+    else:
+        raise ValueError(f"Unsupported task: '{task}'")
+
+    exported = export_case_to_laya_finetune_format(raw_case)
+    qid = "navigate" if task == "navigate.v1" else "category"
+    return exported["state"], exported["questions"], qid
+
+
 class PythonLayaProvider(EvaluationProvider):
-    """PyTorch / HuggingFace reference execution provider."""
+    """PyTorch / Laya Agent reference execution provider."""
 
     def __init__(self, model_dir: Optional[Path] = None) -> None:
         self.name = "python_laya"
         self.model_dir = model_dir or (Path(__file__).resolve().parent / "assets")
-        self._model = None
-        self._tokenizer = None
+        self._agent = None
 
     def check_readiness(self) -> Tuple[ProviderState, str]:
         # 1. Hardware memory safety check (safe unquantized load requires >= 4096 MiB)
@@ -137,10 +168,11 @@ class PythonLayaProvider(EvaluationProvider):
                 f"Missing pretrained model weights ({weights_file.name} not found in {self.model_dir})",
             )
 
-        # 3. Dependency check
+        # 3. Upstream Laya package check
         try:
             import torch  # type: ignore # noqa: F401
             import transformers  # type: ignore # noqa: F401
+            import laya.agent  # type: ignore # noqa: F401
         except ImportError as e:
             return ProviderState.MISSING_DEPENDENCIES, f"Missing Python deep learning dependencies: {e}"
 
@@ -157,41 +189,25 @@ class PythonLayaProvider(EvaluationProvider):
         if not ok:
             raise RuntimeError(f"PythonLayaProvider unavailable: {msg}")
 
-        # Lazy load model and tokenizer
-        if self._model is None or self._tokenizer is None:
-            import torch
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer
-            self._tokenizer = AutoTokenizer.from_pretrained(str(self.model_dir))
-            self._model = AutoModelForSequenceClassification.from_pretrained(str(self.model_dir))
-            self._model.eval()
+        state, questions, qid = _build_typed_laya_request(text, task, candidates, direction)
 
-        inputs = self._tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
-        import torch
-        with torch.no_grad():
-            outputs = self._model(**inputs)
-            logits = outputs.logits[0].tolist()
+        if self._agent is None:
+            from laya.agent import Agent
+            self._agent = Agent(model_id_or_path=str(self.model_dir))
 
-        probs = _softmax(logits)
-        if task == "navigate.v1":
-            options = [opt["id"] for opt in NAVIGATE_OPTIONS]
-        elif task == "cashbook_category.v1":
-            options = [c["id"] if isinstance(c, dict) else str(c) for c in (candidates or [])]
-        else:
-            options = ["clarify"]
+        res = self._agent.system_one(state, questions)
+        ans = res.get("answers", {}).get(qid) or res.get(qid, {})
 
-        best_idx = logits.index(max(logits)) if logits else 0
-        if best_idx < len(options):
-            pred = options[best_idx]
-            conf = probs[best_idx]
-        else:
-            pred = "clarify"
-            conf = 0.5
-
-        return {"pred": pred, "confidence": round(conf, 4)}
+        return {
+            "pred": ans.get("choice", "clarify"),
+            "confidence": ans.get("confidence", 0.0),
+            "answer_confidence": ans.get("answer_confidence", 0.0),
+            "probabilities": ans.get("probabilities", {}),
+        }
 
 
 class OnnxLayaProvider(EvaluationProvider):
-    """ONNX Runtime execution provider."""
+    """ONNX Runtime execution provider adhering to pinned Laya fused graph signature."""
 
     def __init__(self, model_dir: Optional[Path] = None) -> None:
         self.name = "onnx_laya"
@@ -199,6 +215,7 @@ class OnnxLayaProvider(EvaluationProvider):
         self._session = None
         self._is_session_ready = False
         self._tokenizer = None
+        self._agent = None
 
     def check_readiness(self) -> Tuple[ProviderState, str]:
         if self._is_session_ready and self._session is not None:
@@ -229,62 +246,121 @@ class OnnxLayaProvider(EvaluationProvider):
         if not ok:
             raise RuntimeError(f"OnnxLayaProvider unavailable: {msg}")
 
-        # Lazy load ONNX session if not injected
+        state, questions, qid = _build_typed_laya_request(text, task, candidates, direction)
+        q_def = questions[qid]
+        options = list(q_def["criteria"].keys())
+
+        # 1. Prefer upstream ONNXAgent if laya package is installed and session not manually injected
+        if self._session is None:
+            try:
+                from laya.onnx_agent import ONNXAgent
+                if self._agent is None:
+                    self._agent = ONNXAgent(model_path_or_dir=str(self.model_dir))
+                res = self._agent.system_one(state, questions)
+                ans = res.get("answers", {}).get(qid) or res.get(qid, {})
+                return {
+                    "pred": ans.get("choice", "clarify"),
+                    "confidence": ans.get("confidence", 0.0),
+                    "answer_confidence": ans.get("answer_confidence", 0.0),
+                    "probabilities": ans.get("probabilities", {}),
+                }
+            except ImportError:
+                pass
+
+        # 2. Direct session or injected mock session execution
         if self._session is None:
             import onnxruntime as ort
             onnx_file = self.model_dir / "model.onnx"
             self._session = ort.InferenceSession(str(onnx_file), providers=["CPUExecutionProvider"])
             self._is_session_ready = True
 
-        # Tokenization & Input feeding
+        # Lazy load tokenizer if not already injected
+        if self._tokenizer is None:
+            tok_file = self.model_dir / "tokenizer" / "tokenizer.json"
+            if not tok_file.is_file():
+                tok_file = self.model_dir / "tokenizer.json"
+            if tok_file.is_file():
+                try:
+                    from tokenizers import Tokenizer  # type: ignore
+                    self._tokenizer = Tokenizer.from_file(str(tok_file))
+                except ImportError:
+                    pass
+
+        if self._tokenizer is None:
+            raise RuntimeError(
+                "OnnxLayaProvider requires a loaded tokenizer to encode state and question options. "
+                "ASCII ord() fallback is prohibited to preserve multilingual integrity."
+            )
+
+        # Tokenize input using tokenizer
+        if hasattr(self._tokenizer, "encode"):
+            enc = self._tokenizer.encode(text)
+            token_ids = enc.ids if hasattr(enc, "ids") else enc
+        else:
+            raise RuntimeError("Tokenizer does not support encode()")
+
         input_names = [inp.name for inp in self._session.get_inputs()]
         input_feed: Dict[str, Any] = {}
 
+        L = max(len(token_ids), 1)
+        k = max(len(options), 2)  # pinned graph expects at least 2 marker columns
+
+        # Prepare the 5 pinned graph inputs
         if "input_ids" in input_names:
-            # Tokenize or fallback to deterministic ascii tokens
-            tokens = [min(ord(ch), 255) for ch in text[:128]] or [1]
-            try:
-                import numpy as np  # type: ignore
-                input_feed["input_ids"] = np.array([tokens], dtype=np.int64)
-                if "attention_mask" in input_names:
-                    input_feed["attention_mask"] = np.ones((1, len(tokens)), dtype=np.int64)
-            except ImportError:
-                input_feed["input_ids"] = [tokens]
-                if "attention_mask" in input_names:
-                    input_feed["attention_mask"] = [[1] * len(tokens)]
-        elif "text" in input_names:
-            try:
-                import numpy as np  # type: ignore
-                input_feed["text"] = np.array([text], dtype=object)
-            except ImportError:
-                input_feed["text"] = [text]
+            input_feed["input_ids"] = [token_ids]
+        if "attention_mask" in input_names:
+            input_feed["attention_mask"] = [[1] * L]
+        if "marker_pos" in input_names:
+            # Option marker positions (start of each option slot)
+            input_feed["marker_pos"] = [[i for i in range(k)]]
+        if "marker_mask" in input_names:
+            # Boolean mask for active option slots
+            mask = [True if i < len(options) else False for i in range(k)]
+            input_feed["marker_mask"] = [mask]
+        if "qtype" in input_names:
+            # 0 for choice questions, 1 for score questions
+            input_feed["qtype"] = [0]
+
+        # If numpy is available, convert to numpy arrays matching dtypes
+        try:
+            import numpy as np  # type: ignore
+            if "input_ids" in input_feed:
+                input_feed["input_ids"] = np.array(input_feed["input_ids"], dtype=np.int64)
+            if "attention_mask" in input_feed:
+                input_feed["attention_mask"] = np.array(input_feed["attention_mask"], dtype=np.int64)
+            if "marker_pos" in input_feed:
+                input_feed["marker_pos"] = np.array(input_feed["marker_pos"], dtype=np.int64)
+            if "marker_mask" in input_feed:
+                input_feed["marker_mask"] = np.array(input_feed["marker_mask"], dtype=bool)
+            if "qtype" in input_feed:
+                input_feed["qtype"] = np.array(input_feed["qtype"], dtype=np.int64)
+        except ImportError:
+            pass
 
         outputs = self._session.run(None, input_feed)
         raw_logits = outputs[0]
-        # Flatten to 1D
         if hasattr(raw_logits, "tolist"):
             raw_logits = raw_logits.tolist()
         if isinstance(raw_logits, list) and raw_logits and isinstance(raw_logits[0], list):
             raw_logits = raw_logits[0]
 
-        probs = _softmax([float(x) for x in raw_logits])
+        # Slice to number of actual options k_actual
+        k_actual = len(options)
+        logits_sliced = [float(x) for x in raw_logits[:k_actual]]
+        probs = _softmax(logits_sliced)
 
-        if task == "navigate.v1":
-            options = [opt["id"] for opt in NAVIGATE_OPTIONS]
-        elif task == "cashbook_category.v1":
-            options = [c["id"] if isinstance(c, dict) else str(c) for c in (candidates or [])]
-        else:
-            options = ["clarify"]
+        best_idx = logits_sliced.index(max(logits_sliced)) if logits_sliced else 0
+        pred = options[best_idx] if best_idx < len(options) else "clarify"
+        conf = probs[best_idx] if best_idx < len(probs) else 0.5
 
-        best_idx = raw_logits.index(max(raw_logits)) if raw_logits else 0
-        if best_idx < len(options):
-            pred = options[best_idx]
-            conf = probs[best_idx]
-        else:
-            pred = "clarify"
-            conf = 0.5
+        prob_map = {opt: round(probs[i], 4) for i, opt in enumerate(options) if i < len(probs)}
 
-        return {"pred": pred, "confidence": round(conf, 4)}
+        return {
+            "pred": pred,
+            "confidence": round(conf, 4),
+            "answer_confidence": round(conf, 4),
+            "probabilities": prob_map,
+        }
 
 
 def run_multi_provider_evaluation(

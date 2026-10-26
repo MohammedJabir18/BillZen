@@ -202,8 +202,33 @@ def test_validate_dataset_case_runtime_rejection():
 
 
 def test_export_case_to_laya_finetune_state_contract():
-    """Laya export format must strictly adhere to the pinned upstream {state, questions, expected} contract."""
+    """Laya export format must strictly adhere to the pinned upstream {state, questions, expected} contract.
+    
+    Verifies against upstream items_from_rows requirements:
+    - questions is a dict: qid -> {type, instructions, criteria: {cid: desc}}
+    - expected is a dict: qid -> expected_label
+    - instructions is plural
+    - criteria is a dict mapping ID to description
+    """
     from tools.laya.prepare_dataset import export_case_to_laya_finetune_format
+
+    def simulate_upstream_items_from_rows(row: Dict[str, Any]) -> List[Tuple[str, Dict[str, Any], str]]:
+        """Simulate upstream laya/train.py items_from_rows schema iteration."""
+        questions = row.get("questions", {})
+        expected = row.get("expected", {})
+        assert isinstance(questions, dict), f"questions must be a dict, got {type(questions)}"
+        assert isinstance(expected, dict), f"expected must be a dict, got {type(expected)}"
+        items = []
+        for qid, q in questions.items():
+            assert isinstance(q, dict), f"question '{qid}' must be a dict"
+            assert q.get("type") == "choice"
+            assert "instructions" in q and isinstance(q["instructions"], str)
+            assert "criteria" in q and isinstance(q["criteria"], dict)
+            target = expected.get(qid)
+            assert target is not None, f"expected missing key for question '{qid}'"
+            assert target in q["criteria"], f"expected target '{target}' not in criteria keys: {list(q['criteria'].keys())}"
+            items.append((qid, q, target))
+        return items
 
     # 1. Navigate task case
     nav_case = {
@@ -220,21 +245,18 @@ def test_export_case_to_laya_finetune_state_contract():
     assert "state" in nav_exported
     assert "questions" in nav_exported
     assert "expected" in nav_exported
-    assert nav_exported["expected"] == "cashbook_payment"
     assert nav_exported["state"]["text"] == "Record payment of 1200 for office supplies"
     assert nav_exported["state"]["task"] == "navigate.v1"
 
-    # Must contain typed questions with criteria
-    questions = nav_exported["questions"]
-    assert isinstance(questions, list) and len(questions) == 1
-    q = questions[0]
-    assert q["type"] == "choice"
-    assert "instruction" in q
-    assert isinstance(q["criteria"], list)
-    criteria_ids = [crit["id"] for crit in q["criteria"]]
-    assert "cashbook_payment" in criteria_ids
-    assert "cashbook_receipt" in criteria_ids
-    assert all("id" in crit and "label" in crit for crit in q["criteria"])
+    # Validate against simulated upstream items_from_rows
+    nav_items = simulate_upstream_items_from_rows(nav_exported)
+    assert len(nav_items) == 1
+    qid, q, target = nav_items[0]
+    assert qid == "navigate"
+    assert target == "cashbook_payment"
+    assert "cashbook_payment" in q["criteria"]
+    assert "cashbook_receipt" in q["criteria"]
+    assert isinstance(q["criteria"]["cashbook_payment"], str)
 
     # 2. Category task case with candidate shortlist
     cat_case = {
@@ -254,11 +276,15 @@ def test_export_case_to_laya_finetune_state_contract():
 
     cat_exported = export_case_to_laya_finetune_format(cat_case)
     assert cat_exported["state"]["direction"] == "payment"
-    assert cat_exported["expected"] == "rent"
-    cat_criteria = cat_exported["questions"][0]["criteria"]
-    assert len(cat_criteria) == 3
-    assert cat_criteria[0]["id"] == "rent"
-    assert cat_criteria[0]["label"] == "Office Rent"
+
+    cat_items = simulate_upstream_items_from_rows(cat_exported)
+    assert len(cat_items) == 1
+    c_qid, c_q, c_target = cat_items[0]
+    assert c_qid == "category"
+    assert c_target == "rent"
+    assert c_q["criteria"]["rent"] == "Office Rent"
+    assert c_q["criteria"]["utilities"] == "Electricity & Water"
+    assert c_q["criteria"]["none"] == "None of the above"
 
     # Must NOT leak internal fixture bookkeeping
     assert "case_id" not in nav_exported

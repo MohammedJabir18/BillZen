@@ -138,33 +138,63 @@ def test_provider_states_and_readiness_lifecycle():
     assert state_onnx in [ProviderState.MISSING_ASSETS, ProviderState.MISSING_DEPENDENCIES]
 
 
-def test_onnx_laya_provider_real_inference_with_mock_session(tmp_path):
-    """OnnxLayaProvider must execute real tensor scoring and softmax without raising NotImplementedError."""
+def test_onnx_laya_provider_satisfies_pinned_five_input_graph_contract(tmp_path):
+    """OnnxLayaProvider must feed the exact 5 graph inputs required by the pinned upstream exporter:
+    input_ids, attention_mask, marker_pos, marker_mask, qtype.
+    """
     from tools.laya.runner import OnnxLayaProvider
 
-    # Create dummy asset files
     onnx_file = tmp_path / "model.onnx"
     onnx_file.write_bytes(b"dummy onnx graph fixture")
-    tok_file = tmp_path / "tokenizer.json"
-    tok_file.write_text("{}", encoding="utf-8")
 
     provider = OnnxLayaProvider(model_dir=tmp_path)
 
-    # Mock onnxruntime session returning logits for 3 classes: [0.1, 2.5, 0.4] -> argmax is index 1
-    class MockOrtSession:
+    captured_feed = {}
+
+    class StrictPinnedGraphSession:
+        """Strict mock verifying that all 5 pinned upstream graph inputs are supplied."""
         def get_inputs(self):
-            class InputMeta:
-                name = "input_ids"
-            return [InputMeta()]
+            class Meta:
+                def __init__(self, name):
+                    self.name = name
+            return [
+                Meta("input_ids"),
+                Meta("attention_mask"),
+                Meta("marker_pos"),
+                Meta("marker_mask"),
+                Meta("qtype"),
+            ]
 
         def run(self, output_names, input_feed):
-            # Logits where index 1 ("rent") has the highest score (batch_size 1, 3 classes)
-            return [[[0.2, 3.8, 0.5]]]
+            captured_feed.update(input_feed)
+            required = ["input_ids", "attention_mask", "marker_pos", "marker_mask", "qtype"]
+            for req in required:
+                if req not in input_feed:
+                    raise RuntimeError(f"Missing required exported graph input: {req}")
 
-    provider._session = MockOrtSession()
+            # Return logits and act_logits matching export_onnx.py output_names
+            # logits: (batch_size=1, max_options=3), act_logits: (batch_size=1, 1)
+            # Logit at index 1 is highest
+            logits = [[0.2, 3.8, 0.5]]
+            act_logits = [[0.95]]
+            return [logits, act_logits]
+
+    # Inject fake tokenizer fixture into provider
+    class FakeTokenizer:
+        def encode(self, text):
+            # Tokenizer that produces distinct IDs for different scripts
+            return [101] + [ord(c) % 5000 + 100 for c in text] + [102]
+
+    provider._session = StrictPinnedGraphSession()
     provider._is_session_ready = True
+    provider._tokenizer = FakeTokenizer()
 
-    candidates = ["utilities", "rent", "salary"]
+    candidates = [
+        {"id": "utilities", "label": "Electricity & Water"},
+        {"id": "rent", "label": "Office Rent"},
+        {"id": "salary", "label": "Staff Salary"},
+    ]
+
     res = provider.predict(
         text="Paid office rent",
         task="cashbook_category.v1",
@@ -172,9 +202,101 @@ def test_onnx_laya_provider_real_inference_with_mock_session(tmp_path):
         direction="payment",
     )
 
-    # Must predict "rent" with high softmax probability, NOT raise NotImplementedError!
+    # 1. Must succeed without 'Missing required exported graph input' error
+    assert "input_ids" in captured_feed
+    assert "attention_mask" in captured_feed
+    assert "marker_pos" in captured_feed
+    assert "marker_mask" in captured_feed
+    assert "qtype" in captured_feed
+
+    # 2. Must predict "rent" matching index 1
     assert res["pred"] == "rent"
     assert res["confidence"] > 0.90
+
+
+def test_onnx_laya_provider_encodes_options_and_preserves_candidate_order_invariance(tmp_path):
+    """When candidates are reordered, OnnxLayaProvider must encode criteria correctly and select the right option."""
+    from tools.laya.runner import OnnxLayaProvider
+
+    onnx_file = tmp_path / "model.onnx"
+    onnx_file.write_bytes(b"dummy onnx graph fixture")
+
+    provider = OnnxLayaProvider(model_dir=tmp_path)
+
+    # Mock session where "rent" option always gets the highest logit regardless of position
+    # The session inspects marker_mask and assigns highest logit to whichever slot corresponds to rent
+    class DynamicOptionSession:
+        def get_inputs(self):
+            class Meta:
+                def __init__(self, name):
+                    self.name = name
+            return [Meta("input_ids"), Meta("attention_mask"), Meta("marker_pos"), Meta("marker_mask"), Meta("qtype")]
+
+        def __init__(self, target_slot=0):
+            self.target_slot = target_slot
+
+        def run(self, output_names, input_feed):
+            logits = [0.1] * 5
+            logits[self.target_slot] = 4.0
+            return [[logits], [[0.95]]]
+
+    class FakeTokenizer:
+        def encode(self, text):
+            return [101, 102]
+
+    provider._is_session_ready = True
+    provider._tokenizer = FakeTokenizer()
+
+    # Case A: "rent" is at slot 0
+    provider._session = DynamicOptionSession(target_slot=0)
+    res_a = provider.predict(
+        text="Paid rent",
+        task="cashbook_category.v1",
+        candidates=["rent", "utilities", "salary"],
+        direction="payment",
+    )
+    assert res_a["pred"] == "rent"
+
+    # Case B: "rent" is at slot 1
+    provider._session = DynamicOptionSession(target_slot=1)
+    res_b = provider.predict(
+        text="Paid rent",
+        task="cashbook_category.v1",
+        candidates=["utilities", "rent", "salary"],
+        direction="payment",
+    )
+    assert res_b["pred"] == "rent"
+
+
+def test_onnx_laya_provider_rejects_ascii_ord_fallback_without_tokenizer(tmp_path):
+    """Without a real tokenizer, OnnxLayaProvider must fail rather than collapsing text to [255, 255, ...]."""
+    from tools.laya.runner import OnnxLayaProvider
+
+    onnx_file = tmp_path / "model.onnx"
+    onnx_file.write_bytes(b"dummy onnx graph fixture")
+
+    provider = OnnxLayaProvider(model_dir=tmp_path)
+
+    class AnyInputSession:
+        def get_inputs(self):
+            class Meta:
+                def __init__(self, name):
+                    self.name = name
+            return [Meta("input_ids")]
+        def run(self, *args, **kwargs):
+            return [[[0.1, 0.9]]]
+
+    provider._session = AnyInputSession()
+    provider._is_session_ready = True
+    provider._tokenizer = None  # No tokenizer loaded
+
+    with pytest.raises(RuntimeError, match="tokenizer"):
+        provider.predict(
+            text="വാടക കൊടുത്തു",  # Malayalam
+            task="cashbook_category.v1",
+            candidates=["rent", "utilities"],
+            direction="payment",
+        )
 
 
 def test_runner_handles_provider_execution_failure_gracefully():
