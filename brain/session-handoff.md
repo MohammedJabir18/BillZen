@@ -81,7 +81,14 @@ Authorized per docs/prompts/2026-10-26-antigravity-laya-contract-first.md, revie
   - In `tools/laya/evaluate_billzen.py`: Supported `--checkpoint-dir` and `--onnx-path` CLI flags (with `--model-dir` backwards compatibility). Embedded exact provenance metadata (`model_id`, `upstream_source_commit`, `checkpoint_revision`, `checkpoint_dir`, `onnx_path`) into generated benchmark reports.
   - In `docs/research/laya/external-runbook.md`: Corrected runbook Path calls, separated base vs derived ONNX manifests, documented explicit FP32 vs INT8 evaluation commands, and clarified that `timeout 600` bounds wall time rather than enforcing an OS-level RSS ceiling.
 - **Test Evidence**: All 55 pytest tests pass in 0.12s across all modules (including runbook smoke test). Frontend Vitest: 97/97 pass. Cargo test: 128 pass. Dataset regeneration matches byte-for-byte (0 diff).
-- **Review Gate & Next Step**: Upstream contract and thin-SDK adapter corrections are verified and complete. Ready for owner compatibility review before any external execution on an adequately resourced machine. Production Tasks 4/5 remain stopped.
+- **CI Status**: Commit 15e44d7 CI [40428603070](https://github.com/MohammedJabir18/BillZen/actions/runs/40428603070) **completed/success** across all jobs: AI Tooling & Dataset Verification (10s), Rust Tests & Verification (3m6s), Frontend Tests & Production Build (10m22s).
+- **First Real Pretrained Pilot Preflight & Resource Blocker**:
+  - Environment Audit: Host is 11th Gen Intel i3-1115G4 @ 3.00GHz (4 logical cores), 7.55 GiB total RAM, with only 1.70–1.79 GiB available RAM and 3.29 GiB active swap used. No GPU/accelerator available. Free disk: 330.71 GiB.
+  - External Machines / Notebooks: No external SSH hosts, remote VMs, Colab, or Kaggle instances are configured. Per strict instructions, no cloud services or hardware will be purchased or rented, and no credentials will be guessed.
+  - Decision: **NO-GO on local heavy execution**. Attempting unquantized PyTorch loading of `laya-multilingual` (644 MB safetensors, requiring >= 3.5–4.0 GiB peak RSS) or Dynamo ONNX export on this laptop would induce severe swap thrashing, system freeze, or OOM termination.
+  - Actionable Blocker: To execute the real model pilot, an external environment with >= 4.0–8.0 GiB available free RAM and Python 3.10–3.12 with `torch >= 2.9` and pinned upstream `laya` (`b9fe351ce81e2d974bca2bf219c1e4030c0a05ea`) and checkpoint `1720e3e3357cfe1e281542e223f8273b0890ca34` must be provisioned.
+  - Preserved Tools: All accepted thin SDK wrappers (`OnnxLayaProvider`, `PythonLayaProvider`), dataset generators, and verification suites remain fully verified and intact (55/55 pytest pass).
+
 
 
 

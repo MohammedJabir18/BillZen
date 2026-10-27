@@ -1910,6 +1910,29 @@
   - `npm test`: 97/97 Vitest unit tests passed in 2.62s.
   - `cargo test --manifest-path src-tauri/Cargo.toml`: 128 tests passed.
   - Dataset regeneration: byte-identical 0 diff in `tools/laya/datasets/`.
+  - CI [40428603070](https://github.com/MohammedJabir18/BillZen/actions/runs/40428603070) **completed/success** for commit 15e44d7 across AI Tooling (10s), Rust Tests (3m6s), and Frontend Tests & Production Build (10m22s).
+
+### 2026-10-27 — Pretrained Model Pilot Operational Preflight & Environmental Blocker
+
+- Owner authorized bounded pretrained model pilot per `docs/reviews/2026-10-27-laya-sdk-acceptance.md` and `docs/prompts/2026-10-27-antigravity-laya-first-model-pilot.md`, conditional on an existing suitable environment.
+- **Environment Inventory & Resource Audit**:
+  - Host OS: Linux 7.0.0-38-generic x86_64; CPU: 11th Gen Intel(R) Core(TM) i3-1115G4 @ 3.00GHz (4 logical cores).
+  - Memory: 7.55 GiB total RAM, 5.94 GiB used, **1.70–1.79 GiB available RAM**, with **3.29 GiB active swap** currently consumed.
+  - Accelerator: None (pure CPU execution).
+  - Storage: 330.71 GiB free disk space.
+  - External Resources: No remote SSH hosts, Colab/Kaggle environments, or external compute credentials exist or are pre-configured.
+- **Decision & Resource Boundary (NO-GO for local heavy export/load)**:
+  - Loading unquantized PyTorch `convaiinnovations/laya-multilingual` (644 MB safetensors) and compiling Dynamo ONNX graphs requires >= 3.5–4.0 GiB peak RSS.
+  - Attempting heavy export or unquantized model evaluation on the local workstation with < 2.0 GiB available RAM violates host stability, risking swap lockup, desktop OOM-freezes, and developer workstation disruption.
+  - In strict compliance with instructions ("Do not assume credentials, purchase/rent a service or run heavy export/loading on the memory-constrained laptop"), heavy export is paused locally with an explicit, concrete blocker.
+- **Actionable Blocker & Specification for External Environment**:
+  - Required Environment: Workstation or VM with >= 4.0–8.0 GiB available free RAM and >= 5.0 GiB disk.
+  - Pinned Software Stack: Python 3.10–3.12, `torch >= 2.9`, `transformers`, `onnx`, `onnxscript`, `onnxruntime`, `safetensors`, `numpy`, and pinned upstream `laya` repo at `b9fe351ce81e2d974bca2bf219c1e4030c0a05ea`.
+  - Immutable Checkpoint: `1720e3e3357cfe1e281542e223f8273b0890ca34` (`convaiinnovations/laya-multilingual`).
+  - Strict Budget Boundaries: Separate preparation budget (>= 4 GiB RAM) from target deployment budget (500 MiB target RSS / 750 MiB hard kill, CPU warm latency p95 <= 750 ms). Process-level memory containment in an isolated research worker must be used.
+- **Accepted Tooling State**:
+  - All thin SDK adapters (`OnnxLayaProvider`, `PythonLayaProvider`), dataset converters, and smoke evaluation harnesses remain completely intact, passing all 55/55 unit tests.
+
 
 ### 2026-10-27 — 15e44d7 thin-SDK source acceptance; first real pilot next
 
