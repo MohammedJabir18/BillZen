@@ -283,3 +283,95 @@ def test_evaluation_cli_flags_and_provider_selection(tmp_path):
     assert onnx_data["provenance"]["onnx_path"] == str(tmp_path / "model_int8.onnx")
 
 
+def test_runbook_commands_smoke_against_tiny_fixture(tmp_path):
+    """Smoke test running the exact non-heavy runbook command sequences against a tiny synthetic fixture:
+    1. load_and_validate_manifest
+    2. verify_asset_file_integrity
+    3. evaluate_billzen CLI for FP32 and INT8 paths
+    """
+    import hashlib
+    import json
+    from tools.laya.evaluate_billzen import main
+    from tools.laya.validator import load_and_validate_manifest, verify_asset_file_integrity
+
+    assets_dir = tmp_path / "assets"
+    assets_dir.mkdir()
+    tok_dir = assets_dir / "tokenizer"
+    tok_dir.mkdir()
+
+    # Create tiny synthetic files
+    files = {
+        "model.onnx": b"fake_fp32_graph",
+        "model_int8.onnx": b"fake_int8_graph",
+        "config.json": b'{"model_type": "laya"}',
+        "tokenizer/tokenizer.json": b'{"vocab": {}}',
+        "tokenizer/tokenizer_config.json": b'{"name": "tok"}',
+    }
+    manifest_assets = []
+    for rel_path, content in files.items():
+        file_path = assets_dir / rel_path
+        file_path.write_bytes(content)
+        manifest_assets.append({
+            "filename": rel_path,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size_bytes": len(content),
+            "role": "weights_onnx" if "model" in rel_path else "model_config",
+            "provenance": "locally_exported_onnx",
+        })
+
+    manifest_data = {
+        "schema_version": "1.0.0",
+        "model_id": "convaiinnovations/laya-multilingual",
+        "checkpoint_revision": "1720e3e3357cfe1e281542e223f8273b0890ca34",
+        "base_encoder": {"id": "jhu-clsp/mmBERT-base", "license": "MIT"},
+        "upstream_source_commit": "b9fe351ce81e2d974bca2bf219c1e4030c0a05ea",
+        "license": "Apache-2.0",
+        "assets": manifest_assets,
+        "hardware_target": {"cpu": "Generic", "min_ram_mb": 4096, "has_accelerator": False},
+        "resource_ceiling": {"max_rss_mb": 500, "max_warm_latency_ms": 750, "max_load_timeout_ms": 5000},
+    }
+
+    manifest_path = tmp_path / "onnx_manifest.json"
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    # Step 1: Runbook manifest load and validation
+    loaded_manifest = load_and_validate_manifest(manifest_path)
+    assert loaded_manifest["model_id"] == "convaiinnovations/laya-multilingual"
+
+    # Step 2: Runbook asset file integrity check
+    ok, errors = verify_asset_file_integrity(loaded_manifest, root_dir=assets_dir)
+    assert ok is True, f"Integrity check failed: {errors}"
+
+    # Step 3: Runbook CLI evaluation commands for FP32 and INT8 (not_run expected on dev host)
+    dataset_file = tmp_path / "dev.jsonl"
+    case = {
+        "case_id": "smoke1",
+        "task": "navigate.v1",
+        "language": "en",
+        "text": "Record receipt of 500",
+        "expected": "cashbook_receipt",
+    }
+    dataset_file.write_text(json.dumps(case) + "\n", encoding="utf-8")
+
+    out_fp32 = tmp_path / "reports_fp32"
+    main([
+        "--dataset", str(dataset_file),
+        "--output-dir", str(out_fp32),
+        "--provider", "onnx_laya",
+        "--checkpoint-dir", str(assets_dir),
+        "--onnx-path", str(assets_dir / "model.onnx"),
+    ])
+    assert (out_fp32 / "benchmark_onnx_laya_not_run.json").is_file()
+
+    out_int8 = tmp_path / "reports_int8"
+    main([
+        "--dataset", str(dataset_file),
+        "--output-dir", str(out_int8),
+        "--provider", "onnx_laya",
+        "--checkpoint-dir", str(assets_dir),
+        "--onnx-path", str(assets_dir / "model_int8.onnx"),
+    ])
+    assert (out_int8 / "benchmark_onnx_laya_not_run.json").is_file()
+
+
+

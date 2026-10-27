@@ -78,7 +78,7 @@ Authorized per docs/prompts/2026-10-26-antigravity-laya-contract-first.md, revie
   - Created `tools/laya/onnx_asset_manifest.json` separating the derived ONNX bundle manifest from the base PyTorch `asset_manifest.json`.
   - In `tools/laya/evaluate_billzen.py`: Supported `--checkpoint-dir` and `--onnx-path` CLI flags (with `--model-dir` backwards compatibility). Embedded exact provenance metadata (`model_id`, `upstream_source_commit`, `checkpoint_revision`, `checkpoint_dir`, `onnx_path`) into generated benchmark reports.
   - In `docs/research/laya/external-runbook.md`: Corrected runbook Path calls, separated base vs derived ONNX manifests, documented explicit FP32 vs INT8 evaluation commands, and clarified that `timeout 600` bounds wall time rather than enforcing an OS-level RSS ceiling.
-- **Test Evidence**: All 54 pytest tests pass in 0.09s across all modules. Frontend Vitest: 97/97 pass. Cargo test: 128 pass. Dataset regeneration matches byte-for-byte (0 diff).
+- **Test Evidence**: All 55 pytest tests pass in 0.12s across all modules (including runbook smoke test). Frontend Vitest: 97/97 pass. Cargo test: 128 pass. Dataset regeneration matches byte-for-byte (0 diff).
 - **Review Gate & Next Step**: Upstream contract and thin-SDK adapter corrections are verified and complete. Ready for owner compatibility review before any external execution on an adequately resourced machine. Production Tasks 4/5 remain stopped.
 
 

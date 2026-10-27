@@ -1906,7 +1906,7 @@
   - In `tools/laya/evaluate_billzen.py`: Supported `--checkpoint-dir` and `--onnx-path` CLI arguments (with `--model-dir` backwards compatibility). Embedded exact provenance metadata (`model_id`, `upstream_source_commit`, `checkpoint_revision`, `checkpoint_dir`, `onnx_path`) into generated benchmark reports.
   - In `docs/research/laya/external-runbook.md`: Corrected runbook Path calls, separated base vs derived ONNX manifests, documented explicit FP32 vs INT8 evaluation commands, and clarified that `timeout 600` bounds wall time rather than enforcing an OS-level RSS ceiling.
 - **Verification Evidence**:
-  - `python3 -m pytest tools/laya/tests/ -v`: 54/54 passed in 0.10s.
+  - `python3 -m pytest tools/laya/tests/ -v`: 55/55 passed in 0.12s (including runbook smoke test).
   - `npm test`: 97/97 Vitest unit tests passed in 2.62s.
   - `cargo test --manifest-path src-tauri/Cargo.toml`: 128 tests passed.
   - Dataset regeneration: byte-identical 0 diff in `tools/laya/datasets/`.
