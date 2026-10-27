@@ -22,10 +22,18 @@ def valid_manifest_data() -> dict:
 
 
 def test_concrete_manifest_passes_validation(valid_manifest_data):
-    """The tracked project asset_manifest.json must pass all validation checks."""
+    """The tracked project asset_manifest.json and onnx_asset_manifest.json must pass all validation checks."""
     is_valid, errors = validate_asset_manifest(valid_manifest_data)
     assert is_valid is True, f"Manifest errors: {errors}"
     assert len(errors) == 0
+
+    onnx_manifest_path = Path(__file__).resolve().parent.parent / "onnx_asset_manifest.json"
+    with onnx_manifest_path.open("r", encoding="utf-8") as f:
+        onnx_data = json.load(f)
+    is_valid_onnx, errors_onnx = validate_asset_manifest(onnx_data)
+    assert is_valid_onnx is True, f"ONNX Manifest errors: {errors_onnx}"
+    assert len(errors_onnx) == 0
+
 
 
 def test_reject_missing_required_fields(valid_manifest_data):
@@ -234,5 +242,48 @@ def test_verify_asset_file_integrity_rejects_empty_or_invalid_manifest(tmp_path)
     ok, errors = verify_asset_file_integrity({"assets": []}, tmp_path)
     assert ok is False
     assert any("empty" in err.lower() or "invalid" in err.lower() or "missing" in err.lower() for err in errors)
+
+
+def test_validator_accepts_both_string_and_path_objects(tmp_path):
+    """load_and_validate_manifest and verify_asset_file_integrity must accept string paths or Path objects without AttributeError."""
+    from tools.laya.validator import load_and_validate_manifest, verify_asset_file_integrity
+
+    manifest_file = tmp_path / "test_manifest.json"
+    manifest_data = {
+        "schema_version": "1.0.0",
+        "model_id": "test/model",
+        "checkpoint_revision": "1720e3e3357cfe1e281542e223f8273b0890ca34",
+        "base_encoder": {"id": "enc", "license": "MIT"},
+        "upstream_source_commit": "b9fe351ce81e2d974bca2bf219c1e4030c0a05ea",
+        "license": "Apache-2.0",
+        "assets": [
+            {
+                "filename": "model.onnx",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "size_bytes": 5,
+                "role": "weights_onnx",
+                "provenance": "locally_exported_onnx",
+            }
+        ],
+        "hardware_target": {"cpu": "Generic CPU", "min_ram_mb": 4096, "has_accelerator": False},
+        "resource_ceiling": {"max_rss_mb": 500, "max_warm_latency_ms": 750, "max_load_timeout_ms": 5000},
+    }
+    target_file = tmp_path / "model.onnx"
+    target_file.write_bytes(b"hello")
+    import hashlib
+    manifest_data["assets"][0]["size_bytes"] = 5
+    manifest_data["assets"][0]["sha256"] = hashlib.sha256(b"hello").hexdigest()
+
+    manifest_file.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    # 1. Test load_and_validate_manifest with str
+    loaded = load_and_validate_manifest(str(manifest_file))
+    assert loaded["model_id"] == "test/model"
+
+    # 2. Test verify_asset_file_integrity with str root_dir
+    ok, errors = verify_asset_file_integrity(loaded, root_dir=str(tmp_path))
+    assert ok is True, f"Integrity errors: {errors}"
+
+
 
 

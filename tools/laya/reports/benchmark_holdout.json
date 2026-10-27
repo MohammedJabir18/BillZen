@@ -1,5 +1,10 @@
 {
   "provider": "rules",
+  "provenance": {
+    "model_id": "convaiinnovations/laya-multilingual",
+    "upstream_source_commit": "b9fe351ce81e2d974bca2bf219c1e4030c0a05ea",
+    "checkpoint_revision": "1720e3e3357cfe1e281542e223f8273b0890ca34"
+  },
   "abstention_threshold": 0.7,
   "overall": {
     "total_cases": 23,
@@ -89,125 +94,125 @@
       }
     },
     "confusion_matrix": {
-      "cashbook_payment": {
-        "cashbook_payment": 3,
-        "cashbook_receipt": 0,
-        "refund": 0,
-        "reports_view": 0,
-        "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 0,
-        "maintenance": 0,
-        "clarify": 1,
-        "none": 0
-      },
-      "cashbook_receipt": {
-        "cashbook_payment": 0,
-        "cashbook_receipt": 3,
-        "refund": 0,
-        "reports_view": 0,
-        "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 0,
-        "maintenance": 0,
-        "clarify": 1,
-        "none": 0
-      },
       "refund": {
-        "cashbook_payment": 0,
-        "cashbook_receipt": 0,
         "refund": 3,
         "reports_view": 0,
         "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 0,
         "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 0,
+        "office_supplies": 0,
+        "cashbook_payment": 0,
         "clarify": 0,
-        "none": 0
+        "account_transfer": 0
       },
       "reports_view": {
-        "cashbook_payment": 0,
-        "cashbook_receipt": 0,
         "refund": 0,
         "reports_view": 3,
         "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 0,
         "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 0,
+        "office_supplies": 0,
+        "cashbook_payment": 0,
         "clarify": 0,
-        "none": 0
+        "account_transfer": 0
       },
       "transport": {
-        "cashbook_payment": 0,
-        "cashbook_receipt": 0,
         "refund": 0,
         "reports_view": 0,
         "transport": 2,
-        "account_transfer": 0,
-        "office_supplies": 0,
         "maintenance": 0,
-        "clarify": 0,
-        "none": 0
-      },
-      "account_transfer": {
-        "cashbook_payment": 0,
         "cashbook_receipt": 0,
-        "refund": 0,
-        "reports_view": 0,
-        "transport": 0,
-        "account_transfer": 1,
+        "none": 0,
         "office_supplies": 0,
-        "maintenance": 0,
-        "clarify": 3,
-        "none": 0
-      },
-      "office_supplies": {
         "cashbook_payment": 0,
-        "cashbook_receipt": 0,
-        "refund": 0,
-        "reports_view": 0,
-        "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 1,
-        "maintenance": 0,
         "clarify": 0,
-        "none": 0
+        "account_transfer": 0
       },
       "maintenance": {
-        "cashbook_payment": 0,
-        "cashbook_receipt": 0,
         "refund": 0,
         "reports_view": 0,
         "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 0,
         "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 1,
+        "office_supplies": 0,
+        "cashbook_payment": 0,
         "clarify": 0,
-        "none": 1
+        "account_transfer": 0
       },
-      "clarify": {
-        "cashbook_payment": 0,
-        "cashbook_receipt": 0,
+      "cashbook_receipt": {
         "refund": 0,
         "reports_view": 0,
         "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 0,
         "maintenance": 0,
+        "cashbook_receipt": 3,
+        "none": 0,
+        "office_supplies": 0,
+        "cashbook_payment": 0,
         "clarify": 1,
-        "none": 0
+        "account_transfer": 0
       },
       "none": {
-        "cashbook_payment": 0,
-        "cashbook_receipt": 0,
         "refund": 0,
         "reports_view": 0,
         "transport": 0,
-        "account_transfer": 0,
-        "office_supplies": 0,
         "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 0,
+        "office_supplies": 0,
+        "cashbook_payment": 0,
         "clarify": 0,
-        "none": 0
+        "account_transfer": 0
+      },
+      "office_supplies": {
+        "refund": 0,
+        "reports_view": 0,
+        "transport": 0,
+        "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 0,
+        "office_supplies": 1,
+        "cashbook_payment": 0,
+        "clarify": 0,
+        "account_transfer": 0
+      },
+      "cashbook_payment": {
+        "refund": 0,
+        "reports_view": 0,
+        "transport": 0,
+        "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 0,
+        "office_supplies": 0,
+        "cashbook_payment": 3,
+        "clarify": 1,
+        "account_transfer": 0
+      },
+      "clarify": {
+        "refund": 0,
+        "reports_view": 0,
+        "transport": 0,
+        "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 0,
+        "office_supplies": 0,
+        "cashbook_payment": 0,
+        "clarify": 1,
+        "account_transfer": 0
+      },
+      "account_transfer": {
+        "refund": 0,
+        "reports_view": 0,
+        "transport": 0,
+        "maintenance": 0,
+        "cashbook_receipt": 0,
+        "none": 0,
+        "office_supplies": 0,
+        "cashbook_payment": 0,
+        "clarify": 3,
+        "account_transfer": 1
       }
     }
   },
@@ -272,40 +277,40 @@
         }
       },
       "confusion_matrix": {
-        "cashbook_payment": {
-          "cashbook_payment": 3,
+        "reports_view": {
+          "reports_view": 3,
           "cashbook_receipt": 0,
-          "reports_view": 0,
-          "account_transfer": 0,
-          "clarify": 1
+          "cashbook_payment": 0,
+          "clarify": 0,
+          "account_transfer": 0
         },
         "cashbook_receipt": {
-          "cashbook_payment": 0,
+          "reports_view": 0,
           "cashbook_receipt": 3,
-          "reports_view": 0,
-          "account_transfer": 0,
-          "clarify": 1
-        },
-        "reports_view": {
           "cashbook_payment": 0,
-          "cashbook_receipt": 0,
-          "reports_view": 3,
-          "account_transfer": 0,
-          "clarify": 0
+          "clarify": 1,
+          "account_transfer": 0
         },
-        "account_transfer": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
+        "cashbook_payment": {
           "reports_view": 0,
-          "account_transfer": 1,
-          "clarify": 3
+          "cashbook_receipt": 0,
+          "cashbook_payment": 3,
+          "clarify": 1,
+          "account_transfer": 0
         },
         "clarify": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
           "reports_view": 0,
-          "account_transfer": 0,
-          "clarify": 1
+          "cashbook_receipt": 0,
+          "cashbook_payment": 0,
+          "clarify": 1,
+          "account_transfer": 0
+        },
+        "account_transfer": {
+          "reports_view": 0,
+          "cashbook_receipt": 0,
+          "cashbook_payment": 0,
+          "clarify": 3,
+          "account_transfer": 1
         }
       }
     },
@@ -369,40 +374,40 @@
         }
       },
       "confusion_matrix": {
-        "refund": {
-          "refund": 3,
-          "transport": 0,
-          "office_supplies": 0,
-          "maintenance": 0,
-          "none": 0
-        },
         "transport": {
-          "refund": 0,
           "transport": 2,
+          "maintenance": 0,
+          "none": 0,
           "office_supplies": 0,
-          "maintenance": 0,
-          "none": 0
-        },
-        "office_supplies": {
-          "refund": 0,
-          "transport": 0,
-          "office_supplies": 1,
-          "maintenance": 0,
-          "none": 0
+          "refund": 0
         },
         "maintenance": {
-          "refund": 0,
           "transport": 0,
-          "office_supplies": 0,
           "maintenance": 0,
-          "none": 1
+          "none": 1,
+          "office_supplies": 0,
+          "refund": 0
         },
         "none": {
-          "refund": 0,
           "transport": 0,
-          "office_supplies": 0,
           "maintenance": 0,
-          "none": 0
+          "none": 0,
+          "office_supplies": 0,
+          "refund": 0
+        },
+        "office_supplies": {
+          "transport": 0,
+          "maintenance": 0,
+          "none": 0,
+          "office_supplies": 1,
+          "refund": 0
+        },
+        "refund": {
+          "transport": 0,
+          "maintenance": 0,
+          "none": 0,
+          "office_supplies": 0,
+          "refund": 3
         }
       }
     }
@@ -454,68 +459,68 @@
         }
       },
       "confusion_matrix": {
+        "reports_view": {
+          "reports_view": 1,
+          "transport": 0,
+          "cashbook_payment": 0,
+          "cashbook_receipt": 0,
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
+        },
+        "transport": {
+          "reports_view": 0,
+          "transport": 1,
+          "cashbook_payment": 0,
+          "cashbook_receipt": 0,
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
+        },
         "cashbook_payment": {
+          "reports_view": 0,
+          "transport": 0,
           "cashbook_payment": 1,
           "cashbook_receipt": 0,
           "refund": 0,
-          "reports_view": 0,
-          "transport": 0,
-          "account_transfer": 0,
-          "clarify": 0
+          "clarify": 0,
+          "account_transfer": 0
         },
         "cashbook_receipt": {
+          "reports_view": 0,
+          "transport": 0,
           "cashbook_payment": 0,
           "cashbook_receipt": 2,
           "refund": 0,
-          "reports_view": 0,
-          "transport": 0,
-          "account_transfer": 0,
-          "clarify": 0
+          "clarify": 0,
+          "account_transfer": 0
         },
         "refund": {
+          "reports_view": 0,
+          "transport": 0,
           "cashbook_payment": 0,
           "cashbook_receipt": 0,
           "refund": 1,
-          "reports_view": 0,
-          "transport": 0,
-          "account_transfer": 0,
-          "clarify": 0
-        },
-        "reports_view": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
-          "refund": 0,
-          "reports_view": 1,
-          "transport": 0,
-          "account_transfer": 0,
-          "clarify": 0
-        },
-        "transport": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
-          "refund": 0,
-          "reports_view": 0,
-          "transport": 1,
-          "account_transfer": 0,
-          "clarify": 0
-        },
-        "account_transfer": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
-          "refund": 0,
-          "reports_view": 0,
-          "transport": 0,
-          "account_transfer": 0,
-          "clarify": 1
+          "clarify": 0,
+          "account_transfer": 0
         },
         "clarify": {
+          "reports_view": 0,
+          "transport": 0,
           "cashbook_payment": 0,
           "cashbook_receipt": 0,
           "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
+        },
+        "account_transfer": {
           "reports_view": 0,
           "transport": 0,
-          "account_transfer": 0,
-          "clarify": 0
+          "cashbook_payment": 0,
+          "cashbook_receipt": 0,
+          "refund": 0,
+          "clarify": 1,
+          "account_transfer": 0
         }
       }
     },
@@ -565,68 +570,68 @@
         }
       },
       "confusion_matrix": {
-        "cashbook_payment": {
-          "cashbook_payment": 1,
-          "refund": 0,
-          "reports_view": 0,
-          "account_transfer": 0,
-          "maintenance": 0,
-          "clarify": 0,
-          "none": 0
-        },
-        "refund": {
-          "cashbook_payment": 0,
-          "refund": 1,
-          "reports_view": 0,
-          "account_transfer": 0,
-          "maintenance": 0,
-          "clarify": 0,
-          "none": 0
-        },
         "reports_view": {
-          "cashbook_payment": 0,
-          "refund": 0,
           "reports_view": 1,
-          "account_transfer": 0,
           "maintenance": 0,
-          "clarify": 0,
-          "none": 0
-        },
-        "account_transfer": {
           "cashbook_payment": 0,
+          "none": 0,
           "refund": 0,
-          "reports_view": 0,
-          "account_transfer": 1,
-          "maintenance": 0,
           "clarify": 0,
-          "none": 0
+          "account_transfer": 0
         },
         "maintenance": {
-          "cashbook_payment": 0,
-          "refund": 0,
           "reports_view": 0,
-          "account_transfer": 0,
           "maintenance": 0,
+          "cashbook_payment": 0,
+          "none": 1,
+          "refund": 0,
           "clarify": 0,
-          "none": 1
+          "account_transfer": 0
         },
-        "clarify": {
-          "cashbook_payment": 0,
-          "refund": 0,
+        "cashbook_payment": {
           "reports_view": 0,
-          "account_transfer": 0,
           "maintenance": 0,
-          "clarify": 1,
-          "none": 0
+          "cashbook_payment": 1,
+          "none": 0,
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
         },
         "none": {
-          "cashbook_payment": 0,
-          "refund": 0,
           "reports_view": 0,
-          "account_transfer": 0,
           "maintenance": 0,
+          "cashbook_payment": 0,
+          "none": 0,
+          "refund": 0,
           "clarify": 0,
-          "none": 0
+          "account_transfer": 0
+        },
+        "refund": {
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "none": 0,
+          "refund": 1,
+          "clarify": 0,
+          "account_transfer": 0
+        },
+        "clarify": {
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "none": 0,
+          "refund": 0,
+          "clarify": 1,
+          "account_transfer": 0
+        },
+        "account_transfer": {
+          "reports_view": 0,
+          "maintenance": 0,
+          "cashbook_payment": 0,
+          "none": 0,
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 1
         }
       }
     },
@@ -676,40 +681,40 @@
         }
       },
       "confusion_matrix": {
-        "account_transfer": {
-          "account_transfer": 0,
-          "cashbook_payment": 0,
+        "transport": {
+          "transport": 1,
           "cashbook_receipt": 0,
-          "clarify": 1,
-          "transport": 0
-        },
-        "cashbook_payment": {
-          "account_transfer": 0,
           "cashbook_payment": 0,
-          "cashbook_receipt": 0,
-          "clarify": 1,
-          "transport": 0
+          "clarify": 0,
+          "account_transfer": 0
         },
         "cashbook_receipt": {
-          "account_transfer": 0,
-          "cashbook_payment": 0,
+          "transport": 0,
           "cashbook_receipt": 1,
+          "cashbook_payment": 0,
           "clarify": 0,
-          "transport": 0
+          "account_transfer": 0
+        },
+        "cashbook_payment": {
+          "transport": 0,
+          "cashbook_receipt": 0,
+          "cashbook_payment": 0,
+          "clarify": 1,
+          "account_transfer": 0
         },
         "clarify": {
-          "account_transfer": 0,
-          "cashbook_payment": 0,
+          "transport": 0,
           "cashbook_receipt": 0,
+          "cashbook_payment": 0,
           "clarify": 0,
-          "transport": 0
+          "account_transfer": 0
         },
-        "transport": {
-          "account_transfer": 0,
-          "cashbook_payment": 0,
+        "account_transfer": {
+          "transport": 0,
           "cashbook_receipt": 0,
-          "clarify": 0,
-          "transport": 1
+          "cashbook_payment": 0,
+          "clarify": 1,
+          "account_transfer": 0
         }
       }
     },
@@ -759,68 +764,68 @@
         }
       },
       "confusion_matrix": {
+        "reports_view": {
+          "reports_view": 1,
+          "cashbook_payment": 0,
+          "cashbook_receipt": 0,
+          "office_supplies": 0,
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
+        },
         "cashbook_payment": {
+          "reports_view": 0,
           "cashbook_payment": 1,
           "cashbook_receipt": 0,
-          "refund": 0,
-          "reports_view": 0,
-          "account_transfer": 0,
           "office_supplies": 0,
-          "clarify": 0
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
         },
         "cashbook_receipt": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
-          "refund": 0,
           "reports_view": 0,
-          "account_transfer": 0,
-          "office_supplies": 0,
-          "clarify": 1
-        },
-        "refund": {
           "cashbook_payment": 0,
           "cashbook_receipt": 0,
-          "refund": 1,
-          "reports_view": 0,
-          "account_transfer": 0,
           "office_supplies": 0,
-          "clarify": 0
-        },
-        "reports_view": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
           "refund": 0,
-          "reports_view": 1,
-          "account_transfer": 0,
-          "office_supplies": 0,
-          "clarify": 0
-        },
-        "account_transfer": {
-          "cashbook_payment": 0,
-          "cashbook_receipt": 0,
-          "refund": 0,
-          "reports_view": 0,
-          "account_transfer": 0,
-          "office_supplies": 0,
-          "clarify": 1
+          "clarify": 1,
+          "account_transfer": 0
         },
         "office_supplies": {
+          "reports_view": 0,
           "cashbook_payment": 0,
           "cashbook_receipt": 0,
-          "refund": 0,
-          "reports_view": 0,
-          "account_transfer": 0,
           "office_supplies": 1,
-          "clarify": 0
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
+        },
+        "refund": {
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "cashbook_receipt": 0,
+          "office_supplies": 0,
+          "refund": 1,
+          "clarify": 0,
+          "account_transfer": 0
         },
         "clarify": {
+          "reports_view": 0,
           "cashbook_payment": 0,
           "cashbook_receipt": 0,
-          "refund": 0,
-          "reports_view": 0,
-          "account_transfer": 0,
           "office_supplies": 0,
-          "clarify": 0
+          "refund": 0,
+          "clarify": 0,
+          "account_transfer": 0
+        },
+        "account_transfer": {
+          "reports_view": 0,
+          "cashbook_payment": 0,
+          "cashbook_receipt": 0,
+          "office_supplies": 0,
+          "refund": 0,
+          "clarify": 1,
+          "account_transfer": 0
         }
       }
     }

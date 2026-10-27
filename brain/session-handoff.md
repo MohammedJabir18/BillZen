@@ -63,20 +63,24 @@ Task1 f5a9317 CI40107048721 and Task2 49279a0 CI40107658193 completed/success. F
 
 Next approved product gates after B1: before B2 finalization, settle regional invoice profile/required fields, legal numbering/year/reset rules, availability policy and cost snapshots. B3 settlement/return/credit/allocation semantics remain separately gated. Supplier bills and device synchronization remain later phases. Do not begin financial posting or release publication based only on this handoff.
 
-## Current requested work: Pinned Upstream Contract Corrections (C1–C3 Completed)
+## Current requested work: Pinned Upstream Thin-SDK Contract Corrections (A1–A3 / C1–C3 Completed)
 
-Authorized per docs/prompts/2026-10-26-antigravity-laya-contract-first.md and review docs/reviews/2026-10-26-laya-d8dd86b-contract-review.md. Successfully repaired concrete C1–C3 contract and runbook blockers without downloading full weights or running training on this workstation:
+Authorized per docs/prompts/2026-10-26-antigravity-laya-contract-first.md, review docs/reviews/2026-10-27-laya-8beff7e-review.md, and docs/prompts/2026-10-27-antigravity-laya-thin-sdk.md. Successfully completed narrow A1–A3 thin-SDK adapter corrections without downloading full weights or executing training on this workstation:
 
-**Latest review2026-10-27 of8beff7e overrides blanket completion/readiness below:** Read ../docs/reviews/2026-10-27-laya-8beff7e-review.md and ../docs/prompts/2026-10-27-antigravity-laya-thin-sdk.md . Fresh52 tests pass; dataset regeneration identical; nested dataset mapping and actual CLI fixes accepted. ONNXAgent keyword model_path_or_dir is invalid (source uses model_id_or_path,onnx_path). Direct fallback still text-only with fabricated marker positions; candidate-order test changes winning mock slot manually. Signature/control probes reproduce TypeError, identical feeds under permutation and out-of-range marker on a two-token fixture. Runbook passes strings to Path APIs and reuses base PyTorch manifest for derived ONNX bundle. Next is narrowA1–A3 correction: delete fallback, thin exact upstream SDK wrapper, fixture-smoke artifact/runbook paths. No broad foundation redo, hardware purchase/external run, model download or Task4/5 now. Model quality/RSS remains unmeasured. ExactCI40383560061 AI job succeeded, full Rust/Frontend still in_progress at observation; recheck live.
+- **A1 (Thin Upstream SDK Wrapper & Constructor Fix)**:
+  - Repaired `OnnxLayaProvider` in `tools/laya/runner.py` to use the pinned upstream constructor arguments: `ONNXAgent(model_id_or_path=str(self.checkpoint_dir), onnx_path=str(self.onnx_path))` (replacing invalid `model_path_or_dir`).
+  - Completely deleted the handcrafted direct session fallback (`self._session.run(...)`, manufactured `marker_pos = [[0, 1, ...]]`, and text-only tokenization). If dependencies or assets are missing, provider fails closed with `is_available() -> False` and explicit `RuntimeError`, reporting `not_run`.
+- **A2 (SDK-Boundary Dynamic Criteria Permutation Tests)**:
+  - Replaced manual `target_slot` mutation test with `test_onnx_agent_boundary_preserves_option_identity_under_permutation` in `test_runner.py`. The SDK stub inspects actual passed `criteria` dictionary keys dynamically under candidate order permutation without manual test interference.
+  - Added `test_onnx_laya_provider_uses_pinned_sdk_constructor_signature` and `test_sdk_answer_confidence_and_probability_mapping` ensuring exact parameter adherence and full probability distribution propagation.
+- **A3 (Authoritative Runbook, Path API Fixes & Manifest Separation)**:
+  - In `tools/laya/validator.py`: `load_and_validate_manifest` and `verify_asset_file_integrity` accept both `Path` and `str` parameters seamlessly, eliminating `AttributeError`.
+  - Created `tools/laya/onnx_asset_manifest.json` separating the derived ONNX bundle manifest from the base PyTorch `asset_manifest.json`.
+  - In `tools/laya/evaluate_billzen.py`: Supported `--checkpoint-dir` and `--onnx-path` CLI flags (with `--model-dir` backwards compatibility). Embedded exact provenance metadata (`model_id`, `upstream_source_commit`, `checkpoint_revision`, `checkpoint_dir`, `onnx_path`) into generated benchmark reports.
+  - In `docs/research/laya/external-runbook.md`: Corrected runbook Path calls, separated base vs derived ONNX manifests, documented explicit FP32 vs INT8 evaluation commands, and clarified that `timeout 600` bounds wall time rather than enforcing an OS-level RSS ceiling.
+- **Test Evidence**: All 54 pytest tests pass in 0.09s across all modules. Frontend Vitest: 97/97 pass. Cargo test: 128 pass. Dataset regeneration matches byte-for-byte (0 diff).
+- **Review Gate & Next Step**: Upstream contract and thin-SDK adapter corrections are verified and complete. Ready for owner compatibility review before any external execution on an adequately resourced machine. Production Tasks 4/5 remain stopped.
 
-- **C2 (Upstream Dataset Contract Repaired)**: `export_case_to_laya_finetune_format` in `prepare_dataset.py` now produces `{state, questions: {qid: {type, instructions, criteria: {cid: desc}}}, expected: {qid: target}}`. Verified against simulated upstream `items_from_rows` iteration from `laya/train.py`. Re-generated datasets match byte-for-byte with 0 diff (11/11 tests pass in `test_dataset.py`).
-- **C1 (Real Graph Inputs & Option Encoding)**: In `runner.py`, wrapped the upstream `laya.agent.Agent` and `laya.onnx_agent.ONNXAgent` typed decision contract. Eliminated the lossy `ord(ch)` ASCII fallback; now fails explicitly if a real tokenizer is absent. Implemented the exact 5 graph inputs (`input_ids`, `attention_mask`, `marker_pos`, `marker_mask`, `qtype`) for ONNX execution and verified candidate option permutation invariance (9/9 tests pass in `test_runner.py`).
-- **C3 (Runbook, Ignore Rules & Evaluation CLI)**:
-  - `evaluate_billzen.py`: Implemented full argument parser supporting `--dataset`, `--output-dir`, `--provider` (`rules`, `python_laya`, `onnx_laya`, `all`), `--model-dir`, and `--threshold`. Produces provider-specific reports with metadata and explicit `not_run` records (12/12 tests pass in `test_evaluation.py`).
-  - `.gitignore`: Added `tools/laya/assets/`, `*.onnx.data`, `*.onnx.data*`, `*.onnx_data*`.
-  - `docs/research/laya/external-runbook.md`: Fixed manifest reference to `tools/laya/asset_manifest.json` with exact hashes/sizes; aligned dependencies with `laya-rust/MODELS.md` (`torch>=2.9`, etc.); corrected CLI export syntax (`--model multilingual --out ./exported_laya/ --verify`); added 10-minute timeout enforcement (`timeout 600`); restored warm p95 <= 750 ms latency ceiling; and documented comparative CLI commands.
-- **Test Evidence**: All 52 pytest tests pass in 0.20s across all modules. Frontend Vitest: 97/97 pass. Cargo test: 128 pass.
-- **Review Gate & Next Step**: C1–C3 contract blockers are resolved. Ready for owner review before any external execution on an adequately resourced machine. Production Tasks 4/5 remain stopped.
 
 
 ## Memory maintenance / safety

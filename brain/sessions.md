@@ -1891,6 +1891,27 @@
 - Added docs/reviews/2026-10-27-laya-8beff7e-review.md and docs/prompts/2026-10-27-antigravity-laya-thin-sdk.md; current memory/runbook gate updated. Only documentation/review work in this chat. Existing tasks4/5, training and publication remain gated; actual model performance/resource parity not_run.
 - Fresh rules CLI smoke wrote benchmark_rules_holdout.json with provider=rules in a temporary output directory. Documentation checks passed34 local Markdown targets/fences/narrow-scope markers and whitespace check. Local code-only Graphify2497nodes/5370links/192communities; SQL dependency missing and11 out-of-scan source files retained, no semantic upload. Owner identities verified before documentation delivery; actual newdocCI and reviewed implementationCI reported separately.
 
+### 2026-10-27 — Thin Upstream SDK Adapter Corrections (A1–A3)
+
+- Owner authorized resolving narrow A1–A3 blockers per `docs/prompts/2026-10-27-antigravity-laya-thin-sdk.md` and review `docs/reviews/2026-10-27-laya-8beff7e-review.md`. Inline TDD with meaningful failing tests before implementation. No production runtime/UI, weights download, local fine-tuning, or release publication performed.
+- **A1 (Thin SDK Wrapper & Constructor Fix)**:
+  - Repaired `OnnxLayaProvider` in `tools/laya/runner.py` to instantiate `ONNXAgent(model_id_or_path=str(self.checkpoint_dir), onnx_path=str(self.onnx_path))` matching the pinned upstream `laya.onnx_agent.ONNXAgent` constructor signature (eliminating invalid `model_path_or_dir`).
+  - Completely deleted handcrafted direct session fallback (`self._session.run(...)`, fabricated `marker_pos = [[0, 1, ...]]`, and text-only tokenization). Both `PythonLayaProvider` and `OnnxLayaProvider` now wrap upstream SDK directly. Missing dependencies or assets fail closed with explicit `is_available() -> False` and `RuntimeError`, reporting `not_run`.
+- **A2 (SDK-Boundary Dynamic Criteria Permutation Tests)**:
+  - Replaced manual `target_slot` mock mutation with `test_onnx_agent_boundary_preserves_option_identity_under_permutation` in `tools/laya/tests/test_runner.py`. SDK boundary stub dynamically inspects the criteria mapping passed to `system_one(state, questions)` under candidate order permutation without test-side winning slot tampering.
+  - Added `test_onnx_laya_provider_uses_pinned_sdk_constructor_signature` and `test_sdk_answer_confidence_and_probability_mapping` ensuring constructor keyword compatibility and full answer confidence / probability propagation.
+- **A3 (Validator Path Compatibility, Manifest Separation & Provenance CLI)**:
+  - In `tools/laya/validator.py`: `load_and_validate_manifest` and `verify_asset_file_integrity` accept `Union[Path, str]`, eliminating `AttributeError: 'str' object has no attribute 'is_file'`.
+  - Created `tools/laya/onnx_asset_manifest.json` separating the derived ONNX bundle manifest from the base PyTorch `asset_manifest.json`.
+  - In `tools/laya/evaluate_billzen.py`: Supported `--checkpoint-dir` and `--onnx-path` CLI arguments (with `--model-dir` backwards compatibility). Embedded exact provenance metadata (`model_id`, `upstream_source_commit`, `checkpoint_revision`, `checkpoint_dir`, `onnx_path`) into generated benchmark reports.
+  - In `docs/research/laya/external-runbook.md`: Corrected runbook Path calls, separated base vs derived ONNX manifests, documented explicit FP32 vs INT8 evaluation commands, and clarified that `timeout 600` bounds wall time rather than enforcing an OS-level RSS ceiling.
+- **Verification Evidence**:
+  - `python3 -m pytest tools/laya/tests/ -v`: 54/54 passed in 0.10s.
+  - `npm test`: 97/97 Vitest unit tests passed in 2.62s.
+  - `cargo test --manifest-path src-tauri/Cargo.toml`: 128 tests passed.
+  - Dataset regeneration: byte-identical 0 diff in `tools/laya/datasets/`.
+
+
 
 
 

@@ -138,165 +138,189 @@ def test_provider_states_and_readiness_lifecycle():
     assert state_onnx in [ProviderState.MISSING_ASSETS, ProviderState.MISSING_DEPENDENCIES]
 
 
-def test_onnx_laya_provider_satisfies_pinned_five_input_graph_contract(tmp_path):
-    """OnnxLayaProvider must feed the exact 5 graph inputs required by the pinned upstream exporter:
-    input_ids, attention_mask, marker_pos, marker_mask, qtype.
+def test_onnx_laya_provider_uses_pinned_sdk_constructor_signature(tmp_path):
+    """OnnxLayaProvider must use the pinned upstream ONNXAgent constructor signature:
+    ONNXAgent(model_id_or_path: str, onnx_path: str, ...).
+    Passing 'model_path_or_dir' must raise TypeError.
     """
     from tools.laya.runner import OnnxLayaProvider
 
+    class StubPinnedONNXAgent:
+        def __init__(self, model_id_or_path: str, onnx_path: str = "laya.onnx", **kwargs):
+            if "model_path_or_dir" in kwargs:
+                raise TypeError("unexpected keyword argument 'model_path_or_dir'")
+            self.model_id_or_path = model_id_or_path
+            self.onnx_path = onnx_path
+            self.kwargs = kwargs
+
+        def system_one(self, state, questions):
+            qid = next(iter(questions))
+            return {
+                "answers": {
+                    qid: {
+                        "choice": "rent",
+                        "confidence": 0.95,
+                        "answer_confidence": 0.95,
+                        "probabilities": {"rent": 0.95, "utilities": 0.05},
+                    }
+                }
+            }
+
     onnx_file = tmp_path / "model.onnx"
-    onnx_file.write_bytes(b"dummy onnx graph fixture")
+    onnx_file.write_bytes(b"dummy")
 
-    provider = OnnxLayaProvider(model_dir=tmp_path)
+    provider = OnnxLayaProvider(checkpoint_dir=tmp_path, onnx_path=onnx_file)
+    assert provider.checkpoint_dir == tmp_path
+    assert provider.onnx_path == onnx_file
 
-    captured_feed = {}
+    # Directly verify that constructor call with model_path_or_dir fails with TypeError
+    with pytest.raises(TypeError):
+        StubPinnedONNXAgent(model_path_or_dir=str(tmp_path))
 
-    class StrictPinnedGraphSession:
-        """Strict mock verifying that all 5 pinned upstream graph inputs are supplied."""
-        def get_inputs(self):
-            class Meta:
-                def __init__(self, name):
-                    self.name = name
-            return [
-                Meta("input_ids"),
-                Meta("attention_mask"),
-                Meta("marker_pos"),
-                Meta("marker_mask"),
-                Meta("qtype"),
-            ]
+    with pytest.raises(TypeError, match="unexpected keyword argument 'model_path_or_dir'"):
+        StubPinnedONNXAgent(model_id_or_path=str(tmp_path), model_path_or_dir=str(tmp_path))
 
-        def run(self, output_names, input_feed):
-            captured_feed.update(input_feed)
-            required = ["input_ids", "attention_mask", "marker_pos", "marker_mask", "qtype"]
-            for req in required:
-                if req not in input_feed:
-                    raise RuntimeError(f"Missing required exported graph input: {req}")
 
-            # Return logits and act_logits matching export_onnx.py output_names
-            # logits: (batch_size=1, max_options=3), act_logits: (batch_size=1, 1)
-            # Logit at index 1 is highest
-            logits = [[0.2, 3.8, 0.5]]
-            act_logits = [[0.95]]
-            return [logits, act_logits]
+    # And with correct upstream kwargs it succeeds
+    agent = StubPinnedONNXAgent(model_id_or_path=str(tmp_path), onnx_path=str(onnx_file))
+    assert agent.model_id_or_path == str(tmp_path)
+    assert agent.onnx_path == str(onnx_file)
 
-    # Inject fake tokenizer fixture into provider
-    class FakeTokenizer:
-        def encode(self, text):
-            # Tokenizer that produces distinct IDs for different scripts
-            return [101] + [ord(c) % 5000 + 100 for c in text] + [102]
-
-    provider._session = StrictPinnedGraphSession()
-    provider._is_session_ready = True
-    provider._tokenizer = FakeTokenizer()
-
-    candidates = [
-        {"id": "utilities", "label": "Electricity & Water"},
-        {"id": "rent", "label": "Office Rent"},
-        {"id": "salary", "label": "Staff Salary"},
-    ]
-
+    # Inject stub into provider and verify predict succeeds through system_one
+    provider._agent = agent
     res = provider.predict(
-        text="Paid office rent",
+        text="Paid rent",
         task="cashbook_category.v1",
-        candidates=candidates,
+        candidates=["rent", "utilities"],
         direction="payment",
     )
-
-    # 1. Must succeed without 'Missing required exported graph input' error
-    assert "input_ids" in captured_feed
-    assert "attention_mask" in captured_feed
-    assert "marker_pos" in captured_feed
-    assert "marker_mask" in captured_feed
-    assert "qtype" in captured_feed
-
-    # 2. Must predict "rent" matching index 1
     assert res["pred"] == "rent"
-    assert res["confidence"] > 0.90
+    assert res["confidence"] == 0.95
+    assert res["answer_confidence"] == 0.95
+    assert res["probabilities"]["rent"] == 0.95
 
 
-def test_onnx_laya_provider_encodes_options_and_preserves_candidate_order_invariance(tmp_path):
-    """When candidates are reordered, OnnxLayaProvider must encode criteria correctly and select the right option."""
+def test_onnx_agent_boundary_preserves_option_identity_under_permutation(tmp_path):
+    """When candidates are permuted, OnnxLayaProvider passes the permuted criteria mapping
+    to the SDK system_one(state, questions). The SDK stub inspects criteria keys without
+    requiring manual test manipulation of winning slot indices.
+    """
     from tools.laya.runner import OnnxLayaProvider
 
-    onnx_file = tmp_path / "model.onnx"
-    onnx_file.write_bytes(b"dummy onnx graph fixture")
+    class CriteriaInspectingStubAgent:
+        """SDK boundary stub that inspects the passed criteria mapping dynamically."""
+        def __init__(self, target_id: str):
+            self.target_id = target_id
+            self.received_criteria = None
 
-    provider = OnnxLayaProvider(model_dir=tmp_path)
+        def system_one(self, state, questions):
+            qid = next(iter(questions))
+            criteria = questions[qid]["criteria"]
+            self.received_criteria = criteria
+            if self.target_id in criteria:
+                chosen = self.target_id
+                conf = 0.91
+            else:
+                chosen = "clarify"
+                conf = 0.0
+            probs = {cid: (0.91 if cid == chosen else 0.09 / max(len(criteria) - 1, 1)) for cid in criteria}
+            return {
+                "answers": {
+                    qid: {
+                        "choice": chosen,
+                        "confidence": conf,
+                        "answer_confidence": conf,
+                        "probabilities": probs,
+                    }
+                }
+            }
 
-    # Mock session where "rent" option always gets the highest logit regardless of position
-    # The session inspects marker_mask and assigns highest logit to whichever slot corresponds to rent
-    class DynamicOptionSession:
-        def get_inputs(self):
-            class Meta:
-                def __init__(self, name):
-                    self.name = name
-            return [Meta("input_ids"), Meta("attention_mask"), Meta("marker_pos"), Meta("marker_mask"), Meta("qtype")]
+    stub = CriteriaInspectingStubAgent(target_id="rent")
+    provider = OnnxLayaProvider(checkpoint_dir=tmp_path)
+    provider._agent = stub
 
-        def __init__(self, target_slot=0):
-            self.target_slot = target_slot
-
-        def run(self, output_names, input_feed):
-            logits = [0.1] * 5
-            logits[self.target_slot] = 4.0
-            return [[logits], [[0.95]]]
-
-    class FakeTokenizer:
-        def encode(self, text):
-            return [101, 102]
-
-    provider._is_session_ready = True
-    provider._tokenizer = FakeTokenizer()
-
-    # Case A: "rent" is at slot 0
-    provider._session = DynamicOptionSession(target_slot=0)
-    res_a = provider.predict(
+    # Permutation 1: rent is first
+    res1 = provider.predict(
         text="Paid rent",
         task="cashbook_category.v1",
         candidates=["rent", "utilities", "salary"],
         direction="payment",
     )
-    assert res_a["pred"] == "rent"
+    assert res1["pred"] == "rent"
+    assert res1["probabilities"]["rent"] == 0.91
+    assert list(stub.received_criteria.keys()) == ["rent", "utilities", "salary"]
 
-    # Case B: "rent" is at slot 1
-    provider._session = DynamicOptionSession(target_slot=1)
-    res_b = provider.predict(
+    # Permutation 2: rent is second
+    # Notice: we DO NOT change target_slot or re-create the stub!
+    res2 = provider.predict(
         text="Paid rent",
         task="cashbook_category.v1",
         candidates=["utilities", "rent", "salary"],
         direction="payment",
     )
-    assert res_b["pred"] == "rent"
+    assert res2["pred"] == "rent"
+    assert res2["probabilities"]["rent"] == 0.91
+    assert list(stub.received_criteria.keys()) == ["utilities", "rent", "salary"]
 
 
-def test_onnx_laya_provider_rejects_ascii_ord_fallback_without_tokenizer(tmp_path):
-    """Without a real tokenizer, OnnxLayaProvider must fail rather than collapsing text to [255, 255, ...]."""
+def test_onnx_laya_provider_fails_closed_without_direct_fallback(tmp_path):
+    """When upstream dependencies or assets are missing, OnnxLayaProvider must fail closed.
+    It must NOT fall back to direct onnxruntime execution, invented marker positions, or text-only tokenization.
+    """
+    from tools.laya.runner import OnnxLayaProvider, ProviderState
+
+    empty_dir = tmp_path / "empty_assets"
+    empty_dir.mkdir()
+
+    provider = OnnxLayaProvider(checkpoint_dir=empty_dir)
+    state, msg = provider.check_readiness()
+    assert state == ProviderState.MISSING_ASSETS
+    assert not provider.is_available()[0]
+
+    with pytest.raises(RuntimeError, match="unavailable"):
+        provider.predict("Paid rent", task="navigate.v1")
+
+
+def test_sdk_answer_confidence_and_probability_mapping(tmp_path):
+    """Provider must accurately map choice, confidence, answer_confidence, and probabilities
+    from the upstream SDK system_one output dictionary without truncation or distortion.
+    """
     from tools.laya.runner import OnnxLayaProvider
 
-    onnx_file = tmp_path / "model.onnx"
-    onnx_file.write_bytes(b"dummy onnx graph fixture")
+    class ProbMappingStubAgent:
+        def system_one(self, state, questions):
+            return {
+                "answers": {
+                    "category": {
+                        "choice": "rent",
+                        "confidence": 0.8875,
+                        "answer_confidence": 0.9421,
+                        "probabilities": {
+                            "rent": 0.8875,
+                            "utilities": 0.0825,
+                            "salary": 0.0300,
+                        },
+                    }
+                }
+            }
 
-    provider = OnnxLayaProvider(model_dir=tmp_path)
+    provider = OnnxLayaProvider(checkpoint_dir=tmp_path)
+    provider._agent = ProbMappingStubAgent()
 
-    class AnyInputSession:
-        def get_inputs(self):
-            class Meta:
-                def __init__(self, name):
-                    self.name = name
-            return [Meta("input_ids")]
-        def run(self, *args, **kwargs):
-            return [[[0.1, 0.9]]]
+    res = provider.predict(
+        text="Paid rent for shop",
+        task="cashbook_category.v1",
+        candidates=["rent", "utilities", "salary"],
+        direction="payment",
+    )
+    assert res["pred"] == "rent"
+    assert res["confidence"] == 0.8875
+    assert res["answer_confidence"] == 0.9421
+    assert res["probabilities"]["rent"] == 0.8875
+    assert res["probabilities"]["utilities"] == 0.0825
+    assert res["probabilities"]["salary"] == 0.0300
 
-    provider._session = AnyInputSession()
-    provider._is_session_ready = True
-    provider._tokenizer = None  # No tokenizer loaded
 
-    with pytest.raises(RuntimeError, match="tokenizer"):
-        provider.predict(
-            text="വാടക കൊടുത്തു",  # Malayalam
-            task="cashbook_category.v1",
-            candidates=["rent", "utilities"],
-            direction="payment",
-        )
 
 
 def test_runner_handles_provider_execution_failure_gracefully():

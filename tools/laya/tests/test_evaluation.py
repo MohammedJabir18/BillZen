@@ -264,4 +264,22 @@ def test_evaluation_cli_flags_and_provider_selection(tmp_path):
         nr_data = json.load(f)
     assert nr_data["status"] == "not_run"
     assert "reason" in nr_data
+    assert "provenance" in nr_data
+    assert nr_data["provenance"]["model_id"] == "convaiinnovations/laya-multilingual"
+
+    # 3. Test CLI with explicit --checkpoint-dir and --onnx-path flags for onnx_laya
+    main([
+        "--dataset", str(dataset_file),
+        "--output-dir", str(out_dir),
+        "--provider", "onnx_laya",
+        "--checkpoint-dir", str(tmp_path),
+        "--onnx-path", str(tmp_path / "model_int8.onnx"),
+    ])
+    onnx_nr_file = out_dir / "benchmark_onnx_laya_not_run.json"
+    assert onnx_nr_file.is_file()
+    with onnx_nr_file.open("r", encoding="utf-8") as f:
+        onnx_data = json.load(f)
+    assert onnx_data["status"] == "not_run"
+    assert onnx_data["provenance"]["onnx_path"] == str(tmp_path / "model_int8.onnx")
+
 

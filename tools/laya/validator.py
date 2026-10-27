@@ -186,12 +186,13 @@ def validate_asset_manifest(manifest_dict: Dict[str, Any]) -> Tuple[bool, List[s
 
 
 def verify_asset_file_integrity(
-    manifest_dict: Dict[str, Any], root_dir: Path
+    manifest_dict: Dict[str, Any], root_dir: Path | str
 ) -> Tuple[bool, List[str]]:
     """Verify that physical asset files match their declared sha256 and size_bytes.
     
     Streams file bytes in 64 KiB chunks to avoid large memory allocations during verification.
     Rejects invalid, missing, or empty asset manifests.
+    Accepts root_dir as Path or str.
     """
     errors: List[str] = []
     if not isinstance(manifest_dict, dict):
@@ -201,7 +202,7 @@ def verify_asset_file_integrity(
     if not isinstance(assets, list) or len(assets) == 0:
         return False, ["Manifest assets list must be non-empty"]
 
-    root = root_dir.resolve()
+    root = Path(root_dir).resolve()
 
     for idx, asset in enumerate(assets):
         if not isinstance(asset, dict):
@@ -257,12 +258,13 @@ def verify_asset_file_integrity(
     return (len(errors) == 0), errors
 
 
-def load_and_validate_manifest(path: Path) -> Dict[str, Any]:
-    """Load JSON file and validate against manifest rules."""
-    if not path.is_file():
-        raise ManifestValidationError(f"Manifest file not found: {path}")
+def load_and_validate_manifest(path: Path | str) -> Dict[str, Any]:
+    """Load JSON file and validate against manifest rules. Accepts path as Path or str."""
+    p = Path(path)
+    if not p.is_file():
+        raise ManifestValidationError(f"Manifest file not found: {p}")
 
-    with path.open("r", encoding="utf-8") as f:
+    with p.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     is_valid, errors = validate_asset_manifest(data)

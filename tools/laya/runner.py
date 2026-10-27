@@ -141,14 +141,23 @@ def _build_typed_laya_request(
 
 
 class PythonLayaProvider(EvaluationProvider):
-    """PyTorch / Laya Agent reference execution provider."""
+    """PyTorch / Laya Agent reference execution provider wrapping pinned upstream Laya Agent."""
 
-    def __init__(self, model_dir: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        checkpoint_dir: Optional[Union[Path, str]] = None,
+        model_dir: Optional[Union[Path, str]] = None,
+    ) -> None:
         self.name = "python_laya"
-        self.model_dir = model_dir or (Path(__file__).resolve().parent / "assets")
+        c_dir = checkpoint_dir or model_dir or (Path(__file__).resolve().parent / "assets")
+        self.checkpoint_dir = Path(c_dir)
+        self.model_dir = self.checkpoint_dir
         self._agent = None
 
     def check_readiness(self) -> Tuple[ProviderState, str]:
+        if self._agent is not None:
+            return ProviderState.READY, "Python Laya provider ready (active agent)"
+
         # 1. Hardware memory safety check (safe unquantized load requires >= 4096 MiB)
         avail_mb = _get_available_memory_mb()
         min_required_mb = 4096
@@ -161,11 +170,11 @@ class PythonLayaProvider(EvaluationProvider):
             )
 
         # 2. Checkpoint presence check
-        weights_file = self.model_dir / "model.safetensors"
+        weights_file = self.checkpoint_dir / "model.safetensors"
         if not weights_file.is_file():
             return (
                 ProviderState.MISSING_ASSETS,
-                f"Missing pretrained model weights ({weights_file.name} not found in {self.model_dir})",
+                f"Missing pretrained model weights ({weights_file.name} not found in {self.checkpoint_dir})",
             )
 
         # 3. Upstream Laya package check
@@ -193,45 +202,62 @@ class PythonLayaProvider(EvaluationProvider):
 
         if self._agent is None:
             from laya.agent import Agent
-            self._agent = Agent(model_id_or_path=str(self.model_dir))
+            self._agent = Agent(model_id_or_path=str(self.checkpoint_dir))
 
         res = self._agent.system_one(state, questions)
         ans = res.get("answers", {}).get(qid) or res.get(qid, {})
 
         return {
             "pred": ans.get("choice", "clarify"),
-            "confidence": ans.get("confidence", 0.0),
-            "answer_confidence": ans.get("answer_confidence", 0.0),
+            "confidence": float(ans.get("confidence", 0.0)),
+            "answer_confidence": float(ans.get("answer_confidence", 0.0)),
             "probabilities": ans.get("probabilities", {}),
         }
 
 
 class OnnxLayaProvider(EvaluationProvider):
-    """ONNX Runtime execution provider adhering to pinned Laya fused graph signature."""
+    """ONNX Runtime execution provider wrapping pinned upstream Laya ONNXAgent."""
 
-    def __init__(self, model_dir: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        checkpoint_dir: Optional[Union[Path, str]] = None,
+        onnx_path: Optional[Union[Path, str]] = None,
+        model_dir: Optional[Union[Path, str]] = None,
+    ) -> None:
         self.name = "onnx_laya"
-        self.model_dir = model_dir or (Path(__file__).resolve().parent / "assets")
-        self._session = None
-        self._is_session_ready = False
-        self._tokenizer = None
+        c_dir = checkpoint_dir or model_dir or (Path(__file__).resolve().parent / "assets")
+        self.checkpoint_dir = Path(c_dir)
+        self.model_dir = self.checkpoint_dir
+        if onnx_path is not None:
+            self.onnx_path = Path(onnx_path)
+        else:
+            if (self.checkpoint_dir / "model.onnx").is_file():
+                self.onnx_path = self.checkpoint_dir / "model.onnx"
+            else:
+                self.onnx_path = self.checkpoint_dir / "laya.onnx"
         self._agent = None
 
     def check_readiness(self) -> Tuple[ProviderState, str]:
-        if self._is_session_ready and self._session is not None:
-            return ProviderState.READY, "ONNX Laya provider ready (active session)"
+        if self._agent is not None:
+            return ProviderState.READY, "ONNX Laya provider ready (active agent)"
 
-        onnx_file = self.model_dir / "model.onnx"
-        if not onnx_file.is_file():
+        if not self.onnx_path.is_file():
             return (
                 ProviderState.MISSING_ASSETS,
-                f"Missing exported ONNX model artifact ({onnx_file.name} not found in {self.model_dir})",
+                f"Missing exported ONNX model artifact ({self.onnx_path.name} not found at {self.onnx_path})",
+            )
+
+        if not self.checkpoint_dir.is_dir():
+            return (
+                ProviderState.MISSING_ASSETS,
+                f"Missing model checkpoint directory ({self.checkpoint_dir})",
             )
 
         try:
             import onnxruntime  # type: ignore # noqa: F401
+            import laya.onnx_agent  # type: ignore # noqa: F401
         except ImportError as e:
-            return ProviderState.MISSING_DEPENDENCIES, f"Missing onnxruntime dependency: {e}"
+            return ProviderState.MISSING_DEPENDENCIES, f"Missing ONNX Laya dependencies: {e}"
 
         return ProviderState.READY, "ONNX Laya provider ready"
 
@@ -247,119 +273,19 @@ class OnnxLayaProvider(EvaluationProvider):
             raise RuntimeError(f"OnnxLayaProvider unavailable: {msg}")
 
         state, questions, qid = _build_typed_laya_request(text, task, candidates, direction)
-        q_def = questions[qid]
-        options = list(q_def["criteria"].keys())
 
-        # 1. Prefer upstream ONNXAgent if laya package is installed and session not manually injected
-        if self._session is None:
-            try:
-                from laya.onnx_agent import ONNXAgent
-                if self._agent is None:
-                    self._agent = ONNXAgent(model_path_or_dir=str(self.model_dir))
-                res = self._agent.system_one(state, questions)
-                ans = res.get("answers", {}).get(qid) or res.get(qid, {})
-                return {
-                    "pred": ans.get("choice", "clarify"),
-                    "confidence": ans.get("confidence", 0.0),
-                    "answer_confidence": ans.get("answer_confidence", 0.0),
-                    "probabilities": ans.get("probabilities", {}),
-                }
-            except ImportError:
-                pass
+        if self._agent is None:
+            from laya.onnx_agent import ONNXAgent
+            self._agent = ONNXAgent(model_id_or_path=str(self.checkpoint_dir), onnx_path=str(self.onnx_path))
 
-        # 2. Direct session or injected mock session execution
-        if self._session is None:
-            import onnxruntime as ort
-            onnx_file = self.model_dir / "model.onnx"
-            self._session = ort.InferenceSession(str(onnx_file), providers=["CPUExecutionProvider"])
-            self._is_session_ready = True
-
-        # Lazy load tokenizer if not already injected
-        if self._tokenizer is None:
-            tok_file = self.model_dir / "tokenizer" / "tokenizer.json"
-            if not tok_file.is_file():
-                tok_file = self.model_dir / "tokenizer.json"
-            if tok_file.is_file():
-                try:
-                    from tokenizers import Tokenizer  # type: ignore
-                    self._tokenizer = Tokenizer.from_file(str(tok_file))
-                except ImportError:
-                    pass
-
-        if self._tokenizer is None:
-            raise RuntimeError(
-                "OnnxLayaProvider requires a loaded tokenizer to encode state and question options. "
-                "ASCII ord() fallback is prohibited to preserve multilingual integrity."
-            )
-
-        # Tokenize input using tokenizer
-        if hasattr(self._tokenizer, "encode"):
-            enc = self._tokenizer.encode(text)
-            token_ids = enc.ids if hasattr(enc, "ids") else enc
-        else:
-            raise RuntimeError("Tokenizer does not support encode()")
-
-        input_names = [inp.name for inp in self._session.get_inputs()]
-        input_feed: Dict[str, Any] = {}
-
-        L = max(len(token_ids), 1)
-        k = max(len(options), 2)  # pinned graph expects at least 2 marker columns
-
-        # Prepare the 5 pinned graph inputs
-        if "input_ids" in input_names:
-            input_feed["input_ids"] = [token_ids]
-        if "attention_mask" in input_names:
-            input_feed["attention_mask"] = [[1] * L]
-        if "marker_pos" in input_names:
-            # Option marker positions (start of each option slot)
-            input_feed["marker_pos"] = [[i for i in range(k)]]
-        if "marker_mask" in input_names:
-            # Boolean mask for active option slots
-            mask = [True if i < len(options) else False for i in range(k)]
-            input_feed["marker_mask"] = [mask]
-        if "qtype" in input_names:
-            # 0 for choice questions, 1 for score questions
-            input_feed["qtype"] = [0]
-
-        # If numpy is available, convert to numpy arrays matching dtypes
-        try:
-            import numpy as np  # type: ignore
-            if "input_ids" in input_feed:
-                input_feed["input_ids"] = np.array(input_feed["input_ids"], dtype=np.int64)
-            if "attention_mask" in input_feed:
-                input_feed["attention_mask"] = np.array(input_feed["attention_mask"], dtype=np.int64)
-            if "marker_pos" in input_feed:
-                input_feed["marker_pos"] = np.array(input_feed["marker_pos"], dtype=np.int64)
-            if "marker_mask" in input_feed:
-                input_feed["marker_mask"] = np.array(input_feed["marker_mask"], dtype=bool)
-            if "qtype" in input_feed:
-                input_feed["qtype"] = np.array(input_feed["qtype"], dtype=np.int64)
-        except ImportError:
-            pass
-
-        outputs = self._session.run(None, input_feed)
-        raw_logits = outputs[0]
-        if hasattr(raw_logits, "tolist"):
-            raw_logits = raw_logits.tolist()
-        if isinstance(raw_logits, list) and raw_logits and isinstance(raw_logits[0], list):
-            raw_logits = raw_logits[0]
-
-        # Slice to number of actual options k_actual
-        k_actual = len(options)
-        logits_sliced = [float(x) for x in raw_logits[:k_actual]]
-        probs = _softmax(logits_sliced)
-
-        best_idx = logits_sliced.index(max(logits_sliced)) if logits_sliced else 0
-        pred = options[best_idx] if best_idx < len(options) else "clarify"
-        conf = probs[best_idx] if best_idx < len(probs) else 0.5
-
-        prob_map = {opt: round(probs[i], 4) for i, opt in enumerate(options) if i < len(probs)}
+        res = self._agent.system_one(state, questions)
+        ans = res.get("answers", {}).get(qid) or res.get(qid, {})
 
         return {
-            "pred": pred,
-            "confidence": round(conf, 4),
-            "answer_confidence": round(conf, 4),
-            "probabilities": prob_map,
+            "pred": ans.get("choice", "clarify"),
+            "confidence": float(ans.get("confidence", 0.0)),
+            "answer_confidence": float(ans.get("answer_confidence", 0.0)),
+            "probabilities": ans.get("probabilities", {}),
         }
 
 

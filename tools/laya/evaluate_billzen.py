@@ -483,8 +483,20 @@ def run_benchmark(
 
     provider_name = getattr(provider, "name", "rules") if provider else "rules"
 
+    provenance: Dict[str, Any] = {
+        "model_id": "convaiinnovations/laya-multilingual",
+        "upstream_source_commit": "b9fe351ce81e2d974bca2bf219c1e4030c0a05ea",
+        "checkpoint_revision": "1720e3e3357cfe1e281542e223f8273b0890ca34",
+    }
+    if provider is not None:
+        if hasattr(provider, "checkpoint_dir"):
+            provenance["checkpoint_dir"] = str(provider.checkpoint_dir)
+        if hasattr(provider, "onnx_path"):
+            provenance["onnx_path"] = str(provider.onnx_path)
+
     return {
         "provider": provider_name,
+        "provenance": provenance,
         "abstention_threshold": abstention_threshold,
         "overall": overall,
         "by_task": by_task,
@@ -518,10 +530,22 @@ def parse_args(args: Optional[List[str]] = None) -> Any:
         help="Provider to evaluate: rules (default), python_laya, onnx_laya, or all.",
     )
     parser.add_argument(
+        "--checkpoint-dir",
+        type=str,
+        default=None,
+        help="Path to directory containing model checkpoint (config.json, tokenizer, weights).",
+    )
+    parser.add_argument(
         "--model-dir",
         type=str,
         default=None,
-        help="Path to directory containing model weights/ONNX graphs.",
+        help="Alias for --checkpoint-dir (backwards compatibility).",
+    )
+    parser.add_argument(
+        "--onnx-path",
+        type=str,
+        default=None,
+        help="Specific path to ONNX model graph (e.g. path/to/model.onnx or path/to/model_int8.onnx).",
     )
     parser.add_argument(
         "--threshold",
@@ -573,14 +597,16 @@ def main(cli_args: Optional[List[str]] = None) -> None:
     reports_dir = Path(args.output_dir) if args.output_dir else (Path(__file__).resolve().parent / "reports")
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    model_dir = Path(args.model_dir) if args.model_dir else None
+    c_dir = args.checkpoint_dir or args.model_dir
+    checkpoint_dir = Path(c_dir) if c_dir else None
+    onnx_path = Path(args.onnx_path) if args.onnx_path else None
 
     # Multi-provider evaluation mode
     if args.provider == "all":
         providers = [
             RulesProvider(),
-            PythonLayaProvider(model_dir=model_dir),
-            OnnxLayaProvider(model_dir=model_dir),
+            PythonLayaProvider(checkpoint_dir=checkpoint_dir),
+            OnnxLayaProvider(checkpoint_dir=checkpoint_dir, onnx_path=onnx_path),
         ]
         cases = load_dataset_file(args.dataset) if args.dataset else RAW_CASES
         report = run_multi_provider_evaluation(cases, providers, abstention_threshold=args.threshold)
@@ -595,9 +621,9 @@ def main(cli_args: Optional[List[str]] = None) -> None:
     if args.provider == "rules":
         selected_provider = RulesProvider()
     elif args.provider == "python_laya":
-        selected_provider = PythonLayaProvider(model_dir=model_dir)
+        selected_provider = PythonLayaProvider(checkpoint_dir=checkpoint_dir)
     elif args.provider == "onnx_laya":
-        selected_provider = OnnxLayaProvider(model_dir=model_dir)
+        selected_provider = OnnxLayaProvider(checkpoint_dir=checkpoint_dir, onnx_path=onnx_path)
 
     # Check provider availability
     if selected_provider is not None and args.provider != "rules":
@@ -610,12 +636,20 @@ def main(cli_args: Optional[List[str]] = None) -> None:
                 "reason": msg,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "dataset": args.dataset or "default",
+                "provenance": {
+                    "model_id": "convaiinnovations/laya-multilingual",
+                    "upstream_source_commit": "b9fe351ce81e2d974bca2bf219c1e4030c0a05ea",
+                    "checkpoint_revision": "1720e3e3357cfe1e281542e223f8273b0890ca34",
+                    "checkpoint_dir": str(checkpoint_dir) if checkpoint_dir else None,
+                    "onnx_path": str(onnx_path) if onnx_path else None,
+                },
             }
             out_file = reports_dir / f"benchmark_{args.provider}_not_run.json"
             with out_file.open("w", encoding="utf-8") as f:
                 json.dump(not_run_report, f, indent=2, ensure_ascii=False)
             print(f"Wrote not_run report: {out_file}")
             return
+
 
     # If dataset is explicitly provided, evaluate only that dataset
     if args.dataset:

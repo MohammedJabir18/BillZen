@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0.0",
+  "model_id": "convaiinnovations/laya-multilingual",
+  "checkpoint_revision": "1720e3e3357cfe1e281542e223f8273b0890ca34",
+  "base_encoder": {
+    "id": "jhu-clsp/mmBERT-base",
+    "license": "MIT"
+  },
+  "upstream_source_commit": "b9fe351ce81e2d974bca2bf219c1e4030c0a05ea",
+  "python_package_version": "0.4.16",
+  "rust_crate_version": "0.1.0-unreleased-git",
+  "license": "Apache-2.0",
+  "assets": [
+    {
+      "filename": "model.onnx",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size_bytes": 1,
+      "role": "weights_onnx",
+      "provenance": "locally_exported_onnx"
+    },
+    {
+      "filename": "config.json",
+      "sha256": "7add7c041b53f7091e65908553af79ab3f077946e5f2312d510ae13b17c7c134",
+      "size_bytes": 160,
+      "role": "model_config",
+      "provenance": "upstream_huggingface"
+    },
+    {
+      "filename": "tokenizer/tokenizer.json",
+      "sha256": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f",
+      "size_bytes": 34363188,
+      "role": "tokenizer_vocabulary",
+      "provenance": "upstream_huggingface"
+    },
+    {
+      "filename": "tokenizer/tokenizer_config.json",
+      "sha256": "424b69444bf7b5809dc2cd2e36d0bd71b8055124dd24274d6db3c655d38205e7",
+      "size_bytes": 502,
+      "role": "tokenizer_config",
+      "provenance": "upstream_huggingface"
+    }
+  ],
+  "hardware_target": {
+    "cpu": "11th Gen Intel(R) Core(TM) i3-1115G4 @ 3.00GHz",
+    "min_ram_mb": 4096,
+    "has_accelerator": false
+  },
+  "resource_ceiling": {
+    "max_rss_mb": 500,
+    "max_warm_latency_ms": 750,
+    "max_load_timeout_ms": 5000
+  }
+}
