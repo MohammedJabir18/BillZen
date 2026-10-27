@@ -27,6 +27,7 @@ Updated2026-10-27. This is the bounded entry index for continuing in a fresh cha
 - [d8dd86b contract review](../docs/reviews/2026-10-26-laya-d8dd86b-contract-review.md) and [contract-first correction prompt](../docs/prompts/2026-10-26-antigravity-laya-contract-first.md) — latest:49 tests/CI pass, but providers/schema/runbook disagree with pinned upstream; do not execute external handoff until C1–C3 pass.
 - [8beff7e review](../docs/reviews/2026-10-27-laya-8beff7e-review.md) and [thin-SDK prompt](../docs/prompts/2026-10-27-antigravity-laya-thin-sdk.md) — latest:52 tests pass, dataset/CLI improved; delete handmade ONNX fallback, correct SDK constructor and verify artifact/runbook contracts before external execution.
 - [15e44d7 source-level acceptance](../docs/reviews/2026-10-27-laya-sdk-acceptance.md) and [first real model-pilot prompt](../docs/prompts/2026-10-27-antigravity-laya-first-model-pilot.md) — latest:55 tests pass, narrow SDK correction accepted; actual model evidence pending a safe available environment and real derived manifest.
+- [d7604b8 preflight blocker review](../docs/reviews/2026-10-27-laya-preflight-blocker-review.md) — local heavy-work pause accepted; quoted model peak RAM is unmeasured. Next: owner identifies an existing pilot environment; no more mock-only foundation work.
 - [Published desktop delivery](../docs/distribution-v0.1.6.md) and [current project README](../README.md).
 
 ## Memory rules

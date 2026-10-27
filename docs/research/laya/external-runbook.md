@@ -2,7 +2,7 @@
 
 > **Pilot preflight2026-10-27:** Thin-SDK source/fixture correction is accepted for research; real model execution is not yet verified. Follow the [source-level acceptance and artifact preflight](../../reviews/2026-10-27-laya-sdk-acceptance.md) before heavy commands. The derived ONNX manifest is a placeholder until actual exported hashes/sizes/full SDK metadata are generated and byte-verified. A structural schema pass or dummy-fixture not_run smoke is not a model integrity/performance result.
 
-> **8beff7e review gate:** Dataset/CLI/hash corrections are improvements, but [remaining SDK/artifact contract issues](../../reviews/2026-10-27-laya-8beff7e-review.md) still block external execution. Correct the ONNXAgent constructor/remove the homemade fallback, smoke-test Path APIs and separate original-checkpoint from derived-bundle manifests first. No real-model compatibility has been demonstrated.
+> **Historical 8beff7e review:** The [SDK contract issues](../../reviews/2026-10-27-laya-8beff7e-review.md) were corrected and source-level acceptance is recorded above. Do not repeat those fixes. The [current preflight blocker](../../reviews/2026-10-27-laya-preflight-blocker-review.md) is an identified suitable execution environment; model compatibility and resource use remain unmeasured.
 
 **Target Upstream Revision**: `b9fe351ce81e2d974bca2bf219c1e4030c0a05ea`  
 **Base Model**: `convaiinnovations/laya-multilingual` (Apache 2.0)  
@@ -37,7 +37,7 @@ The verified base model files and their cryptographic SHA-256 hashes matching th
 
 To maintain system stability and prevent optimistic assumptions:
 - **Available RAM vs Total RAM**: Total system RAM must be distinguished from currently *available* free RAM.
-- **Preparation & Export Budget**: Requires **>= 4.0 GiB available RAM** (8.0 GiB recommended) and >= 5.0 GiB free disk space. A 10-minute wall-clock execution limit is enforced on export via `timeout 600`.
+- **Preparation & Export Budget**: Conservative project policy gates preparation on **>= 4.0 GiB available RAM** (8.0 GiB preferred) and >= 5.0 GiB free disk space. This is not a measured model minimum or guarantee of sufficient resources; actual peak RSS is unmeasured. A 10-minute wall-clock execution limit is enforced on export via `timeout 600`.
   > [!IMPORTANT]
   > Note that `timeout 600` bounds execution wall time, but does NOT isolate process memory or enforce an OS-level RSS ceiling. Process-level memory containment in an isolated sub-worker is required during runtime execution and remains to be demonstrated on the target host.
 - **Target Desktop Inference Budget** (matching `asset_manifest.json`): 
