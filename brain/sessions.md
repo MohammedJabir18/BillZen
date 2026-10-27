@@ -1911,6 +1911,14 @@
   - `cargo test --manifest-path src-tauri/Cargo.toml`: 128 tests passed.
   - Dataset regeneration: byte-identical 0 diff in `tools/laya/datasets/`.
 
+### 2026-10-27 — 15e44d7 thin-SDK source acceptance; first real pilot next
+
+- Owner supplied Antigravity A1–A3 correction/smoke output for compatibility review. Inspected actual15e44d7d60b376faa3ad65b0fde7c8f565ce914e including73e6e2c, SDK wrapper/tests/runbook/manifests, current memory and Graphify2494nodes/5375links(102 relevant). Working tree initially clean; local/remoteSHA match. Fresh55 pytest passed in0.13s, isolated dataset regeneration zero byte diff. Separate FP32/INT8 missing-asset CLI smoke reports not_run and preserves requested graph paths. No actual weights loaded or model run.
+- Accepted the narrowed source/SDK-boundary correction: constructor matches previously inspected pinned upstream signature, direct homemade fallback deleted, SDK criteria/result mapping tests improved, Path/string APIs work, CLI paths separate, tiny fixture integrity tested. No broad foundation redo recommended. ExactCI40428603070 AI Tooling/Rust success, Frontend in_progress at observation. Do not claim full CI passed prematurely or a dummy graph smoke is actual inference.
+- Operational preflight remains: safe available external environment, immutable complete checkpoint, actual SDK version/file/device provenance, bounded research process and derived ONNX manifest filled from real export. Currenttemplate model.onnx hash=zeros,size1 is not verified artifact evidence. Source/policy acceptance does not establish model quality/RSS/quantization fit or production Tasks4/5 readiness. Heavy laptop no-go retained; no paid service/hardware/training authorized by review.
+- Added docs/reviews/2026-10-27-laya-sdk-acceptance.md and docs/prompts/2026-10-27-antigravity-laya-first-model-pilot.md; latest memory/runbook pilot-preflight pointers updated. Recommendation is first real Python reference then ONNX parity/optionalINT8 on an existing safe environment, or a precise external resource blocker. Only review documentation changed in this chat; app/B1 source untouched.
+- Documentation verification passed37 local Markdown targets/fences/conditional pilot markers and git whitespace check. Code-only Graphify refresh2496nodes/5382links/183communities;10 SQL files lack parser and11 out-of-scan source-file nodes retained, no semantic extraction/upload. Verified configured owner identities before documentation delivery; newdocCI remains separate from reviewed implementationCI.
+
 
 
 

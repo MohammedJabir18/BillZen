@@ -1,5 +1,7 @@
 # Reproducible Laya Export and Evaluation Runbook (CPU-Capable)
 
+> **Pilot preflight2026-10-27:** Thin-SDK source/fixture correction is accepted for research; real model execution is not yet verified. Follow the [source-level acceptance and artifact preflight](../../reviews/2026-10-27-laya-sdk-acceptance.md) before heavy commands. The derived ONNX manifest is a placeholder until actual exported hashes/sizes/full SDK metadata are generated and byte-verified. A structural schema pass or dummy-fixture not_run smoke is not a model integrity/performance result.
+
 > **8beff7e review gate:** Dataset/CLI/hash corrections are improvements, but [remaining SDK/artifact contract issues](../../reviews/2026-10-27-laya-8beff7e-review.md) still block external execution. Correct the ONNXAgent constructor/remove the homemade fallback, smoke-test Path APIs and separate original-checkpoint from derived-bundle manifests first. No real-model compatibility has been demonstrated.
 
 **Target Upstream Revision**: `b9fe351ce81e2d974bca2bf219c1e4030c0a05ea`  
